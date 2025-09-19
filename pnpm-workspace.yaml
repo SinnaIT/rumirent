@@ -1,0 +1,4 @@
+minimunReleaseAge: 3600
+
+minimunReleaseAgeExclude:
+  - react

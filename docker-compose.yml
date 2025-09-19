@@ -1,0 +1,84 @@
+# Docker Compose para desarrollo
+version: '3.8'
+
+services:
+  # Base de datos PostgreSQL
+  db:
+    image: postgres:16-alpine
+    container_name: rumirent-db-dev
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: rumirent_user
+      POSTGRES_PASSWORD: rumirent_password
+      POSTGRES_DB: contractor_db_dev
+      POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --lc-collate=es_ES.UTF-8 --lc-ctype=es_ES.UTF-8"
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./docker/postgres/init:/docker-entrypoint-initdb.d
+    networks:
+      - rumirent-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U rumirent_user -d contractor_db_dev"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Aplicación Next.js (desarrollo con hot reload)
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: rumirent-app-dev
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=development
+      - DATABASE_URL=postgresql://rumirent_user:rumirent_password@db:5432/contractor_db_dev
+      - JWT_SECRET=dev-jwt-secret-change-in-production-32chars
+      - JWT_EXPIRES_IN=7d
+      - NEXTAUTH_URL=http://localhost:3000
+      - DEBUG=true
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - /app/.next
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - rumirent-network
+    command: npm run dev
+
+  # Prisma Studio (opcional)
+  prisma-studio:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: rumirent-prisma-studio
+    restart: unless-stopped
+    ports:
+      - "5555:5555"
+    environment:
+      - DATABASE_URL=postgresql://rumirent_user:rumirent_password@db:5432/contractor_db_dev
+    volumes:
+      - .:/app
+      - /app/node_modules
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - rumirent-network
+    command: npx prisma studio --hostname 0.0.0.0
+    profiles:
+      - tools
+
+volumes:
+  postgres_data:
+    driver: local
+
+networks:
+  rumirent-network:
+    driver: bridge

@@ -1,0 +1,44 @@
+{
+  "rumirent": {
+    "spacing": {
+      "xs": "0.25rem",
+      "sm": "0.5rem",
+      "md": "0.75rem",
+      "lg": "1rem",
+      "xl": "1.25rem",
+      "2xl": "1.5rem",
+      "3xl": "2rem",
+      "4xl": "2.5rem",
+      "5xl": "3rem",
+      "6xl": "4rem",
+      "7xl": "5rem",
+      "8xl": "6rem"
+    },
+    "radius": {
+      "none": "0",
+      "sm": "calc(var(--radius) - 4px)",
+      "md": "calc(var(--radius) - 2px)",
+      "lg": "var(--radius)",
+      "xl": "calc(var(--radius) + 4px)",
+      "full": "9999px"
+    },
+    "containers": {
+      "xs": "20rem",
+      "sm": "24rem",
+      "md": "28rem",
+      "lg": "32rem",
+      "xl": "36rem",
+      "2xl": "42rem",
+      "3xl": "48rem",
+      "4xl": "56rem",
+      "5xl": "64rem",
+      "6xl": "72rem",
+      "7xl": "80rem"
+    },
+    "grid": {
+      "gutter": "1rem",
+      "margin": "1rem",
+      "columns": 12
+    }
+  }
+}

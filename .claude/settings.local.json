@@ -1,0 +1,27 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__playwright__browser_take_screenshot",
+      "mcp__playwright__browser_type",
+      "mcp__playwright__browser_click",
+      "mcp__playwright__browser_resize",
+      "mcp__playwright__browser_close",
+      "Bash(npx prisma migrate:*)",
+      "mcp__playwright__browser_navigate",
+      "mcp__playwright__browser_wait_for",
+      "mcp__playwright__browser_evaluate",
+      "mcp__playwright__browser_tabs",
+      "Bash(npx shadcn add:*)",
+      "Bash(npx prisma generate:*)",
+      "Bash(npx prisma db seed:*)",
+      "mcp__playwright__browser_snapshot",
+      "Bash(curl:*)",
+      "mcp__playwright__browser_console_messages",
+      "Bash(pnpm db:generate:*)",
+      "Bash(pnpm db:migrate:*)",
+      "Bash(pnpm db:seed:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

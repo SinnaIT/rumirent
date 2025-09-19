@@ -1,0 +1,23 @@
+# Dockerfile para desarrollo con hot reload
+FROM node:20-alpine
+
+# Instalar dependencias para desarrollo
+RUN apk add --no-cache libc6-compat
+
+WORKDIR /app
+
+# Copiar archivos de dependencias
+COPY package*.json ./
+RUN npm ci
+
+# Copiar código fuente
+COPY . .
+
+# Generar Prisma client
+RUN npx prisma generate
+
+# Exponer puerto
+EXPOSE 3000
+
+# Comando por defecto (puede ser sobrescrito en docker-compose)
+CMD ["npm", "run", "dev"]

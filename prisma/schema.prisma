@@ -1,0 +1,178 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String     @id @default(cuid())
+  email     String     @unique
+  password  String
+  nombre    String
+  rut       String     @unique
+  telefono  String?
+  role      Role       @default(CONTRATISTA)
+  activo    Boolean    @default(true)
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  contratos Contrato[]
+  clientes  Cliente[]  @relation("ClienteContratista")
+
+  @@map("users")
+}
+
+model Edificio {
+  id                 String                     @id @default(cuid())
+  nombre             String
+  direccion          String
+  descripcion        String?
+  estado             EstadoEdificio             @default(PLANIFICACION)
+  comisionId         String
+  createdAt          DateTime                   @default(now())
+  updatedAt          DateTime                   @updatedAt
+  comision           Comision                   @relation(fields: [comisionId], references: [id])
+  cambiosProgramados CambioComisionProgramado[]
+  unidades           Unidad[]
+  tiposUnidad        TipoUnidadEdificio[]
+  contratos          Contrato[]                 @relation("ContratoEdificio")
+
+  @@map("edificios")
+}
+
+model TipoUnidadEdificio {
+  id                 String                     @id @default(cuid())
+  nombre             String
+  codigo             String
+  comisionId         String
+  createdAt          DateTime                   @default(now())
+  updatedAt          DateTime                   @updatedAt
+  edificioId         String
+  edificio           Edificio                   @relation(fields: [edificioId], references: [id], onDelete: Cascade)
+  comision           Comision                   @relation("TipoUnidadComision", fields: [comisionId], references: [id])
+  unidades           Unidad[]
+  cambiosProgramados CambioComisionProgramado[]
+
+  @@unique([edificioId, codigo])
+  @@map("tipos_unidad_edificio")
+}
+
+model Unidad {
+  id                   String             @id @default(cuid())
+  numero               String
+  estado               EstadoUnidad       @default(DISPONIBLE)
+  descripcion          String?
+  metros2              Float?
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+  edificioId           String
+  tipoUnidadEdificioId String
+  contratos            Contrato?
+  edificio             Edificio           @relation(fields: [edificioId], references: [id], onDelete: Cascade)
+  tipoUnidadEdificio   TipoUnidadEdificio @relation(fields: [tipoUnidadEdificioId], references: [id])
+
+  @@unique([edificioId, numero])
+  @@map("unidades")
+}
+
+model Cliente {
+  id            String     @id @default(cuid())
+  nombre        String
+  rut           String     @unique
+  email         String?
+  telefono      String?
+  contratistaId String
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+  contratista   User       @relation("ClienteContratista", fields: [contratistaId], references: [id])
+  contratos     Contrato[]
+
+  @@map("clientes")
+}
+
+model Contrato {
+  id                    String         @id @default(cuid())
+  codigoUnidad          String?
+  totalContrato         Float
+  montoUf               Float
+  comision              Float
+  estado                EstadoContrato @default(ENTREGADO)
+  fechaPagoReserva      DateTime?
+  fechaPagoContrato     DateTime?
+  fechaCheckin          DateTime?
+  postulacion           String?
+  observaciones         String?
+  createdAt             DateTime       @default(now())
+  updatedAt             DateTime       @updatedAt
+  contratistaId         String
+  clienteId             String
+  unidadId              String?        @unique
+  edificioId            String
+  contratista           User           @relation(fields: [contratistaId], references: [id])
+  cliente               Cliente        @relation(fields: [clienteId], references: [id])
+  unidad                Unidad?        @relation(fields: [unidadId], references: [id])
+  edificio              Edificio       @relation("ContratoEdificio", fields: [edificioId], references: [id])
+
+  @@map("contratos")
+}
+
+model Comision {
+  id                 String                     @id @default(cuid())
+  nombre             String                     @unique
+  codigo             String                     @unique
+  porcentaje         Float
+  activa             Boolean                    @default(true)
+  createdAt          DateTime                   @default(now())
+  updatedAt          DateTime                   @updatedAt
+  edificios          Edificio[]
+  tiposUnidad        TipoUnidadEdificio[]       @relation("TipoUnidadComision")
+  cambiosProgramados CambioComisionProgramado[]
+
+  @@map("comisiones")
+}
+
+model CambioComisionProgramado {
+  id                   String              @id @default(cuid())
+  fechaCambio          DateTime
+  comisionId           String
+  edificioId           String
+  tipoUnidadEdificioId String?
+  ejecutado            Boolean             @default(false)
+  createdAt            DateTime            @default(now())
+  updatedAt            DateTime            @updatedAt
+  comision             Comision            @relation(fields: [comisionId], references: [id], onDelete: Cascade)
+  edificio             Edificio            @relation(fields: [edificioId], references: [id], onDelete: Cascade)
+  tipoUnidadEdificio   TipoUnidadEdificio? @relation(fields: [tipoUnidadEdificioId], references: [id], onDelete: SetNull)
+
+  @@map("cambios_comision_programados")
+}
+
+
+
+enum Role {
+  ADMIN
+  CONTRATISTA
+}
+
+enum EstadoEdificio {
+  PLANIFICACION
+  CONSTRUCCION
+  COMPLETADO
+}
+
+enum EstadoUnidad {
+  DISPONIBLE
+  RESERVADA
+  VENDIDA
+}
+
+enum EstadoContrato {
+  ENTREGADO
+  RESERVA_PAGADA
+  APROBADO
+  RECHAZADO
+}
+
+

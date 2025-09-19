@@ -1,0 +1,41 @@
+# Docker Compose solo para base de datos
+# Útil cuando quieres desarrollar localmente pero usar DB en Docker
+version: '3.8'
+
+services:
+  # Solo PostgreSQL
+  db:
+    image: postgres:16-alpine
+    container_name: rumirent-db-only
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: rumirent_user
+      POSTGRES_PASSWORD: rumirent_password
+      POSTGRES_DB: contractor_db_dev
+      POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --lc-collate=es_ES.UTF-8 --lc-ctype=es_ES.UTF-8"
+    ports:
+      - "5455:5432"
+    volumes:
+      - postgres_db_only_data:/var/lib/postgresql/data
+      - ./docker/postgres/init:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U rumirent_user -d contractor_db_dev"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Adminer para administración de DB (opcional)
+  adminer:
+    image: adminer:latest
+    container_name: rumirent-adminer
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    depends_on:
+      - db
+    profiles:
+      - tools
+
+volumes:
+  postgres_db_only_data:
+    driver: local

@@ -1,0 +1,48 @@
+# Dependencias
+node_modules
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# Build
+.next
+out
+build
+
+# Archivos de entorno (se manejan via docker-compose)
+.env*
+!.env.example
+
+# Git
+.git
+.gitignore
+
+# Docker
+Dockerfile*
+docker-compose*.yml
+.dockerignore
+
+# IDEs
+.vscode
+.idea
+*.swp
+*.swo
+
+# Logs
+logs
+*.log
+
+# Temporal
+.DS_Store
+*.tsbuildinfo
+
+# Testing
+coverage
+.nyc_output
+
+# Prisma (se genera en build)
+prisma/migrations/
+
+# Misc
+README*.md
