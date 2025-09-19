@@ -149,8 +149,6 @@ model CambioComisionProgramado {
   @@map("cambios_comision_programados")
 }
 
-
-
 enum Role {
   ADMIN
   CONTRATISTA
@@ -174,5 +172,3 @@ enum EstadoContrato {
   APROBADO
   RECHAZADO
 }
-
-

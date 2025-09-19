@@ -1,6 +1,7 @@
 import bcrypt from 'bcryptjs'
 import { cookies } from 'next/headers'
 import { SignJWT, jwtVerify } from 'jose'
+import { prisma } from '@/lib/db'
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key'
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '7d'
@@ -34,7 +35,18 @@ export async function verifyToken(token: string): Promise<JWTPayload | null> {
   try {
     const secret = new TextEncoder().encode(JWT_SECRET)
     const { payload } = await jwtVerify(token, secret)
-    return payload as JWTPayload
+    const jwtPayload = payload as JWTPayload
+
+    // Verificar que el usuario aún existe en la base de datos
+    const userExists = await prisma.user.findUnique({
+      where: { id: jwtPayload.userId }
+    })
+
+    if (!userExists) {
+      return null
+    }
+
+    return jwtPayload
   } catch (error) {
     return null
   }
