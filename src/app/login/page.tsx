@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Building2, Mail, Lock, Eye, EyeOff, HelpCircle } from 'lucide-react'
+import { AuthRedirect } from '@/components/AuthRedirect'
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
@@ -11,6 +12,7 @@ export default function LoginPage() {
   const [rememberMe, setRememberMe] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [loginSuccess, setLoginSuccess] = useState<{ role: 'ADMIN' | 'CONTRATISTA', token: string } | null>(null)
   const router = useRouter()
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -37,21 +39,24 @@ export default function LoginPage() {
         throw new Error(data.error || 'Error en el login')
       }
 
-      console.log('Login exitoso, redirigiendo...')
-      // Redirect based on user role
-      if (data.user.role === 'ADMIN') {
-        console.log('Redirigiendo a /admin')
-        router.push('/admin')
-      } else {
-        console.log('Redirigiendo a /contratista')
-        router.push('/contratista')
-      }
+      console.log('Login exitoso, iniciando redirección...')
+
+      // Set login success state to trigger AuthRedirect component
+      setLoginSuccess({
+        role: data.user.role as 'ADMIN' | 'CONTRATISTA',
+        token: data.token
+      })
     } catch (error) {
       console.error('Error en login:', error)
       setError(error instanceof Error ? error.message : 'Error en el login')
     } finally {
       setLoading(false)
     }
+  }
+
+  // If login was successful, show redirect component
+  if (loginSuccess) {
+    return <AuthRedirect role={loginSuccess.role} token={loginSuccess.token} />
   }
 
   return (

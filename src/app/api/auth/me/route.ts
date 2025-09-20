@@ -5,9 +5,17 @@ import { prisma } from '@/lib/db'
 
 export async function GET(request: NextRequest) {
   try {
+    // Check both cookie and Authorization header
     const cookieStore = await cookies()
-    const token = cookieStore.get('auth-token')?.value
-    console.log(token)
+    const cookieToken = cookieStore.get('auth-token')?.value
+    const authHeader = request.headers.get('Authorization')
+    const headerToken = authHeader?.replace('Bearer ', '')
+
+    const token = cookieToken || headerToken
+    console.log('Cookie token:', !!cookieToken)
+    console.log('Header token:', !!headerToken)
+    console.log('Final token:', !!token)
+
     if (!token) {
       return NextResponse.json(
         { error: 'No autorizado' },

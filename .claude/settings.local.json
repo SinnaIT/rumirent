@@ -20,7 +20,8 @@
       "Bash(pnpm db:generate:*)",
       "Bash(pnpm db:migrate:*)",
       "Bash(pnpm db:seed:*)",
-      "Bash(set PRISMA_USER_CONSENT_FOR_DANGEROUS_AI_ACTION=si)"
+      "Bash(set PRISMA_USER_CONSENT_FOR_DANGEROUS_AI_ACTION=si)",
+      "Bash(node:*)"
     ],
     "deny": [],
     "ask": []

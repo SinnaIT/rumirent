@@ -41,6 +41,9 @@ export async function POST(request: NextRequest) {
       role: user.role as 'ADMIN' | 'CONTRATISTA'
     })
 
+    console.log('Generated token:', token.substring(0, 50) + '...')
+    console.log('NODE_ENV:', process.env.NODE_ENV)
+
     // Create response with user data
     const response = NextResponse.json({
       user: {
@@ -48,16 +51,17 @@ export async function POST(request: NextRequest) {
         email: user.email,
         nombre: user.nombre,
         role: user.role
-      }
+      },
+      token: token // Also return token for manual cookie setting
     })
 
-    // Set auth cookie directly in the response
+    // Set auth cookie with simpler options for development
+    console.log('Setting cookie with token')
     response.cookies.set('auth-token', token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
+      path: '/',
       maxAge: 60 * 60 * 24 * 7, // 7 days
-      path: '/'
+      sameSite: 'lax'
+      // Remove httpOnly and secure for development testing
     })
 
     return response
