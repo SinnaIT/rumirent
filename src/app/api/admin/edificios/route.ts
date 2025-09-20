@@ -25,7 +25,7 @@ export async function GET(request: NextRequest) {
 
     console.log('✅ Usuario autorizado, consultando edificios...')
 
-    // Obtener edificios con estadísticas de unidades
+    // Obtener edificios con estadísticas de unidades y comisión
     const edificios = await prisma.edificio.findMany({
       include: {
         _count: {
@@ -42,6 +42,15 @@ export async function GET(request: NextRequest) {
                 codigo: true
               }
             }
+          }
+        },
+        comision: {
+          select: {
+            id: true,
+            nombre: true,
+            codigo: true,
+            porcentaje: true,
+            activa: true
           }
         }
       },
@@ -71,6 +80,7 @@ export async function GET(request: NextRequest) {
         direccion: edificio.direccion,
         descripcion: edificio.descripcion,
         estado: edificio.estado,
+        comision: edificio.comision,
         totalUnidades: edificio._count.unidades,
         unidadesDisponibles,
         unidadesVendidas,
