@@ -30,17 +30,40 @@ interface TipoUnidad {
   cantidad: number
 }
 
+interface TipoUnidadDetail {
+  id: string
+  nombre: string
+  codigo: string
+  comisionId: string
+  comision: {
+    id: string
+    nombre: string
+    codigo: string
+    porcentaje: number
+    activa: boolean
+  }
+  _count: {
+    unidades: number
+  }
+  createdAt: string
+  updatedAt: string
+}
+
+interface Comision {
+  id: string
+  nombre: string
+  codigo: string
+  porcentaje: number
+  activa: boolean
+}
+
 interface Unidad {
   id: string
   numero: string
-  tipo: 'STUDIO' | 'UN_DORMITORIO' | 'DOS_DORMITORIOS' | 'TRES_DORMITORIOS' | 'PENTHOUSE'
-  precio: number
+  tipo: string
   estado: 'DISPONIBLE' | 'RESERVADA' | 'VENDIDA'
-  prioridad: 'BAJA' | 'MEDIA' | 'ALTA' | 'URGENTE'
   descripcion?: string
   metros2?: number
-  createdAt: string
-  updatedAt: string
 }
 
 interface EdificioDetail {
@@ -55,6 +78,13 @@ interface EdificioDetail {
   unidadesReservadas: number
   unidades: Unidad[]
   tiposUnidad: TipoUnidad[]
+  comision?: {
+    id: string
+    nombre: string
+    codigo: string
+    porcentaje: number
+    activa: boolean
+  }
   createdAt: string
   updatedAt: string
 }
@@ -75,6 +105,13 @@ export default function ProyectoDetailPage() {
   const [editingUnidad, setEditingUnidad] = useState<Unidad | null>(null)
   const [activeTab, setActiveTab] = useState('tipos-unidad')
 
+  // Tipos de unidad state
+  const [tiposUnidadDetalle, setTiposUnidadDetalle] = useState<TipoUnidadDetail[]>([])
+  const [comisiones, setComisiones] = useState<Comision[]>([])
+  const [isCreateTipoUnidadDialogOpen, setIsCreateTipoUnidadDialogOpen] = useState(false)
+  const [editingTipoUnidad, setEditingTipoUnidad] = useState<TipoUnidadDetail | null>(null)
+  const [loadingTiposUnidad, setLoadingTiposUnidad] = useState(false)
+
 
   // Form state for unidades
   const [unidadFormData, setUnidadFormData] = useState({
@@ -87,11 +124,25 @@ export default function ProyectoDetailPage() {
     metros2: ''
   })
 
+  // Form state for tipos de unidad
+  const [tipoUnidadFormData, setTipoUnidadFormData] = useState({
+    nombre: '',
+    codigo: '',
+    comisionId: ''
+  })
+
   useEffect(() => {
     if (params.id) {
       fetchEdificio()
+      fetchComisiones()
     }
   }, [params.id])
+
+  useEffect(() => {
+    if (params.id && activeTab === 'tipos-unidad') {
+      fetchTiposUnidadDetalle()
+    }
+  }, [params.id, activeTab])
 
   const fetchEdificio = async () => {
     try {
@@ -114,7 +165,128 @@ export default function ProyectoDetailPage() {
     }
   }
 
+  const fetchTiposUnidadDetalle = async () => {
+    try {
+      setLoadingTiposUnidad(true)
+      const response = await fetch(`/api/admin/edificios/${params.id}/tipos-unidad`)
+      const data = await response.json()
 
+      if (data.success) {
+        setTiposUnidadDetalle(data.tiposUnidad)
+      } else {
+        toast.error('Error al cargar tipos de unidad')
+      }
+    } catch (error) {
+      console.error('Error:', error)
+      toast.error('Error de conexión')
+    } finally {
+      setLoadingTiposUnidad(false)
+    }
+  }
+
+  const fetchComisiones = async () => {
+    try {
+      const response = await fetch('/api/admin/comisiones')
+      const data = await response.json()
+
+      if (data.success) {
+        setComisiones(data.comisiones)
+      } else {
+        console.error('Error al cargar comisiones')
+      }
+    } catch (error) {
+      console.error('Error:', error)
+    }
+  }
+
+
+
+  // Tipo Unidad management functions
+  const resetTipoUnidadForm = () => {
+    setTipoUnidadFormData({
+      nombre: '',
+      codigo: '',
+      comisionId: ''
+    })
+    setEditingTipoUnidad(null)
+  }
+
+  const handleOpenCreateTipoUnidadDialog = () => {
+    resetTipoUnidadForm()
+    setIsCreateTipoUnidadDialogOpen(true)
+  }
+
+  const handleOpenEditTipoUnidadDialog = (tipoUnidad: TipoUnidadDetail) => {
+    setTipoUnidadFormData({
+      nombre: tipoUnidad.nombre,
+      codigo: tipoUnidad.codigo,
+      comisionId: tipoUnidad.comisionId || 'none'
+    })
+    setEditingTipoUnidad(tipoUnidad)
+    setIsCreateTipoUnidadDialogOpen(true)
+  }
+
+  const handleSubmitTipoUnidad = async () => {
+    if (!tipoUnidadFormData.nombre.trim() || !tipoUnidadFormData.codigo.trim()) {
+      toast.error('Nombre y código son requeridos')
+      return
+    }
+
+    try {
+      setSaving(true)
+      const url = editingTipoUnidad
+        ? `/api/admin/edificios/${params.id}/tipos-unidad/${editingTipoUnidad.id}`
+        : `/api/admin/edificios/${params.id}/tipos-unidad`
+
+      const method = editingTipoUnidad ? 'PUT' : 'POST'
+
+      const response = await fetch(url, {
+        method,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(tipoUnidadFormData)
+      })
+
+      const data = await response.json()
+
+      if (data.success) {
+        toast.success(data.message)
+        setIsCreateTipoUnidadDialogOpen(false)
+        resetTipoUnidadForm()
+        fetchTiposUnidadDetalle()
+        fetchEdificio() // Refresh para actualizar estadísticas
+      } else {
+        toast.error(data.error)
+      }
+    } catch (error) {
+      console.error('Error:', error)
+      toast.error('Error de conexión')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleDeleteTipoUnidad = async (tipoUnidad: TipoUnidadDetail) => {
+    try {
+      const response = await fetch(`/api/admin/edificios/${params.id}/tipos-unidad/${tipoUnidad.id}`, {
+        method: 'DELETE'
+      })
+
+      const data = await response.json()
+
+      if (data.success) {
+        toast.success(data.message)
+        fetchTiposUnidadDetalle()
+        fetchEdificio() // Refresh para actualizar estadísticas
+      } else {
+        toast.error(data.error)
+      }
+    } catch (error) {
+      console.error('Error:', error)
+      toast.error('Error de conexión')
+    }
+  }
 
   // Unidad management functions
   const resetUnidadForm = () => {
@@ -182,7 +354,7 @@ export default function ProyectoDetailPage() {
         },
         body: JSON.stringify({
           numero: unidadFormData.numero,
-          tipo: unidadFormData.tipo,
+          tipoUnidadEdificioId: unidadFormData.tipo,
           precio,
           estado: unidadFormData.estado,
           prioridad: unidadFormData.prioridad,
@@ -360,16 +532,106 @@ export default function ProyectoDetailPage() {
                     Gestiona los tipos de unidades disponibles en este proyecto
                   </CardDescription>
                 </div>
+                <Dialog open={isCreateTipoUnidadDialogOpen} onOpenChange={setIsCreateTipoUnidadDialogOpen}>
+                  <DialogTrigger asChild>
+                    <Button onClick={handleOpenCreateTipoUnidadDialog}>
+                      <Plus className="w-4 h-4 mr-2" />
+                      Nuevo Tipo
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="sm:max-w-[500px]">
+                    <DialogHeader>
+                      <DialogTitle>
+                        {editingTipoUnidad ? 'Editar Tipo de Unidad' : 'Nuevo Tipo de Unidad'}
+                      </DialogTitle>
+                      <DialogDescription>
+                        {editingTipoUnidad
+                          ? 'Modifica los datos del tipo de unidad existente'
+                          : 'Crea un nuevo tipo de unidad para este proyecto'
+                        }
+                      </DialogDescription>
+                    </DialogHeader>
+
+                    <div className="grid gap-4 py-4">
+                      <div className="grid grid-cols-1 gap-2">
+                        <Label htmlFor="nombre">Nombre del Tipo *</Label>
+                        <Input
+                          id="nombre"
+                          value={tipoUnidadFormData.nombre}
+                          onChange={(e) => setTipoUnidadFormData({ ...tipoUnidadFormData, nombre: e.target.value })}
+                          placeholder="ej: Studio, 1 Dormitorio, Penthouse"
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-1 gap-2">
+                        <Label htmlFor="codigo">Código *</Label>
+                        <Input
+                          id="codigo"
+                          value={tipoUnidadFormData.codigo}
+                          onChange={(e) => setTipoUnidadFormData({ ...tipoUnidadFormData, codigo: e.target.value.toUpperCase() })}
+                          placeholder="ej: STU, 1D, PH"
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-1 gap-2">
+                        <Label htmlFor="comision">
+                          Comisión
+                          <span className="text-muted-foreground text-sm ml-1">(opcional - usa la del proyecto si no se especifica)</span>
+                        </Label>
+                        <Select
+                          value={tipoUnidadFormData.comisionId}
+                          onValueChange={(value: string) => setTipoUnidadFormData({ ...tipoUnidadFormData, comisionId: value })}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Usar comisión del proyecto" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="none">Usar comisión del proyecto</SelectItem>
+                            {comisiones.map((comision) => (
+                              <SelectItem key={comision.id} value={comision.id}>
+                                {comision.nombre} ({(comision.porcentaje * 100).toFixed(1)}%)
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+
+                    <div className="flex justify-end space-x-2">
+                      <Button
+                        variant="outline"
+                        onClick={() => setIsCreateTipoUnidadDialogOpen(false)}
+                        disabled={saving}
+                      >
+                        Cancelar
+                      </Button>
+                      <Button onClick={handleSubmitTipoUnidad} disabled={saving}>
+                        {saving ? 'Guardando...' : (editingTipoUnidad ? 'Actualizar' : 'Crear')}
+                      </Button>
+                    </div>
+                  </DialogContent>
+                </Dialog>
               </div>
             </CardHeader>
             <CardContent>
-              {edificio.tiposUnidad.length === 0 ? (
+              {loadingTiposUnidad ? (
+                <div className="flex items-center justify-center py-12">
+                  <div className="text-center">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+                    <p className="mt-2 text-muted-foreground">Cargando tipos de unidad...</p>
+                  </div>
+                </div>
+              ) : tiposUnidadDetalle.length === 0 ? (
                 <div className="text-center py-12">
                   <Settings className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-foreground mb-2">No hay tipos de unidad en uso</h3>
+                  <h3 className="text-lg font-medium text-foreground mb-2">No hay tipos de unidad</h3>
                   <p className="text-muted-foreground mb-4">
-                    Los tipos de unidad aparecerán aquí cuando comiences a crear unidades
+                    Crea el primer tipo de unidad para comenzar a organizar las unidades de este proyecto
                   </p>
+                  <Button onClick={handleOpenCreateTipoUnidadDialog}>
+                    <Plus className="w-4 h-4 mr-2" />
+                    Crear Primer Tipo
+                  </Button>
                 </div>
               ) : (
                 <div className="overflow-x-auto">
@@ -377,36 +639,95 @@ export default function ProyectoDetailPage() {
                     <TableHeader>
                       <TableRow>
                         <TableHead>Tipo</TableHead>
+                        <TableHead>Código</TableHead>
+                        <TableHead>Comisión</TableHead>
                         <TableHead>Unidades</TableHead>
+                        <TableHead className="text-right">Acciones</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {edificio.tiposUnidad.map((tipoData, index) => {
-                        const tipoNombres = {
-                          'STUDIO': 'Studio',
-                          'UN_DORMITORIO': '1 Dormitorio',
-                          'DOS_DORMITORIOS': '2 Dormitorios',
-                          'TRES_DORMITORIOS': '3 Dormitorios',
-                          'PENTHOUSE': 'Penthouse'
-                        }
-
-                        return (
-                          <TableRow key={`${tipoData.tipo}-${index}`}>
-                            <TableCell>
-                              <div>
-                                <div className="font-medium">{tipoNombres[tipoData.tipo as keyof typeof tipoNombres] || tipoData.tipo}</div>
-                                <div className="text-sm text-muted-foreground">{tipoData.tipo}</div>
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              <div className="text-center">
-                                <div className="font-medium">{tipoData.cantidad}</div>
-                                <div className="text-sm text-muted-foreground">unidades</div>
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        )
-                      })}
+                      {tiposUnidadDetalle.map((tipoUnidad) => (
+                        <TableRow key={tipoUnidad.id}>
+                          <TableCell>
+                            <div className="font-medium">{tipoUnidad.nombre}</div>
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="outline">{tipoUnidad.codigo}</Badge>
+                          </TableCell>
+                          <TableCell>
+                            <div>
+                              {tipoUnidad.comision ? (
+                                <>
+                                  <div className="font-medium">{tipoUnidad.comision.nombre}</div>
+                                  <div className="text-sm text-muted-foreground">
+                                    {(tipoUnidad.comision.porcentaje * 100).toFixed(1)}%
+                                  </div>
+                                </>
+                              ) : (
+                                <>
+                                  <div className="font-medium text-muted-foreground">Comisión del proyecto</div>
+                                  <div className="text-sm text-muted-foreground">
+                                    {edificio.comision ? `${(edificio.comision.porcentaje * 100).toFixed(1)}%` : 'No definida'}
+                                  </div>
+                                </>
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="text-center">
+                              <div className="font-medium">{tipoUnidad._count.unidades}</div>
+                              <div className="text-sm text-muted-foreground">unidades</div>
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex items-center justify-end space-x-2">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleOpenEditTipoUnidadDialog(tipoUnidad)}
+                              >
+                                <Edit className="w-4 h-4" />
+                              </Button>
+                              <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="text-destructive hover:text-destructive"
+                                    disabled={tipoUnidad._count.unidades > 0}
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                  <AlertDialogHeader>
+                                    <AlertDialogTitle>¿Eliminar tipo de unidad?</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                      Esta acción eliminará permanentemente el tipo de unidad "{tipoUnidad.nombre}".
+                                      Esta acción no se puede deshacer.
+                                      {tipoUnidad._count.unidades > 0 && (
+                                        <span className="block mt-2 text-destructive font-medium">
+                                          No se puede eliminar porque tiene {tipoUnidad._count.unidades} unidades asociadas.
+                                        </span>
+                                      )}
+                                    </AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <AlertDialogFooter>
+                                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                    <AlertDialogAction
+                                      onClick={() => handleDeleteTipoUnidad(tipoUnidad)}
+                                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                      disabled={tipoUnidad._count.unidades > 0}
+                                    >
+                                      Eliminar
+                                    </AlertDialogAction>
+                                  </AlertDialogFooter>
+                                </AlertDialogContent>
+                              </AlertDialog>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
                     </TableBody>
                   </Table>
                 </div>
@@ -425,7 +746,7 @@ export default function ProyectoDetailPage() {
                     Gestiona las unidades individuales de este proyecto
                   </CardDescription>
                 </div>
-                {edificio.tiposUnidad.length > 0 && (
+                {tiposUnidadDetalle.length > 0 && (
                   <Dialog open={isCreateUnidadDialogOpen} onOpenChange={setIsCreateUnidadDialogOpen}>
                     <DialogTrigger asChild>
                       <Button onClick={handleOpenCreateUnidadDialog}>
@@ -478,11 +799,11 @@ export default function ProyectoDetailPage() {
                                 <SelectValue placeholder="Seleccionar tipo" />
                               </SelectTrigger>
                               <SelectContent>
-                                <SelectItem value="STUDIO">Studio</SelectItem>
-                                <SelectItem value="UN_DORMITORIO">1 Dormitorio</SelectItem>
-                                <SelectItem value="DOS_DORMITORIOS">2 Dormitorios</SelectItem>
-                                <SelectItem value="TRES_DORMITORIOS">3 Dormitorios</SelectItem>
-                                <SelectItem value="PENTHOUSE">Penthouse</SelectItem>
+                                {tiposUnidadDetalle.map((tipoUnidad) => (
+                                  <SelectItem key={tipoUnidad.id} value={tipoUnidad.id}>
+                                    {tipoUnidad.nombre} ({tipoUnidad.codigo})
+                                  </SelectItem>
+                                ))}
                               </SelectContent>
                             </Select>
                           </div>
@@ -559,7 +880,7 @@ export default function ProyectoDetailPage() {
               </div>
             </CardHeader>
             <CardContent>
-              {edificio.tiposUnidad.length === 0 ? (
+              {tiposUnidadDetalle.length === 0 ? (
                 <div className="text-center py-12">
                   <Settings className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
                   <h3 className="text-lg font-medium text-foreground mb-2">Primero crea tipos de unidad</h3>
@@ -605,18 +926,19 @@ export default function ProyectoDetailPage() {
                             )}
                           </TableCell>
                           <TableCell>
-                            <div>
-                              <div className="font-medium text-sm">
-                                {({
-                                  'STUDIO': 'Studio',
-                                  'UN_DORMITORIO': '1 Dormitorio',
-                                  'DOS_DORMITORIOS': '2 Dormitorios',
-                                  'TRES_DORMITORIOS': '3 Dormitorios',
-                                  'PENTHOUSE': 'Penthouse'
-                                })[unidad.tipo] || unidad.tipo}
-                              </div>
-                              <div className="text-xs text-muted-foreground">{unidad.tipo}</div>
-                            </div>
+                            {(() => {
+                              const tipoUnidadInfo = tiposUnidadDetalle.find(t => t.id === unidad.tipo)
+                              return (
+                                <div>
+                                  <div className="font-medium text-sm">
+                                    {tipoUnidadInfo?.nombre || unidad.tipo}
+                                  </div>
+                                  <div className="text-xs text-muted-foreground">
+                                    {tipoUnidadInfo?.codigo || unidad.tipo}
+                                  </div>
+                                </div>
+                              )
+                            })()}
                           </TableCell>
                           <TableCell>
                             <Badge className={

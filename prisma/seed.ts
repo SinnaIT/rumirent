@@ -184,6 +184,26 @@ async function main() {
     }
   })
 
+  // Tipo sin comisión específica (usa la del proyecto)
+  const tipo1DormParque = await prisma.tipoUnidadEdificio.create({
+    data: {
+      nombre: '1 Dormitorio Estándar',
+      codigo: '1DORM',
+      comisionId: null, // Usará la comisión del proyecto (3%)
+      edificioId: edificio3.id
+    }
+  })
+
+  // Torres del Sol - Tipo sin comisión específica
+  const tipoPenthouseTorres = await prisma.tipoUnidadEdificio.create({
+    data: {
+      nombre: 'Penthouse Torres',
+      codigo: 'PH',
+      comisionId: null, // Usará la comisión del proyecto (5%)
+      edificioId: edificio1.id
+    }
+  })
+
   // 5. Crear unidades
   console.log('🏘️ Creando unidades...')
 
@@ -229,6 +249,14 @@ async function main() {
         metros2: 58.0,
         edificioId: edificio1.id,
         tipoUnidadEdificioId: tipo1DormTorres.id
+      },
+      {
+        numero: 'PH01',
+        estado: 'DISPONIBLE',
+        descripcion: 'Penthouse con terraza exclusiva',
+        metros2: 180.0,
+        edificioId: edificio1.id,
+        tipoUnidadEdificioId: tipoPenthouseTorres.id
       }
     ]
   })
@@ -281,6 +309,22 @@ async function main() {
         metros2: 42.5,
         edificioId: edificio3.id,
         tipoUnidadEdificioId: tipoStudioParque.id
+      },
+      {
+        numero: '201',
+        estado: 'DISPONIBLE',
+        descripcion: '1 dormitorio con vista al parque',
+        metros2: 55.0,
+        edificioId: edificio3.id,
+        tipoUnidadEdificioId: tipo1DormParque.id
+      },
+      {
+        numero: '202',
+        estado: 'RESERVADA',
+        descripcion: '1 dormitorio con balcón amplio',
+        metros2: 58.5,
+        edificioId: edificio3.id,
+        tipoUnidadEdificioId: tipo1DormParque.id
       }
     ]
   })
@@ -465,11 +509,15 @@ async function main() {
   console.log(`- ${4} Comisiones (3%, 5%, 7%, 10%)`)
   console.log(`- ${4} Usuarios (1 admin, 3 contratistas)`)
   console.log(`- ${3} Edificios`)
-  console.log(`- ${6} Tipos de unidad por edificio`)
-  console.log(`- ${10} Unidades`)
+  console.log(`- ${8} Tipos de unidad por edificio (incluyendo 2 sin comisión específica)`)
+  console.log(`- ${13} Unidades`)
   console.log(`- ${4} Clientes`)
   console.log(`- ${5} Contratos`)
   console.log(`- ${2} Cambios programados`)
+  console.log('\n🔧 Casos de prueba incluidos:')
+  console.log('- Tipos de unidad con comisión específica')
+  console.log('- Tipos de unidad sin comisión (usan la del proyecto)')
+  console.log('- Diferentes estados de unidades y contratos')
 }
 
 main()

@@ -32,7 +32,11 @@ export async function GET(
         },
         unidades: {
           select: {
+            id: true,
+            numero: true,
             estado: true,
+            descripcion: true,
+            metros2: true,
             tipoUnidadEdificio: {
               select: {
                 nombre: true,
@@ -65,6 +69,13 @@ export async function GET(
     const unidadesVendidas = edificio.unidades.filter(u => u.estado === 'VENDIDA').length
     const unidadesReservadas = edificio.unidades.filter(u => u.estado === 'RESERVADA').length
 
+    // Agrupar unidades por tipo
+    const tiposUnidad = edificio.unidades.reduce((acc: Record<string, number>, unidad) => {
+      const tipoNombre = unidad.tipoUnidadEdificio?.nombre || 'Sin tipo'
+      acc[tipoNombre] = (acc[tipoNombre] || 0) + 1
+      return acc
+    }, {})
+
     const edificioFormatted = {
       id: edificio.id,
       nombre: edificio.nombre,
@@ -76,6 +87,18 @@ export async function GET(
       unidadesDisponibles,
       unidadesVendidas,
       unidadesReservadas,
+      tiposUnidad: Object.entries(tiposUnidad).map(([tipo, cantidad]) => ({
+        tipo,
+        cantidad
+      })),
+      unidades: edificio.unidades.map(unidad => ({
+        id: unidad.id,
+        numero: unidad.numero,
+        estado: unidad.estado,
+        tipo: unidad.tipoUnidadEdificio?.nombre || 'Sin tipo',
+        descripcion: unidad.descripcion,
+        metros2: unidad.metros2
+      })),
       createdAt: edificio.createdAt.toISOString(),
       updatedAt: edificio.updatedAt.toISOString()
     }
