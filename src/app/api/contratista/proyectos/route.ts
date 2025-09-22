@@ -37,7 +37,7 @@ export async function GET(request: NextRequest) {
             estado: 'DISPONIBLE'
           },
           include: {
-            tipoUnidad: {
+            tipoUnidadEdificio: {
               include: {
                 comision: true
               }
@@ -74,16 +74,16 @@ export async function GET(request: NextRequest) {
         descripcion: unidad.descripcion,
         metros2: unidad.metros2,
         tipoUnidad: {
-          id: unidad.tipoUnidad.id,
-          nombre: unidad.tipoUnidad.nombre,
-          codigo: unidad.tipoUnidad.codigo,
-          comision: {
-            id: unidad.tipoUnidad.comision.id,
-            nombre: unidad.tipoUnidad.comision.nombre,
-            codigo: unidad.tipoUnidad.comision.codigo,
-            porcentaje: unidad.tipoUnidad.comision.porcentaje,
-            activa: unidad.tipoUnidad.comision.activa
-          }
+          id: unidad.tipoUnidadEdificio.id,
+          nombre: unidad.tipoUnidadEdificio.nombre,
+          codigo: unidad.tipoUnidadEdificio.codigo,
+          comision: unidad.tipoUnidadEdificio.comision ? {
+            id: unidad.tipoUnidadEdificio.comision.id,
+            nombre: unidad.tipoUnidadEdificio.comision.nombre,
+            codigo: unidad.tipoUnidadEdificio.comision.codigo,
+            porcentaje: unidad.tipoUnidadEdificio.comision.porcentaje,
+            activa: unidad.tipoUnidadEdificio.comision.activa
+          } : null
         },
         createdAt: unidad.createdAt.toISOString(),
         updatedAt: unidad.updatedAt.toISOString()

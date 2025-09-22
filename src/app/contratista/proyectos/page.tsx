@@ -310,10 +310,23 @@ export default function ContratistaProyectosPage() {
                                 </TableCell>
                                 <TableCell>
                                   <div>
-                                    <div className="font-medium text-sm">{unidad.tipoUnidad.comision.nombre}</div>
-                                    <div className="text-xs text-green-600 font-medium">
-                                      {(unidad.tipoUnidad.comision.porcentaje * 100).toFixed(1)}%
-                                    </div>
+                                    {unidad.tipoUnidad.comision ? (
+                                      <>
+                                        <div className="font-medium text-sm">{unidad.tipoUnidad.comision.nombre}</div>
+                                        <div className="text-xs text-green-600 font-medium">
+                                          {(unidad.tipoUnidad.comision.porcentaje * 100).toFixed(1)}%
+                                        </div>
+                                      </>
+                                    ) : proyecto.comision ? (
+                                      <>
+                                        <div className="font-medium text-sm">{proyecto.comision.nombre}</div>
+                                        <div className="text-xs text-blue-600 font-medium">
+                                          {(proyecto.comision.porcentaje * 100).toFixed(1)}% (base)
+                                        </div>
+                                      </>
+                                    ) : (
+                                      <div className="text-sm text-muted-foreground">Sin comisión</div>
+                                    )}
                                   </div>
                                 </TableCell>
                                 <TableCell>

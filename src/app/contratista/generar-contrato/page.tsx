@@ -9,6 +9,8 @@ import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { Badge } from '@/components/ui/badge'
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { toast } from 'sonner'
 import {
   Plus,
@@ -19,7 +21,8 @@ import {
   MapPin,
   User,
   DollarSign,
-  Calendar
+  Calendar,
+  Search
 } from 'lucide-react'
 
 interface Comision {
@@ -40,7 +43,7 @@ interface Unidad {
     id: string
     nombre: string
     codigo: string
-    comision: Comision
+    comision: Comision | null
   }
   createdAt: string
   updatedAt: string
@@ -53,19 +56,19 @@ interface Proyecto {
   unidades: Unidad[]
 }
 
-const PRIORIDADES = [
-  { value: 'BAJA', label: 'Baja', color: 'bg-gray-100 text-gray-800', multiplier: 1.0 },
-  { value: 'MEDIA', label: 'Media', color: 'bg-blue-100 text-blue-800', multiplier: 1.2 },
-  { value: 'ALTA', label: 'Alta', color: 'bg-orange-100 text-orange-800', multiplier: 1.5 },
-  { value: 'URGENTE', label: 'Urgente', color: 'bg-red-100 text-red-800', multiplier: 2.0 }
-]
+interface Cliente {
+  id: string
+  nombre: string
+  rut: string
+  email?: string
+  telefono?: string
+}
 
 const ESTADOS_CONTRATO = [
-  { value: 'POSTULACION', label: 'Postulación' },
-  { value: 'RESERVADO', label: 'Reservado' },
-  { value: 'CONTRATADO', label: 'Contratado' },
-  { value: 'CHECKIN_REALIZADO', label: 'Check-in Realizado' },
-  { value: 'CANCELADO', label: 'Cancelado' }
+  { value: 'ENTREGADO', label: 'Entregado' },
+  { value: 'RESERVA_PAGADA', label: 'Reserva Pagada' },
+  { value: 'APROBADO', label: 'Aprobado' },
+  { value: 'RECHAZADO', label: 'Rechazado' }
 ]
 
 export default function GenerarContratoPage() {
@@ -74,22 +77,33 @@ export default function GenerarContratoPage() {
   const unidadIdFromParams = searchParams.get('unidadId')
 
   const [proyectos, setProyectos] = useState<Proyecto[]>([])
+  const [clientes, setClientes] = useState<Cliente[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadingClientes, setLoadingClientes] = useState(false)
   const [saving, setSaving] = useState(false)
   const [selectedUnidad, setSelectedUnidad] = useState<Unidad | null>(null)
   const [selectedProyecto, setSelectedProyecto] = useState<Proyecto | null>(null)
+  const [searchingClient, setSearchingClient] = useState(false)
+  const [clientData, setClientData] = useState({
+    rut: '',
+    nombre: '',
+    email: '',
+    telefono: ''
+  })
+  const [clientExists, setClientExists] = useState<boolean | null>(null)
+  const [showClientModal, setShowClientModal] = useState(false)
+  const [clientSearchTerm, setClientSearchTerm] = useState('')
 
   // Form state
   const [formData, setFormData] = useState({
-    proyectoId: '',
-    unidadId: unidadIdFromParams || '',
-    unidadManual: '',
-    prioridad: 'BAJA' as const,
-    rutCliente: '',
-    nombreCliente: '',
-    precioPesos: '',
-    precioUF: '',
-    estado: 'POSTULACION' as const,
+    edificioId: '',
+    unidadId: unidadIdFromParams ?? '',
+    codigoUnidad: '',
+    clienteId: '',
+    totalContrato: '',
+    montoUf: '',
+    comision: '',
+    estado: 'ENTREGADO' as const,
     fechaPagoReserva: '',
     fechaPagoContrato: '',
     fechaCheckin: '',
@@ -98,6 +112,7 @@ export default function GenerarContratoPage() {
 
   useEffect(() => {
     fetchProyectos()
+    fetchClientes()
   }, [])
 
   useEffect(() => {
@@ -110,7 +125,7 @@ export default function GenerarContratoPage() {
           setSelectedProyecto(proyecto)
           setFormData(prev => ({
             ...prev,
-            proyectoId: proyecto.id,
+            edificioId: proyecto.id,
             unidadId: unidad.id
           }))
           break
@@ -138,69 +153,209 @@ export default function GenerarContratoPage() {
     }
   }
 
-  const handleProyectoChange = (proyectoId: string) => {
-    const proyecto = proyectos.find(p => p.id === proyectoId)
+  const fetchClientes = async () => {
+    try {
+      setLoadingClientes(true)
+      const response = await fetch('/api/contratista/clientes')
+      const data = await response.json()
+
+      if (data.success) {
+        setClientes(data.clientes)
+      } else {
+        toast.error('Error al cargar clientes')
+      }
+    } catch (error) {
+      console.error('Error:', error)
+      toast.error('Error de conexión al cargar clientes')
+    } finally {
+      setLoadingClientes(false)
+    }
+  }
+
+  const searchClientByRut = async (rut: string) => {
+    if (!rut.trim()) {
+      setClientExists(null)
+      setClientData({ rut: '', nombre: '', email: '', telefono: '' })
+      setFormData({ ...formData, clienteId: '' })
+      return
+    }
+
+    try {
+      setSearchingClient(true)
+      const response = await fetch(`/api/contratista/clientes/search?rut=${encodeURIComponent(rut)}`)
+      const data = await response.json()
+
+      if (data.success && data.cliente) {
+        // Cliente encontrado
+        setClientExists(true)
+        setClientData({
+          rut: data.cliente.rut,
+          nombre: data.cliente.nombre,
+          email: data.cliente.email || '',
+          telefono: data.cliente.telefono || ''
+        })
+        setFormData({ ...formData, clienteId: data.cliente.id })
+      } else {
+        // Cliente no encontrado
+        setClientExists(false)
+        setClientData({ rut, nombre: '', email: '', telefono: '' })
+        setFormData({ ...formData, clienteId: '' })
+      }
+    } catch (error) {
+      console.error('Error:', error)
+      toast.error('Error al buscar cliente')
+      setClientExists(null)
+    } finally {
+      setSearchingClient(false)
+    }
+  }
+
+  const handleRutChange = (rut: string) => {
+    setClientData({ ...clientData, rut })
+
+    // Buscar cliente después de una pausa para evitar muchas consultas
+    const timeoutId = setTimeout(() => {
+      searchClientByRut(rut)
+    }, 500)
+
+    return () => clearTimeout(timeoutId)
+  }
+
+  const selectClientFromModal = (cliente: Cliente) => {
+    setClientData({
+      rut: cliente.rut,
+      nombre: cliente.nombre,
+      email: cliente.email || '',
+      telefono: cliente.telefono || ''
+    })
+    setFormData({ ...formData, clienteId: cliente.id })
+    setClientExists(true)
+    setShowClientModal(false)
+    setClientSearchTerm('')
+  }
+
+  const filteredClientes = clientes.filter(cliente =>
+    cliente.nombre.toLowerCase().includes(clientSearchTerm.toLowerCase()) ||
+    cliente.rut.toLowerCase().includes(clientSearchTerm.toLowerCase()) ||
+    (cliente.email && cliente.email.toLowerCase().includes(clientSearchTerm.toLowerCase()))
+  )
+
+  const handleProyectoChange = (edificioId: string) => {
+    const proyecto = proyectos.find(p => p.id === edificioId)
     setSelectedProyecto(proyecto || null)
-    setFormData({ ...formData, proyectoId, unidadId: '' })
+    setFormData({ ...formData, edificioId, unidadId: '', codigoUnidad: '' })
     setSelectedUnidad(null)
   }
 
   const handleUnidadChange = (unidadId: string) => {
-    const proyecto = proyectos.find(p => p.id === formData.proyectoId)
+    const proyecto = proyectos.find(p => p.id === formData.edificioId)
     if (proyecto) {
       const unidad = proyecto.unidades.find(u => u.id === unidadId)
       if (unidad) {
         setSelectedUnidad(unidad)
-        setFormData({ ...formData, unidadId })
+        setFormData({ ...formData, unidadId, codigoUnidad: '' })
       }
     }
   }
 
   const calculateComision = () => {
-    if (!selectedUnidad || !formData.precioPesos) return 0
+    if (!formData.totalContrato) return { amount: 0, rate: 0, source: 'none' }
 
-    const precio = parseFloat(formData.precioPesos)
-    const prioridad = PRIORIDADES.find(p => p.value === formData.prioridad)
-    const baseComision = selectedUnidad.tipoUnidad.comision.porcentaje
-    const multiplier = prioridad?.multiplier || 1.0
+    const precio = parseFloat(formData.totalContrato)
+    if (isNaN(precio)) return { amount: 0, rate: 0, source: 'none' }
 
-    return precio * baseComision * multiplier
+    // Prioridad: Comisión específica de la unidad > Comisión del proyecto > 0
+    if (selectedUnidad?.tipoUnidad.comision) {
+      const rate = selectedUnidad.tipoUnidad.comision.porcentaje
+      return {
+        amount: precio * rate,
+        rate: rate,
+        source: 'unit',
+        name: selectedUnidad.tipoUnidad.comision.nombre
+      }
+    }
+
+    if (selectedProyecto?.comision) {
+      const rate = selectedProyecto.comision.porcentaje
+      return {
+        amount: precio * rate,
+        rate: rate,
+        source: 'project',
+        name: selectedProyecto.comision.nombre
+      }
+    }
+
+    return { amount: 0, rate: 0, source: 'none' }
   }
 
   const handleSubmit = async () => {
-    // Validaciones
-    if (!formData.unidadId && !formData.unidadManual.trim()) {
-      toast.error('Debe seleccionar una unidad del sistema o ingresar una unidad manual')
+    // Validaciones básicas
+    if (!clientData.rut.trim()) {
+      toast.error('RUT del cliente es requerido')
       return
     }
 
-    if (!formData.rutCliente.trim() || !formData.nombreCliente.trim()) {
-      toast.error('RUT y nombre del cliente son requeridos')
+    if (!clientData.nombre.trim()) {
+      toast.error('Nombre del cliente es requerido')
       return
     }
 
-    if (!formData.precioPesos || !formData.precioUF) {
-      toast.error('Precio en pesos y UF son requeridos')
+    if (!formData.edificioId) {
+      toast.error('Debe seleccionar un edificio')
       return
     }
 
-    const precioPesos = parseFloat(formData.precioPesos)
-    const precioUF = parseFloat(formData.precioUF)
-
-    if (isNaN(precioPesos) || precioPesos <= 0) {
-      toast.error('El precio en pesos debe ser un número válido mayor a 0')
+    if (!formData.totalContrato || !formData.montoUf) {
+      toast.error('Total del contrato y monto UF son requeridos')
       return
     }
 
-    if (isNaN(precioUF) || precioUF <= 0) {
-      toast.error('El precio en UF debe ser un número válido mayor a 0')
+    const totalContrato = parseFloat(formData.totalContrato)
+    const montoUf = parseFloat(formData.montoUf)
+
+    if (isNaN(totalContrato) || totalContrato <= 0) {
+      toast.error('El total del contrato debe ser un número válido mayor a 0')
+      return
+    }
+
+    if (isNaN(montoUf) || montoUf <= 0) {
+      toast.error('El monto UF debe ser un número válido mayor a 0')
       return
     }
 
     try {
       setSaving(true)
 
-      const comisionCalculada = calculateComision()
+      let clienteId = formData.clienteId
+
+      // Si el cliente no existe, crearlo primero
+      if (!clientExists && clientData.rut.trim() && clientData.nombre.trim()) {
+        const clientResponse = await fetch('/api/contratista/clientes', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            rut: clientData.rut.trim(),
+            nombre: clientData.nombre.trim(),
+            email: clientData.email.trim() || undefined,
+            telefono: clientData.telefono.trim() || undefined
+          })
+        })
+
+        const clientData_response = await clientResponse.json()
+
+        if (clientData_response.success) {
+          clienteId = clientData_response.cliente.id
+          toast.success('Cliente creado exitosamente')
+        } else {
+          toast.error(clientData_response.error || 'Error al crear cliente')
+          return
+        }
+      }
+
+      const comisionData = calculateComision()
+      const comisionCalculada = comisionData.amount
 
       const response = await fetch('/api/contratista/contratos', {
         method: 'POST',
@@ -209,13 +364,12 @@ export default function GenerarContratoPage() {
         },
         body: JSON.stringify({
           unidadId: formData.unidadId || undefined,
-          unidadManual: formData.unidadManual || undefined,
-          prioridad: formData.prioridad,
-          rutCliente: formData.rutCliente,
-          nombreCliente: formData.nombreCliente,
-          precioPesos,
-          precioUF,
-          comisionAsesor: comisionCalculada,
+          codigoUnidad: formData.codigoUnidad || undefined,
+          clienteId: clienteId,
+          edificioId: formData.edificioId,
+          totalContrato,
+          montoUf,
+          comision: comisionCalculada,
           estado: formData.estado,
           fechaPagoReserva: formData.fechaPagoReserva || undefined,
           fechaPagoContrato: formData.fechaPagoContrato || undefined,
@@ -247,8 +401,7 @@ export default function GenerarContratoPage() {
     }).format(amount)
   }
 
-  const prioridadSelected = PRIORIDADES.find(p => p.value === formData.prioridad)
-  const comisionCalculada = calculateComision()
+  const comisionData = calculateComision()
 
   if (loading) {
     return (
@@ -290,17 +443,17 @@ export default function GenerarContratoPage() {
             <CardHeader>
               <CardTitle className="flex items-center">
                 <Building2 className="w-5 h-5 mr-2" />
-                Seleccionar Unidad
+                Edificio y Unidad (Opcional)
               </CardTitle>
               <CardDescription>
-                Elige el proyecto y la unidad para el contrato
+                Selecciona el edificio (requerido). La unidad es opcional: puedes elegir una del sistema, ingresar un código manual, o dejar sin unidad específica.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="proyecto">Proyecto *</Label>
-                  <Select value={formData.proyectoId} onValueChange={handleProyectoChange}>
+                  <Select value={formData.edificioId} onValueChange={handleProyectoChange}>
                     <SelectTrigger>
                       <SelectValue placeholder="Seleccionar proyecto" />
                     </SelectTrigger>
@@ -315,18 +468,18 @@ export default function GenerarContratoPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="unidad">Unidad *</Label>
+                  <Label htmlFor="unidad">Unidad (del sistema)</Label>
                   <Select
                     value={formData.unidadId}
                     onValueChange={handleUnidadChange}
-                    disabled={!formData.proyectoId}
+                    disabled={!formData.edificioId || !!formData.codigoUnidad}
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="Seleccionar unidad" />
+                      <SelectValue placeholder="Seleccionar unidad del sistema" />
                     </SelectTrigger>
                     <SelectContent>
-                      {formData.proyectoId && proyectos
-                        .find(p => p.id === formData.proyectoId)
+                      {formData.edificioId && proyectos
+                        .find(p => p.id === formData.edificioId)
                         ?.unidades.map((unidad) => (
                           <SelectItem key={unidad.id} value={unidad.id}>
                             {unidad.numero} - {unidad.tipoUnidad.nombre}
@@ -338,11 +491,11 @@ export default function GenerarContratoPage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="unidadManual">O ingrese unidad manualmente</Label>
+                <Label htmlFor="codigoUnidad">O ingrese código de unidad manualmente</Label>
                 <Input
-                  id="unidadManual"
-                  value={formData.unidadManual}
-                  onChange={(e) => setFormData({ ...formData, unidadManual: e.target.value })}
+                  id="codigoUnidad"
+                  value={formData.codigoUnidad}
+                  onChange={(e) => setFormData({ ...formData, codigoUnidad: e.target.value })}
                   placeholder="ej: Torre A - Depto 101"
                   disabled={!!formData.unidadId}
                 />
@@ -365,13 +518,26 @@ export default function GenerarContratoPage() {
                       </p>
                     </div>
                     <div>
-                      <h4 className="font-medium text-blue-900">Comisión Base</h4>
-                      <p className="text-sm text-blue-700">
-                        {selectedUnidad.tipoUnidad.comision.nombre}
-                      </p>
-                      <p className="text-xs text-blue-600">
-                        {(selectedUnidad.tipoUnidad.comision.porcentaje * 100).toFixed(1)}% base
-                      </p>
+                      <h4 className="font-medium text-blue-900">Comisión</h4>
+                      {selectedUnidad.tipoUnidad.comision ? (
+                        <>
+                          <p className="text-sm text-blue-700">
+                            {selectedUnidad.tipoUnidad.comision.nombre}
+                          </p>
+                          <p className="text-xs text-blue-600">
+                            {(selectedUnidad.tipoUnidad.comision.porcentaje * 100).toFixed(1)}% específica
+                          </p>
+                        </>
+                      ) : (
+                        <>
+                          <p className="text-sm text-blue-700">
+                            Comisión del proyecto
+                          </p>
+                          <p className="text-xs text-blue-600">
+                            Se usará la comisión base del edificio
+                          </p>
+                        </>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -387,31 +553,189 @@ export default function GenerarContratoPage() {
                 Información del Cliente
               </CardTitle>
               <CardDescription>
-                Datos del cliente que realizará la compra
+                Ingrese el RUT para buscar automáticamente, use el botón de búsqueda para seleccionar de la lista, o complete manualmente para crear uno nuevo
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
+              <div className="flex gap-2 mb-4">
+                <div className="flex-1">
+                  <div className="space-y-2">
+                    <Label htmlFor="rut">RUT del Cliente *</Label>
+                    <div className="relative">
+                      <Input
+                        id="rut"
+                        value={clientData.rut}
+                        onChange={(e) => handleRutChange(e.target.value)}
+                        placeholder="ej: 12.345.678-9"
+                        className={`${
+                          clientExists === true ? 'border-green-500 bg-green-50' :
+                          clientExists === false ? 'border-yellow-500 bg-yellow-50' :
+                          ''
+                        }`}
+                      />
+                      {searchingClient && (
+                        <div className="absolute right-3 top-3">
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+                <div className="pt-7">
+                  <Dialog open={showClientModal} onOpenChange={setShowClientModal}>
+                    <DialogTrigger asChild>
+                      <Button variant="outline" className="flex items-center gap-2">
+                        <Search className="h-4 w-4" />
+                        Buscar
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-[95vw] w-[95vw] max-h-[80vh] overflow-hidden flex flex-col">
+                      <DialogHeader>
+                        <DialogTitle className="text-xl">Buscar Cliente Existente</DialogTitle>
+                        <DialogDescription>
+                          Busca y selecciona un cliente de tu lista existente. Puedes buscar por nombre, RUT o email.
+                        </DialogDescription>
+                      </DialogHeader>
+                      <div className="flex flex-col space-y-4 flex-1 min-h-0">
+                        <div className="relative flex-shrink-0">
+                          <Search className="absolute left-3 top-3 h-5 w-5 text-muted-foreground" />
+                          <Input
+                            placeholder="Buscar por nombre, RUT o email..."
+                            value={clientSearchTerm}
+                            onChange={(e) => setClientSearchTerm(e.target.value)}
+                            className="pl-10 text-base h-12"
+                          />
+                        </div>
+
+                        {filteredClientes.length > 0 && (
+                          <div className="flex items-center justify-between text-sm text-muted-foreground flex-shrink-0">
+                            <p>
+                              {filteredClientes.length} cliente{filteredClientes.length !== 1 ? 's' : ''}
+                              {clientSearchTerm && ' encontrado'}
+                              {filteredClientes.length !== 1 && clientSearchTerm && 's'}
+                            </p>
+                            <p className="text-xs">Haz clic en una fila o usa el botón Seleccionar</p>
+                          </div>
+                        )}
+
+                        <div className="flex-1 min-h-0 border rounded-lg overflow-hidden">
+                          <div className="h-full overflow-auto">
+                          <Table>
+                            <TableHeader className="sticky top-0 bg-background">
+                              <TableRow>
+                                <TableHead className="min-w-[200px]">Nombre</TableHead>
+                                <TableHead className="min-w-[120px]">RUT</TableHead>
+                                <TableHead className="min-w-[180px]">Email</TableHead>
+                                <TableHead className="min-w-[130px]">Teléfono</TableHead>
+                                <TableHead className="text-right min-w-[100px]">Acción</TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {filteredClientes.length === 0 ? (
+                                <TableRow>
+                                  <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
+                                    <div className="flex flex-col items-center gap-2">
+                                      <User className="h-8 w-8 text-muted-foreground" />
+                                      <p>{clientSearchTerm ? 'No se encontraron clientes que coincidan con tu búsqueda' : 'No hay clientes registrados'}</p>
+                                      {clientSearchTerm && (
+                                        <p className="text-sm">Intenta con otros términos de búsqueda</p>
+                                      )}
+                                    </div>
+                                  </TableCell>
+                                </TableRow>
+                              ) : (
+                                filteredClientes.map((cliente) => (
+                                  <TableRow key={cliente.id} className="hover:bg-muted/50 cursor-pointer" onClick={() => selectClientFromModal(cliente)}>
+                                    <TableCell className="font-medium">{cliente.nombre}</TableCell>
+                                    <TableCell className="font-mono text-sm">{cliente.rut}</TableCell>
+                                    <TableCell className="text-sm">{cliente.email || '-'}</TableCell>
+                                    <TableCell className="text-sm">{cliente.telefono || '-'}</TableCell>
+                                    <TableCell className="text-right">
+                                      <Button
+                                        size="sm"
+                                        onClick={(e) => {
+                                          e.stopPropagation()
+                                          selectClientFromModal(cliente)
+                                        }}
+                                        className="bg-primary hover:bg-primary/90"
+                                      >
+                                        Seleccionar
+                                      </Button>
+                                    </TableCell>
+                                  </TableRow>
+                                ))
+                              )}
+                            </TableBody>
+                          </Table>
+                          </div>
+                        </div>
+                      </div>
+                    </DialogContent>
+                  </Dialog>
+                </div>
+              </div>
+
+              {clientExists === true && (
+                <p className="text-sm text-green-600 flex items-center">
+                  ✓ Cliente encontrado en el sistema
+                </p>
+              )}
+              {clientExists === false && (
+                <p className="text-sm text-yellow-600 flex items-center">
+                  ⚠ Cliente no encontrado - se creará uno nuevo
+                </p>
+              )}
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="rutCliente">RUT del Cliente *</Label>
+                  <Label htmlFor="nombre">Nombre Completo *</Label>
                   <Input
-                    id="rutCliente"
-                    value={formData.rutCliente}
-                    onChange={(e) => setFormData({ ...formData, rutCliente: e.target.value })}
-                    placeholder="ej: 12.345.678-9"
+                    id="nombre"
+                    value={clientData.nombre}
+                    onChange={(e) => setClientData({ ...clientData, nombre: e.target.value })}
+                    placeholder="Nombre del cliente"
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="nombreCliente">Nombre Completo *</Label>
+                  <Label htmlFor="email">Email</Label>
                   <Input
-                    id="nombreCliente"
-                    value={formData.nombreCliente}
-                    onChange={(e) => setFormData({ ...formData, nombreCliente: e.target.value })}
-                    placeholder="ej: Juan Pérez González"
+                    id="email"
+                    type="email"
+                    value={clientData.email}
+                    onChange={(e) => setClientData({ ...clientData, email: e.target.value })}
+                    placeholder="email@ejemplo.com"
                   />
                 </div>
               </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="telefono">Teléfono</Label>
+                <Input
+                  id="telefono"
+                  value={clientData.telefono}
+                  onChange={(e) => setClientData({ ...clientData, telefono: e.target.value })}
+                  placeholder="+56 9 1234 5678"
+                />
+              </div>
+
+              {clientExists === true && (
+                <div className="p-3 bg-green-50 rounded-lg border border-green-200">
+                  <h4 className="font-medium text-sm text-green-800">Cliente Existente</h4>
+                  <p className="text-sm text-green-700">
+                    Los datos se han cargado desde la base de datos. Puede modificarlos si es necesario.
+                  </p>
+                </div>
+              )}
+
+              {clientExists === false && (
+                <div className="p-3 bg-yellow-50 rounded-lg border border-yellow-200">
+                  <h4 className="font-medium text-sm text-yellow-800">Nuevo Cliente</h4>
+                  <p className="text-sm text-yellow-700">
+                    Complete los datos del cliente. Se creará automáticamente al generar el contrato.
+                  </p>
+                </div>
+              )}
             </CardContent>
           </Card>
 
@@ -423,49 +747,34 @@ export default function GenerarContratoPage() {
                 Información Financiera
               </CardTitle>
               <CardDescription>
-                Precios y prioridad de la venta
+                Precios del contrato
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="precioPesos">Precio en Pesos *</Label>
+                  <Label htmlFor="totalContrato">Total del Contrato *</Label>
                   <Input
-                    id="precioPesos"
+                    id="totalContrato"
                     type="number"
-                    value={formData.precioPesos}
-                    onChange={(e) => setFormData({ ...formData, precioPesos: e.target.value })}
+                    value={formData.totalContrato}
+                    onChange={(e) => setFormData({ ...formData, totalContrato: e.target.value })}
                     placeholder="ej: 150000000"
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="precioUF">Precio en UF *</Label>
+                  <Label htmlFor="montoUf">Monto en UF *</Label>
                   <Input
-                    id="precioUF"
+                    id="montoUf"
                     type="number"
                     step="0.01"
-                    value={formData.precioUF}
-                    onChange={(e) => setFormData({ ...formData, precioUF: e.target.value })}
+                    value={formData.montoUf}
+                    onChange={(e) => setFormData({ ...formData, montoUf: e.target.value })}
                     placeholder="ej: 4500.50"
                   />
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="prioridad">Prioridad de Venta</Label>
-                  <Select value={formData.prioridad} onValueChange={(value: any) => setFormData({ ...formData, prioridad: value })}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {PRIORIDADES.map((prioridad) => (
-                        <SelectItem key={prioridad.value} value={prioridad.value}>
-                          {prioridad.label} (x{prioridad.multiplier})
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -486,25 +795,6 @@ export default function GenerarContratoPage() {
                 </div>
               </div>
 
-              {prioridadSelected && (
-                <div className="p-3 bg-orange-50 rounded-lg border border-orange-200">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h4 className="text-sm font-medium text-orange-900">
-                        Prioridad Seleccionada
-                      </h4>
-                      <p className="text-sm text-orange-700">
-                        <Badge className={prioridadSelected.color}>
-                          {prioridadSelected.label}
-                        </Badge>
-                        <span className="ml-2">
-                          Multiplicador: x{prioridadSelected.multiplier}
-                        </span>
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              )}
             </CardContent>
           </Card>
 
@@ -583,7 +873,7 @@ export default function GenerarContratoPage() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              {(selectedUnidad && selectedProyecto) || formData.unidadManual ? (
+              {(selectedUnidad && selectedProyecto) || formData.codigoUnidad ? (
                 <>
                   <div>
                     <h4 className="font-medium text-sm text-muted-foreground">UNIDAD</h4>
@@ -594,48 +884,166 @@ export default function GenerarContratoPage() {
                           Unidad {selectedUnidad.numero} - {selectedUnidad.tipoUnidad.nombre}
                         </p>
                       </>
+                    ) : formData.codigoUnidad ? (
+                      <>
+                        <p className="font-medium">Código Manual</p>
+                        <p className="text-sm text-muted-foreground">
+                          {formData.codigoUnidad}
+                        </p>
+                      </>
                     ) : (
                       <>
-                        <p className="font-medium">Unidad Manual</p>
+                        <p className="font-medium">Sin unidad específica</p>
                         <p className="text-sm text-muted-foreground">
-                          {formData.unidadManual}
+                          Contrato general para el edificio
                         </p>
                       </>
                     )}
                   </div>
 
-                  {formData.nombreCliente && (
+                  {clientData.nombre && clientData.rut && (
                     <div>
                       <h4 className="font-medium text-sm text-muted-foreground">CLIENTE</h4>
-                      <p className="font-medium">{formData.nombreCliente}</p>
-                      <p className="text-sm text-muted-foreground">{formData.rutCliente}</p>
+                      <p className="font-medium">{clientData.nombre}</p>
+                      <p className="text-sm text-muted-foreground">{clientData.rut}</p>
+                      {clientData.email && (
+                        <p className="text-xs text-muted-foreground">{clientData.email}</p>
+                      )}
                     </div>
                   )}
 
-                  {formData.precioPesos && (
+                  {formData.totalContrato && (
                     <div>
                       <h4 className="font-medium text-sm text-muted-foreground">PRECIO</h4>
-                      <p className="font-medium">{formatCurrency(parseFloat(formData.precioPesos))}</p>
-                      <p className="text-sm text-muted-foreground">{formData.precioUF} UF</p>
+                      <p className="font-medium">{formatCurrency(parseFloat(formData.totalContrato))}</p>
+                      <p className="text-sm text-muted-foreground">{formData.montoUf} UF</p>
                     </div>
                   )}
 
-                  {comisionCalculada > 0 && (
-                    <div className="p-3 bg-green-50 rounded-lg border border-green-200">
-                      <h4 className="font-medium text-sm text-green-800">COMISIÓN CALCULADA</h4>
-                      <p className="text-lg font-bold text-green-900">
-                        {formatCurrency(comisionCalculada)}
-                      </p>
-                      <p className="text-xs text-green-600">
-                        Base: {(selectedUnidad.tipoUnidad.comision.porcentaje * 100).toFixed(1)}% ×
-                        Prioridad: x{prioridadSelected?.multiplier}
-                      </p>
+                  {/* Sección de Comisión Siempre Visible */}
+                  <div>
+                    <h4 className="font-medium text-sm text-muted-foreground">COMISIÓN</h4>
+                    {comisionData.amount > 0 ? (
+                      <div className="p-3 bg-green-50 rounded-lg border border-green-200 mt-2">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-lg font-bold text-green-900">
+                              {formatCurrency(comisionData.amount)}
+                            </p>
+                            <p className="text-sm text-green-700">
+                              {comisionData.name}
+                            </p>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-xl font-bold text-green-900">
+                              {(comisionData.rate * 100).toFixed(1)}%
+                            </p>
+                            <p className="text-xs text-green-600">
+                              {comisionData.source === 'unit' ? 'Específica de unidad' : 'Base del proyecto'}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    ) : formData.totalContrato ? (
+                      <div className="p-3 bg-gray-50 rounded-lg border border-gray-200 mt-2">
+                        <p className="text-sm text-gray-600">
+                          Sin comisión configurada
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          {!selectedProyecto ? 'Selecciona un proyecto para ver comisiones disponibles' :
+                           'Este proyecto no tiene comisión base configurada'}
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="p-3 bg-blue-50 rounded-lg border border-blue-200 mt-2">
+                        <p className="text-sm text-blue-600">
+                          Ingresa el monto del contrato para calcular la comisión
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </>
+              ) : formData.edificioId ? (
+                <>
+                  <div>
+                    <h4 className="font-medium text-sm text-muted-foreground">EDIFICIO</h4>
+                    {(() => {
+                      const proyecto = proyectos.find(p => p.id === formData.edificioId)
+                      return proyecto ? (
+                        <>
+                          <p className="font-medium">{proyecto.nombre}</p>
+                          <p className="text-sm text-muted-foreground">Contrato general</p>
+                        </>
+                      ) : (
+                        <p className="text-sm text-muted-foreground">Edificio seleccionado</p>
+                      )
+                    })()}
+                  </div>
+
+                  {clientData.nombre && clientData.rut && (
+                    <div>
+                      <h4 className="font-medium text-sm text-muted-foreground">CLIENTE</h4>
+                      <p className="font-medium">{clientData.nombre}</p>
+                      <p className="text-sm text-muted-foreground">{clientData.rut}</p>
+                      {clientData.email && (
+                        <p className="text-xs text-muted-foreground">{clientData.email}</p>
+                      )}
                     </div>
                   )}
+
+                  {formData.totalContrato && (
+                    <div>
+                      <h4 className="font-medium text-sm text-muted-foreground">PRECIO</h4>
+                      <p className="font-medium">{formatCurrency(parseFloat(formData.totalContrato))}</p>
+                      <p className="text-sm text-muted-foreground">{formData.montoUf} UF</p>
+                    </div>
+                  )}
+
+                  {/* Sección de Comisión para vista de solo edificio */}
+                  <div>
+                    <h4 className="font-medium text-sm text-muted-foreground">COMISIÓN</h4>
+                    {comisionData.amount > 0 ? (
+                      <div className="p-3 bg-green-50 rounded-lg border border-green-200 mt-2">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-lg font-bold text-green-900">
+                              {formatCurrency(comisionData.amount)}
+                            </p>
+                            <p className="text-sm text-green-700">
+                              {comisionData.name}
+                            </p>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-xl font-bold text-green-900">
+                              {(comisionData.rate * 100).toFixed(1)}%
+                            </p>
+                            <p className="text-xs text-green-600">
+                              Base del proyecto
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    ) : formData.totalContrato ? (
+                      <div className="p-3 bg-gray-50 rounded-lg border border-gray-200 mt-2">
+                        <p className="text-sm text-gray-600">
+                          Sin comisión configurada
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          Este proyecto no tiene comisión base configurada
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="p-3 bg-blue-50 rounded-lg border border-blue-200 mt-2">
+                        <p className="text-sm text-blue-600">
+                          Ingresa el monto del contrato para calcular la comisión
+                        </p>
+                      </div>
+                    )}
+                  </div>
                 </>
               ) : (
                 <p className="text-muted-foreground text-center py-4">
-                  Selecciona una unidad del sistema o ingresa una unidad manual para ver el resumen
+                  Selecciona un edificio para continuar
                 </p>
               )}
             </CardContent>
@@ -644,7 +1052,7 @@ export default function GenerarContratoPage() {
           <Button
             className="w-full"
             onClick={handleSubmit}
-            disabled={saving || (!selectedUnidad && !formData.unidadManual.trim()) || !formData.nombreCliente || !formData.precioPesos}
+            disabled={saving || !clientData.rut.trim() || !clientData.nombre.trim() || !formData.edificioId || !formData.totalContrato}
           >
             {saving ? 'Generando...' : 'Generar Contrato'}
           </Button>

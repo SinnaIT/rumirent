@@ -13,39 +13,46 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Verificar que tenemos el ID del usuario
+    if (!authResult.user?.id) {
+      return NextResponse.json(
+        { error: 'Error de autenticación: ID de usuario no encontrado' },
+        { status: 401 }
+      )
+    }
+
     const body = await request.json()
     const {
       unidadId,
-      unidadManual,
-      prioridad,
-      rutCliente,
-      nombreCliente,
-      precioPesos,
-      precioUF,
-      comisionAsesor,
+      codigoUnidad,
+      totalContrato,
+      montoUf,
+      comision,
       fechaPagoReserva,
       fechaPagoContrato,
       fechaCheckin,
       estado,
-      observaciones
+      observaciones,
+      clienteId,
+      edificioId
     } = body
 
-    // Validaciones básicas
-    if ((!unidadId && !unidadManual) || !rutCliente || !nombreCliente || !precioPesos || !precioUF) {
+    // Validaciones básicas - la unidad ahora es completamente opcional
+    if (!clienteId || !totalContrato || !montoUf || !edificioId) {
       return NextResponse.json(
-        { error: 'Unidad (del sistema o manual), datos del cliente y precios son requeridos' },
+        { error: 'Cliente, edificio y montos son requeridos' },
         { status: 400 }
       )
     }
 
-    if (precioPesos <= 0 || precioUF <= 0) {
+    if (totalContrato <= 0 || montoUf <= 0) {
       return NextResponse.json(
-        { error: 'Los precios deben ser mayor a 0' },
+        { error: 'Los montos deben ser mayor a 0' },
         { status: 400 }
       )
     }
 
-    if (comisionAsesor < 0) {
+    if (comision < 0) {
       return NextResponse.json(
         { error: 'La comisión debe ser mayor o igual a 0' },
         { status: 400 }
@@ -91,32 +98,24 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Generar número de contrato único
-    const ultimoContrato = await prisma.contrato.findFirst({
-      orderBy: { numero: 'desc' }
-    })
-    const nuevoNumero = (ultimoContrato?.numero || 0) + 1
-
     // Crear el contrato en una transacción
     const resultado = await prisma.$transaction(async (tx) => {
       // Crear contrato
       const nuevoContrato = await tx.contrato.create({
         data: {
-          numero: nuevoNumero,
-          prioridad: prioridad || 'BAJA',
-          rutCliente,
-          nombreCliente,
-          precioPesos,
-          precioUF,
-          comisionAsesor,
-          estado: estado || 'POSTULACION',
+          codigoUnidad: codigoUnidad || undefined,
+          totalContrato,
+          montoUf,
+          comision,
+          estado: estado || 'ENTREGADO',
           fechaPagoReserva: fechaPagoReserva ? new Date(fechaPagoReserva) : null,
           fechaPagoContrato: fechaPagoContrato ? new Date(fechaPagoContrato) : null,
           fechaCheckin: fechaCheckin ? new Date(fechaCheckin) : null,
-          unidadManual: unidadManual || undefined,
           observaciones: observaciones || undefined,
           contratistaId: authResult.user.id,
-          unidadId: unidadId || null
+          clienteId,
+          unidadId: unidadId || null,
+          edificioId
         },
         include: {
           unidad: unidadId ? {
@@ -128,7 +127,7 @@ export async function POST(request: NextRequest) {
                   direccion: true
                 }
               },
-              tipoUnidad: {
+              tipoUnidadEdificio: {
                 include: {
                   comision: true
                 }
@@ -151,18 +150,14 @@ export async function POST(request: NextRequest) {
 
     const contratoFormatted = {
       id: resultado.id,
-      numero: resultado.numero,
-      prioridad: resultado.prioridad,
-      rutCliente: resultado.rutCliente,
-      nombreCliente: resultado.nombreCliente,
-      precioPesos: resultado.precioPesos,
-      precioUF: resultado.precioUF,
-      comisionAsesor: resultado.comisionAsesor,
+      codigoUnidad: resultado.codigoUnidad,
+      totalContrato: resultado.totalContrato,
+      montoUf: resultado.montoUf,
+      comision: resultado.comision,
       estado: resultado.estado,
       fechaPagoReserva: resultado.fechaPagoReserva?.toISOString(),
       fechaPagoContrato: resultado.fechaPagoContrato?.toISOString(),
       fechaCheckin: resultado.fechaCheckin?.toISOString(),
-      unidadManual: resultado.unidadManual,
       observaciones: resultado.observaciones,
       unidad: resultado.unidad ? {
         id: resultado.unidad.id,
@@ -170,11 +165,11 @@ export async function POST(request: NextRequest) {
         descripcion: resultado.unidad.descripcion,
         metros2: resultado.unidad.metros2,
         edificio: resultado.unidad.edificio,
-        tipoUnidad: {
-          id: resultado.unidad.tipoUnidad.id,
-          nombre: resultado.unidad.tipoUnidad.nombre,
-          codigo: resultado.unidad.tipoUnidad.codigo,
-          comision: resultado.unidad.tipoUnidad.comision
+        tipoUnidadEdificio: {
+          id: resultado.unidad.tipoUnidadEdificio.id,
+          nombre: resultado.unidad.tipoUnidadEdificio.nombre,
+          codigo: resultado.unidad.tipoUnidadEdificio.codigo,
+          comision: resultado.unidad.tipoUnidadEdificio.comision
         }
       } : null,
       createdAt: resultado.createdAt.toISOString(),

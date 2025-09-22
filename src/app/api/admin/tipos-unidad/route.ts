@@ -13,32 +13,39 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    // Los tipos de unidad ahora son un enum, no un modelo
-    // Devolver los tipos disponibles del enum
-    const tiposUnidadEnum = [
-      { valor: 'STUDIO', nombre: 'Studio' },
-      { valor: 'UN_DORMITORIO', nombre: '1 Dormitorio' },
-      { valor: 'DOS_DORMITORIOS', nombre: '2 Dormitorios' },
-      { valor: 'TRES_DORMITORIOS', nombre: '3 Dormitorios' },
-      { valor: 'PENTHOUSE', nombre: 'Penthouse' }
-    ]
-
-    // Opcional: obtener estadísticas de uso de cada tipo
-    const estadisticas = await prisma.unidad.groupBy({
-      by: ['tipo'],
-      _count: {
-        tipo: true
-      }
+    // Obtener todos los tipos de unidad de edificio con estadísticas
+    const tiposUnidadEdificio = await prisma.tipoUnidadEdificio.findMany({
+      include: {
+        edificio: {
+          select: {
+            id: true,
+            nombre: true
+          }
+        },
+        comision: {
+          select: {
+            id: true,
+            nombre: true,
+            codigo: true,
+            porcentaje: true,
+            activa: true
+          }
+        },
+        _count: {
+          select: {
+            unidades: true
+          }
+        }
+      },
+      orderBy: [
+        { edificio: { nombre: 'asc' } },
+        { nombre: 'asc' }
+      ]
     })
-
-    const tiposConEstadisticas = tiposUnidadEnum.map(tipo => ({
-      ...tipo,
-      cantidadUnidades: estadisticas.find(est => est.tipo === tipo.valor)?._count.tipo || 0
-    }))
 
     return NextResponse.json({
       success: true,
-      tiposUnidad: tiposConEstadisticas
+      tiposUnidad: tiposUnidadEdificio
     })
 
   } catch (error) {
@@ -52,9 +59,10 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    // Los tipos de unidad ahora son un enum, no se pueden crear dinámicamente
+    // Los tipos de unidad de edificio se crean específicamente por edificio
+    // Usa el endpoint /api/admin/edificios/[id]/tipos-unidad para crear tipos específicos por edificio
     return NextResponse.json(
-      { error: 'Los tipos de unidad están predefinidos como enum y no se pueden crear dinámicamente' },
+      { error: 'Los tipos de unidad se crean específicamente por edificio. Use /api/admin/edificios/[id]/tipos-unidad' },
       { status: 400 }
     )
   } catch (error) {

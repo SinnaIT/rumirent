@@ -23,6 +23,7 @@ export async function GET(request: NextRequest) {
         id: true,
         email: true,
         nombre: true,
+        telefono: true,
         activo: true,
         createdAt: true,
         _count: {
@@ -32,7 +33,7 @@ export async function GET(request: NextRequest) {
         },
         contratos: {
           select: {
-            comisionCalculada: true
+            comision: true
           }
         }
       },
@@ -46,9 +47,10 @@ export async function GET(request: NextRequest) {
       id: contratista.id,
       email: contratista.email,
       nombre: contratista.nombre,
+      telefono: contratista.telefono,
       activo: contratista.activo,
       ventasRealizadas: contratista._count.contratos,
-      comisionesTotales: contratista.contratos.reduce((total, contrato) => total + (contrato.comisionCalculada || 0), 0),
+      comisionesTotales: contratista.contratos.reduce((total, contrato) => total + (contrato.comision || 0), 0),
       createdAt: contratista.createdAt.toISOString()
     }))
 

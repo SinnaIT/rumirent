@@ -15,14 +15,6 @@ export async function GET(request: NextRequest) {
 
     // Obtener todas las comisiones
     const comisiones = await prisma.comision.findMany({
-      include: {
-        _count: {
-          select: {
-            asignaciones_comision: true,
-            cambiosProgramados: true
-          }
-        }
-      },
       orderBy: [
         { activa: 'desc' },
         { nombre: 'asc' }
@@ -35,8 +27,6 @@ export async function GET(request: NextRequest) {
       codigo: comision.codigo,
       porcentaje: comision.porcentaje,
       activa: comision.activa,
-      asignaciones: comision._count.asignaciones_comision,
-      cambiosProgramados: comision._count.cambiosProgramados,
       createdAt: comision.createdAt.toISOString(),
       updatedAt: comision.updatedAt.toISOString()
     }))

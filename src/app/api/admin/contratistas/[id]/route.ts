@@ -36,12 +36,11 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
         contratos: {
           select: {
             id: true,
-            fechaVenta: true,
-            comisionReal: true,
+            comision: true,
+            totalContrato: true,
             unidad: {
               select: {
-                nombre: true,
-                precio: true,
+                numero: true,
                 edificio: {
                   select: {
                     nombre: true
@@ -51,7 +50,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
             }
           },
           orderBy: {
-            fechaVenta: 'desc'
+            createdAt: 'desc'
           }
         },
         _count: {
@@ -71,7 +70,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 
     // Calcular estadísticas
     const ventasRealizadas = contratista._count.contratos
-    const comisionesTotales = contratista.contratos.reduce((total, contrato) => total + (contrato.comisionReal || 0), 0)
+    const comisionesTotales = contratista.contratos.reduce((total, contrato) => total + (contrato.comision || 0), 0)
 
     const response = {
       ...contratista,

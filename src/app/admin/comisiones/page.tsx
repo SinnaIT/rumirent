@@ -20,8 +20,6 @@ interface Comision {
   codigo: string
   porcentaje: number
   activa: boolean
-  asignaciones: number
-  cambiosProgramados: number
   createdAt: string
   updatedAt: string
 }
@@ -480,8 +478,6 @@ export default function ComisionesPage() {
                         <TableHead>Código</TableHead>
                         <TableHead>Porcentaje</TableHead>
                         <TableHead>Estado</TableHead>
-                        <TableHead>Asignaciones</TableHead>
-                        <TableHead>Cambios Programados</TableHead>
                         <TableHead className="text-right">Acciones</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -502,8 +498,6 @@ export default function ComisionesPage() {
                               {comision.activa ? 'Activa' : 'Inactiva'}
                             </Badge>
                           </TableCell>
-                          <TableCell>{comision.asignaciones}</TableCell>
-                          <TableCell>{comision.cambiosProgramados}</TableCell>
                           <TableCell className="text-right">
                             <div className="flex items-center justify-end space-x-2">
                               <Button
