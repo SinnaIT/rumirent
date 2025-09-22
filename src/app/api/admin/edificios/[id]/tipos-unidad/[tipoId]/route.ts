@@ -4,10 +4,11 @@ import { verifyAuth } from '@/lib/auth'
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string; tipoId: string } }
+  { params }: { params: Promise<{ id: string; tipoId: string }> }
 ) {
   try {
-    console.log('🔍 GET /api/admin/edificios/' + params.id + '/tipos-unidad/' + params.tipoId)
+    const { id, tipoId } = await params
+    console.log('🔍 GET /api/admin/edificios/' + id + '/tipos-unidad/' + tipoId)
 
     // En desarrollo, omitir verificación de autenticación por ahora
     if (process.env.NODE_ENV === 'development') {
@@ -24,8 +25,8 @@ export async function GET(
 
     const tipoUnidad = await prisma.tipoUnidadEdificio.findFirst({
       where: {
-        id: params.tipoId,
-        edificioId: params.id
+        id: tipoId,
+        edificioId: id
       },
       include: {
         comision: {
@@ -68,10 +69,11 @@ export async function GET(
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string; tipoId: string } }
+  { params }: { params: Promise<{ id: string; tipoId: string }> }
 ) {
   try {
-    console.log('🔄 PUT /api/admin/edificios/' + params.id + '/tipos-unidad/' + params.tipoId)
+    const { id, tipoId } = await params
+    console.log('🔄 PUT /api/admin/edificios/' + id + '/tipos-unidad/' + tipoId)
 
     // En desarrollo, omitir verificación de autenticación por ahora
     if (process.env.NODE_ENV === 'development') {
@@ -103,8 +105,8 @@ export async function PUT(
     // Verificar que el tipo de unidad existe y pertenece al edificio
     const existingTipoUnidad = await prisma.tipoUnidadEdificio.findFirst({
       where: {
-        id: params.tipoId,
-        edificioId: params.id
+        id: tipoId,
+        edificioId: id
       }
     })
 
@@ -132,9 +134,9 @@ export async function PUT(
     // Verificar que no hay otro tipo de unidad con el mismo código en este edificio (excluyendo el actual)
     const duplicateTipoUnidad = await prisma.tipoUnidadEdificio.findFirst({
       where: {
-        edificioId: params.id,
+        edificioId: id,
         codigo,
-        id: { not: params.tipoId }
+        id: { not: tipoId }
       }
     })
 
@@ -147,7 +149,7 @@ export async function PUT(
 
     // Actualizar tipo de unidad
     const updatedTipoUnidad = await prisma.tipoUnidadEdificio.update({
-      where: { id: params.tipoId },
+      where: { id: tipoId },
       data: {
         nombre,
         codigo,
@@ -190,10 +192,11 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string; tipoId: string } }
+  { params }: { params: Promise<{ id: string; tipoId: string }> }
 ) {
   try {
-    console.log('🗑️ DELETE /api/admin/edificios/' + params.id + '/tipos-unidad/' + params.tipoId)
+    const { id, tipoId } = await params
+    console.log('🗑️ DELETE /api/admin/edificios/' + id + '/tipos-unidad/' + tipoId)
 
     // En desarrollo, omitir verificación de autenticación por ahora
     if (process.env.NODE_ENV === 'development') {
@@ -211,8 +214,8 @@ export async function DELETE(
     // Verificar que el tipo de unidad existe y pertenece al edificio
     const tipoUnidad = await prisma.tipoUnidadEdificio.findFirst({
       where: {
-        id: params.tipoId,
-        edificioId: params.id
+        id: tipoId,
+        edificioId: id
       },
       include: {
         _count: {
@@ -240,7 +243,7 @@ export async function DELETE(
 
     // Eliminar tipo de unidad
     await prisma.tipoUnidadEdificio.delete({
-      where: { id: params.tipoId }
+      where: { id: tipoId }
     })
 
     console.log('✅ Tipo de unidad eliminado exitosamente')

@@ -4,10 +4,11 @@ import { verifyAuth } from '@/lib/auth'
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    console.log('🔍 GET /api/admin/edificios/' + params.id)
+    const { id } = await params
+    console.log('🔍 GET /api/admin/edificios/' + id)
 
     // En desarrollo, omitir verificación de autenticación por ahora
     if (process.env.NODE_ENV === 'development') {
@@ -23,7 +24,7 @@ export async function GET(
     }
 
     const edificio = await prisma.edificio.findUnique({
-      where: { id: params.id },
+      where: { id },
       include: {
         _count: {
           select: {
@@ -37,8 +38,10 @@ export async function GET(
             estado: true,
             descripcion: true,
             metros2: true,
+            tipoUnidadEdificioId: true,
             tipoUnidadEdificio: {
               select: {
+                id: true,
                 nombre: true,
                 codigo: true
               }
@@ -95,7 +98,8 @@ export async function GET(
         id: unidad.id,
         numero: unidad.numero,
         estado: unidad.estado,
-        tipo: unidad.tipoUnidadEdificio?.nombre || 'Sin tipo',
+        tipoUnidadEdificioId: unidad.tipoUnidadEdificioId,
+        tipoUnidadEdificio: unidad.tipoUnidadEdificio,
         descripcion: unidad.descripcion,
         metros2: unidad.metros2
       })),
@@ -119,10 +123,11 @@ export async function GET(
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    console.log('🔄 PUT /api/admin/edificios/' + params.id)
+    const { id } = await params
+    console.log('🔄 PUT /api/admin/edificios/' + id)
 
     // En desarrollo, omitir verificación de autenticación por ahora
     if (process.env.NODE_ENV === 'development') {
@@ -193,7 +198,7 @@ export async function PUT(
 
     // Actualizar edificio
     const updatedEdificio = await prisma.edificio.update({
-      where: { id: params.id },
+      where: { id },
       data: {
         nombre,
         direccion,
@@ -233,10 +238,11 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    console.log('🗑️ DELETE /api/admin/edificios/' + params.id)
+    const { id } = await params
+    console.log('🗑️ DELETE /api/admin/edificios/' + id)
 
     // En desarrollo, omitir verificación de autenticación por ahora
     if (process.env.NODE_ENV === 'development') {
@@ -253,7 +259,7 @@ export async function DELETE(
 
     // Verificar que el edificio existe y obtener información sobre unidades
     const edificio = await prisma.edificio.findUnique({
-      where: { id: params.id },
+      where: { id },
       include: {
         _count: {
           select: {

@@ -32,6 +32,20 @@ export async function GET(request: NextRequest) {
             nombre: true,
             direccion: true
           }
+        },
+        tipoUnidadEdificio: {
+          select: {
+            id: true,
+            nombre: true,
+            codigo: true,
+            comision: {
+              select: {
+                id: true,
+                nombre: true,
+                porcentaje: true
+              }
+            }
+          }
         }
       },
       orderBy: [
@@ -43,14 +57,13 @@ export async function GET(request: NextRequest) {
     const unidadesFormatted = unidades.map(unidad => ({
       id: unidad.id,
       numero: unidad.numero,
-      tipo: unidad.tipo,
-      precio: unidad.precio,
       estado: unidad.estado,
-      prioridad: unidad.prioridad,
       descripcion: unidad.descripcion,
       metros2: unidad.metros2,
       edificioId: unidad.edificioId,
+      tipoUnidadEdificioId: unidad.tipoUnidadEdificioId,
       edificio: unidad.edificio,
+      tipoUnidadEdificio: unidad.tipoUnidadEdificio,
       createdAt: unidad.createdAt.toISOString(),
       updatedAt: unidad.updatedAt.toISOString()
     }))
@@ -81,19 +94,14 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { numero, tipo, precio, estado, prioridad, descripcion, metros2, edificioId } = body
+    const { numero, tipoUnidadEdificioId, estado, descripcion, metros2, edificioId } = body
+
+    console.log('📝 Datos para crear unidad:', { numero, tipoUnidadEdificioId, estado, descripcion, metros2, edificioId })
 
     // Validaciones básicas
-    if (!numero || !tipo || !precio || !edificioId) {
+    if (!numero || !tipoUnidadEdificioId || !edificioId) {
       return NextResponse.json(
-        { error: 'Número, tipo, precio y edificio son requeridos' },
-        { status: 400 }
-      )
-    }
-
-    if (precio <= 0) {
-      return NextResponse.json(
-        { error: 'El precio debe ser mayor a 0' },
+        { error: 'Número, tipo de unidad y edificio son requeridos' },
         { status: 400 }
       )
     }
@@ -101,15 +109,6 @@ export async function POST(request: NextRequest) {
     if (metros2 && metros2 <= 0) {
       return NextResponse.json(
         { error: 'Los metros cuadrados deben ser mayor a 0' },
-        { status: 400 }
-      )
-    }
-
-    // Validar tipo de unidad
-    const tiposValidos = ['STUDIO', 'UN_DORMITORIO', 'DOS_DORMITORIOS', 'TRES_DORMITORIOS', 'PENTHOUSE']
-    if (!tiposValidos.includes(tipo)) {
-      return NextResponse.json(
-        { error: 'Tipo de unidad no válido' },
         { status: 400 }
       )
     }
@@ -123,6 +122,21 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { error: 'Edificio no encontrado' },
         { status: 404 }
+      )
+    }
+
+    // Verificar que el tipo de unidad existe y pertenece al edificio
+    const tipoUnidadEdificio = await prisma.tipoUnidadEdificio.findFirst({
+      where: {
+        id: tipoUnidadEdificioId,
+        edificioId: edificioId
+      }
+    })
+
+    if (!tipoUnidadEdificio) {
+      return NextResponse.json(
+        { error: 'Tipo de unidad no encontrado o no pertenece a este edificio' },
+        { status: 400 }
       )
     }
 
@@ -145,13 +159,11 @@ export async function POST(request: NextRequest) {
     const newUnidad = await prisma.unidad.create({
       data: {
         numero,
-        tipo,
-        precio,
         estado: estado || 'DISPONIBLE',
-        prioridad: prioridad || 'BAJA',
         descripcion: descripcion || undefined,
         metros2: metros2 || undefined,
-        edificioId
+        edificioId,
+        tipoUnidadEdificioId
       },
       include: {
         edificio: {
@@ -159,6 +171,20 @@ export async function POST(request: NextRequest) {
             id: true,
             nombre: true,
             direccion: true
+          }
+        },
+        tipoUnidadEdificio: {
+          select: {
+            id: true,
+            nombre: true,
+            codigo: true,
+            comision: {
+              select: {
+                id: true,
+                nombre: true,
+                porcentaje: true
+              }
+            }
           }
         }
       }

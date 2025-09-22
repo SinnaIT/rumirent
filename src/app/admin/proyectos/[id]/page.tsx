@@ -60,10 +60,15 @@ interface Comision {
 interface Unidad {
   id: string
   numero: string
-  tipo: string
+  tipoUnidadEdificioId: string
   estado: 'DISPONIBLE' | 'RESERVADA' | 'VENDIDA'
   descripcion?: string
   metros2?: number
+  tipoUnidadEdificio?: {
+    id: string
+    nombre: string
+    codigo: string
+  }
 }
 
 interface EdificioDetail {
@@ -116,10 +121,8 @@ export default function ProyectoDetailPage() {
   // Form state for unidades
   const [unidadFormData, setUnidadFormData] = useState({
     numero: '',
-    tipo: '',
-    precio: '',
+    tipoUnidadEdificioId: '',
     estado: 'DISPONIBLE' as const,
-    prioridad: 'BAJA' as const,
     descripcion: '',
     metros2: ''
   })
@@ -147,11 +150,15 @@ export default function ProyectoDetailPage() {
   const fetchEdificio = async () => {
     try {
       setLoading(true)
+      console.log('🔄 Refrescando datos del edificio...')
       const response = await fetch(`/api/admin/edificios/${params.id}`)
       const data = await response.json()
 
+      console.log('📦 Datos del edificio recibidos:', data)
+
       if (data.success) {
         setEdificio(data.edificio)
+        console.log('✅ Edificio actualizado en estado local')
       } else {
         toast.error('Error al cargar proyecto')
         router.push('/admin/proyectos')
@@ -292,10 +299,8 @@ export default function ProyectoDetailPage() {
   const resetUnidadForm = () => {
     setUnidadFormData({
       numero: '',
-      tipo: '',
-      precio: '',
+      tipoUnidadEdificioId: '',
       estado: 'DISPONIBLE',
-      prioridad: 'BAJA',
       descripcion: '',
       metros2: ''
     })
@@ -308,28 +313,32 @@ export default function ProyectoDetailPage() {
   }
 
   const handleOpenEditUnidadDialog = (unidad: Unidad) => {
-    setUnidadFormData({
+    console.log('🔧 Abriendo edición de unidad:', unidad)
+    console.log('🔍 Tipos de unidad disponibles:', tiposUnidadDetalle)
+    console.log('🎯 tipoUnidadEdificioId de la unidad:', unidad.tipoUnidadEdificioId)
+    console.log('🎯 tipoUnidadEdificio completo:', unidad.tipoUnidadEdificio)
+
+    const formData = {
       numero: unidad.numero,
-      tipo: unidad.tipo,
-      precio: unidad.precio?.toString() || '',
+      tipoUnidadEdificioId: unidad.tipoUnidadEdificioId,
       estado: unidad.estado,
-      prioridad: unidad.prioridad,
       descripcion: unidad.descripcion || '',
       metros2: unidad.metros2?.toString() || ''
-    })
+    }
+
+    console.log('📝 Form data que se va a establecer:', formData)
+
+    setUnidadFormData(formData)
     setEditingUnidad(unidad)
     setIsCreateUnidadDialogOpen(true)
   }
 
   const handleSubmitUnidad = async () => {
-    if (!unidadFormData.numero.trim() || !unidadFormData.tipo || !unidadFormData.precio) {
-      toast.error('Número, tipo de unidad y precio son requeridos')
-      return
-    }
+    console.log('📝 Datos del formulario antes de enviar:', unidadFormData)
+    console.log('🔄 Editando unidad:', editingUnidad)
 
-    const precio = parseFloat(unidadFormData.precio)
-    if (isNaN(precio) || precio <= 0) {
-      toast.error('El precio debe ser un número válido mayor a 0')
+    if (!unidadFormData.numero.trim() || !unidadFormData.tipoUnidadEdificioId) {
+      toast.error('Número y tipo de unidad son requeridos')
       return
     }
 
@@ -347,24 +356,29 @@ export default function ProyectoDetailPage() {
 
       const method = editingUnidad ? 'PUT' : 'POST'
 
+      const payload = {
+        numero: unidadFormData.numero,
+        tipoUnidadEdificioId: unidadFormData.tipoUnidadEdificioId,
+        estado: unidadFormData.estado,
+        descripcion: unidadFormData.descripcion || undefined,
+        metros2,
+        edificioId: params.id
+      }
+
+      console.log('📤 Payload enviado:', payload)
+      console.log('🌐 URL:', url)
+      console.log('🔧 Método:', method)
+
       const response = await fetch(url, {
         method,
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          numero: unidadFormData.numero,
-          tipoUnidadEdificioId: unidadFormData.tipo,
-          precio,
-          estado: unidadFormData.estado,
-          prioridad: unidadFormData.prioridad,
-          descripcion: unidadFormData.descripcion || undefined,
-          metros2,
-          edificioId: params.id
-        })
+        body: JSON.stringify(payload)
       })
 
       const data = await response.json()
+      console.log('📥 Respuesta del servidor:', data)
 
       if (data.success) {
         toast.success(data.message)
@@ -372,6 +386,7 @@ export default function ProyectoDetailPage() {
         resetUnidadForm()
         fetchEdificio()
       } else {
+        console.error('❌ Error del servidor:', data)
         toast.error(data.error)
       }
     } catch (error) {
@@ -794,7 +809,7 @@ export default function ProyectoDetailPage() {
                         <div className="grid grid-cols-2 gap-4">
                           <div className="grid grid-cols-1 gap-2">
                             <Label htmlFor="tipoUnidad">Tipo de Unidad *</Label>
-                            <Select value={unidadFormData.tipo} onValueChange={(value: string) => setUnidadFormData({ ...unidadFormData, tipo: value })}>
+                            <Select value={unidadFormData.tipoUnidadEdificioId} onValueChange={(value: string) => setUnidadFormData({ ...unidadFormData, tipoUnidadEdificioId: value })}>
                               <SelectTrigger>
                                 <SelectValue placeholder="Seleccionar tipo" />
                               </SelectTrigger>
@@ -823,33 +838,6 @@ export default function ProyectoDetailPage() {
                           </div>
                         </div>
 
-                        <div className="grid grid-cols-2 gap-4">
-                          <div className="grid grid-cols-1 gap-2">
-                            <Label htmlFor="precio">Precio *</Label>
-                            <Input
-                              id="precio"
-                              type="number"
-                              value={unidadFormData.precio}
-                              onChange={(e) => setUnidadFormData({ ...unidadFormData, precio: e.target.value })}
-                              placeholder="Precio de la unidad..."
-                            />
-                          </div>
-
-                          <div className="grid grid-cols-1 gap-2">
-                            <Label htmlFor="prioridad">Prioridad</Label>
-                            <Select value={unidadFormData.prioridad} onValueChange={(value: any) => setUnidadFormData({ ...unidadFormData, prioridad: value })}>
-                              <SelectTrigger>
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="BAJA">Baja</SelectItem>
-                                <SelectItem value="MEDIA">Media</SelectItem>
-                                <SelectItem value="ALTA">Alta</SelectItem>
-                                <SelectItem value="URGENTE">Urgente</SelectItem>
-                              </SelectContent>
-                            </Select>
-                          </div>
-                        </div>
 
                         <div className="grid grid-cols-1 gap-2">
                           <Label htmlFor="descripcion">Descripción</Label>
@@ -927,14 +915,25 @@ export default function ProyectoDetailPage() {
                           </TableCell>
                           <TableCell>
                             {(() => {
-                              const tipoUnidadInfo = tiposUnidadDetalle.find(t => t.id === unidad.tipo)
+                              console.log('🔍 Datos de unidad para tabla:', {
+                                unidadId: unidad.id,
+                                numero: unidad.numero,
+                                tipoUnidadEdificioId: unidad.tipoUnidadEdificioId,
+                                tipoUnidadEdificio: unidad.tipoUnidadEdificio,
+                                tiposUnidadDetalle: tiposUnidadDetalle.map(t => ({ id: t.id, nombre: t.nombre }))
+                              })
+
+                              const tipoUnidadInfo = tiposUnidadDetalle.find(t => t.id === unidad.tipoUnidadEdificioId) || unidad.tipoUnidadEdificio
+
+                              console.log('🎯 Tipo de unidad encontrado:', tipoUnidadInfo)
+
                               return (
                                 <div>
                                   <div className="font-medium text-sm">
-                                    {tipoUnidadInfo?.nombre || unidad.tipo}
+                                    {tipoUnidadInfo?.nombre || 'Sin tipo'}
                                   </div>
                                   <div className="text-xs text-muted-foreground">
-                                    {tipoUnidadInfo?.codigo || unidad.tipo}
+                                    {tipoUnidadInfo?.codigo || 'N/A'}
                                   </div>
                                 </div>
                               )

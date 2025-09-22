@@ -4,10 +4,11 @@ import { verifyAuth } from '@/lib/auth'
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    console.log('🔍 GET /api/admin/edificios/' + params.id + '/tipos-unidad')
+    const { id } = await params
+    console.log('🔍 GET /api/admin/edificios/' + id + '/tipos-unidad')
 
     // En desarrollo, omitir verificación de autenticación por ahora
     if (process.env.NODE_ENV === 'development') {
@@ -24,7 +25,7 @@ export async function GET(
 
     // Verificar que el edificio existe
     const edificio = await prisma.edificio.findUnique({
-      where: { id: params.id }
+      where: { id: id }
     })
 
     if (!edificio) {
@@ -36,7 +37,7 @@ export async function GET(
 
     // Obtener todos los tipos de unidad del edificio
     const tiposUnidad = await prisma.tipoUnidadEdificio.findMany({
-      where: { edificioId: params.id },
+      where: { edificioId: id },
       include: {
         comision: {
           select: {
@@ -74,10 +75,11 @@ export async function GET(
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    console.log('➕ POST /api/admin/edificios/' + params.id + '/tipos-unidad')
+    const { id } = await params
+    console.log('➕ POST /api/admin/edificios/' + id + '/tipos-unidad')
 
     // En desarrollo, omitir verificación de autenticación por ahora
     if (process.env.NODE_ENV === 'development') {
@@ -108,7 +110,7 @@ export async function POST(
 
     // Verificar que el edificio existe
     const edificio = await prisma.edificio.findUnique({
-      where: { id: params.id }
+      where: { id: id }
     })
 
     if (!edificio) {
@@ -135,7 +137,7 @@ export async function POST(
     // Verificar que no hay otro tipo de unidad con el mismo código en este edificio
     const existingTipoUnidad = await prisma.tipoUnidadEdificio.findFirst({
       where: {
-        edificioId: params.id,
+        edificioId: id,
         codigo
       }
     })
@@ -153,7 +155,7 @@ export async function POST(
         nombre,
         codigo,
         comisionId: comisionId === 'none' || !comisionId ? null : comisionId,
-        edificioId: params.id
+        edificioId: id
       },
       include: {
         comision: {
