@@ -19,6 +19,7 @@ export async function GET(request: NextRequest) {
         contratistaId: authResult.user.id
       },
       include: {
+        cliente: true,
         unidad: {
           include: {
             edificio: {
@@ -28,11 +29,18 @@ export async function GET(request: NextRequest) {
                 direccion: true
               }
             },
-            tipoUnidad: {
+            tipoUnidadEdificio: {
               include: {
                 comision: true
               }
             }
+          }
+        },
+        edificio: {
+          select: {
+            id: true,
+            nombre: true,
+            direccion: true
           }
         }
       },
@@ -43,19 +51,22 @@ export async function GET(request: NextRequest) {
 
     const contratosFormatted = contratos.map(contrato => ({
       id: contrato.id,
-      numero: contrato.numero,
-      prioridad: contrato.prioridad,
-      rutCliente: contrato.rutCliente,
-      nombreCliente: contrato.nombreCliente,
-      precioPesos: contrato.precioPesos,
-      precioUF: contrato.precioUF,
-      comisionAsesor: contrato.comisionAsesor,
+      codigoUnidad: contrato.codigoUnidad,
+      totalContrato: contrato.totalContrato,
+      montoUf: contrato.montoUf,
+      comision: contrato.comision,
       estado: contrato.estado,
       fechaPagoReserva: contrato.fechaPagoReserva?.toISOString(),
       fechaPagoContrato: contrato.fechaPagoContrato?.toISOString(),
       fechaCheckin: contrato.fechaCheckin?.toISOString(),
-      unidadManual: contrato.unidadManual,
       observaciones: contrato.observaciones,
+      cliente: contrato.cliente ? {
+        id: contrato.cliente.id,
+        nombre: contrato.cliente.nombre,
+        rut: contrato.cliente.rut,
+        email: contrato.cliente.email,
+        telefono: contrato.cliente.telefono
+      } : null,
       unidad: contrato.unidad ? {
         id: contrato.unidad.id,
         numero: contrato.unidad.numero,
@@ -63,17 +74,22 @@ export async function GET(request: NextRequest) {
         metros2: contrato.unidad.metros2,
         edificio: contrato.unidad.edificio,
         tipoUnidad: {
-          id: contrato.unidad.tipoUnidad.id,
-          nombre: contrato.unidad.tipoUnidad.nombre,
-          codigo: contrato.unidad.tipoUnidad.codigo,
-          comision: {
-            id: contrato.unidad.tipoUnidad.comision.id,
-            nombre: contrato.unidad.tipoUnidad.comision.nombre,
-            codigo: contrato.unidad.tipoUnidad.comision.codigo,
-            porcentaje: contrato.unidad.tipoUnidad.comision.porcentaje,
-            activa: contrato.unidad.tipoUnidad.comision.activa
-          }
+          id: contrato.unidad.tipoUnidadEdificio.id,
+          nombre: contrato.unidad.tipoUnidadEdificio.nombre,
+          codigo: contrato.unidad.tipoUnidadEdificio.codigo,
+          comision: contrato.unidad.tipoUnidadEdificio.comision ? {
+            id: contrato.unidad.tipoUnidadEdificio.comision.id,
+            nombre: contrato.unidad.tipoUnidadEdificio.comision.nombre,
+            codigo: contrato.unidad.tipoUnidadEdificio.comision.codigo,
+            porcentaje: contrato.unidad.tipoUnidadEdificio.comision.porcentaje,
+            activa: contrato.unidad.tipoUnidadEdificio.comision.activa
+          } : null
         }
+      } : null,
+      edificio: contrato.edificio ? {
+        id: contrato.edificio.id,
+        nombre: contrato.edificio.nombre,
+        direccion: contrato.edificio.direccion
       } : null,
       createdAt: contrato.createdAt.toISOString(),
       updatedAt: contrato.updatedAt.toISOString()
@@ -82,17 +98,16 @@ export async function GET(request: NextRequest) {
     // Calcular estadísticas
     const stats = {
       totalContratos: contratos.length,
-      postulaciones: contratos.filter(c => c.estado === 'POSTULACION').length,
-      reservados: contratos.filter(c => c.estado === 'RESERVADO').length,
-      contratados: contratos.filter(c => c.estado === 'CONTRATADO').length,
-      checkinRealizados: contratos.filter(c => c.estado === 'CHECKIN_REALIZADO').length,
-      cancelados: contratos.filter(c => c.estado === 'CANCELADO').length,
+      entregados: contratos.filter(c => c.estado === 'ENTREGADO').length,
+      reservaPagada: contratos.filter(c => c.estado === 'RESERVA_PAGADA').length,
+      aprobados: contratos.filter(c => c.estado === 'APROBADO').length,
+      rechazados: contratos.filter(c => c.estado === 'RECHAZADO').length,
       totalComisionesEsperadas: contratos
-        .filter(c => c.estado !== 'CANCELADO')
-        .reduce((sum, c) => sum + c.comisionAsesor, 0),
-      totalComisionesRealizadas: contratos
-        .filter(c => c.estado === 'CHECKIN_REALIZADO')
-        .reduce((sum, c) => sum + c.comisionAsesor, 0)
+        .filter(c => c.estado !== 'RECHAZADO')
+        .reduce((sum, c) => sum + (c.comision || 0), 0),
+      totalComisionesAprobadas: contratos
+        .filter(c => c.estado === 'APROBADO')
+        .reduce((sum, c) => sum + (c.comision || 0), 0)
     }
 
     return NextResponse.json({
