@@ -89,7 +89,11 @@ export async function getCurrentUser(): Promise<JWTPayload | null> {
 
 export interface AuthResult {
   success: boolean
-  user?: JWTPayload
+  user?: {
+    id: string
+    email: string
+    role: 'ADMIN' | 'CONTRATISTA'
+  }
   error?: string
 }
 
@@ -115,7 +119,11 @@ export async function verifyAuth(request: Request): Promise<AuthResult> {
 
     return {
       success: true,
-      user
+      user: {
+        id: user.userId,
+        email: user.email,
+        role: user.role
+      }
     }
   } catch (error) {
     return {
