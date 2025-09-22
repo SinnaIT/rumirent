@@ -48,7 +48,7 @@ interface Proyecto {
   nombre: string
   direccion: string
   descripcion?: string
-  estado: 'PLANIFICACION' | 'CONSTRUCCION' | 'COMPLETADO'
+  estado: 'ENTREGA_INMEDIATA' | 'ENTREGA_FUTURA'
   comision?: Comision | null
   totalUnidades: number
   unidadesDisponibles: number
@@ -58,9 +58,8 @@ interface Proyecto {
 }
 
 const ESTADOS_EDIFICIO = [
-  { value: 'PLANIFICACION', label: 'Planificación', color: 'bg-blue-100 text-blue-800' },
-  { value: 'CONSTRUCCION', label: 'Construcción', color: 'bg-yellow-100 text-yellow-800' },
-  { value: 'COMPLETADO', label: 'Completado', color: 'bg-green-100 text-green-800' }
+  { value: 'ENTREGA_INMEDIATA', label: 'Entrega Inmediata', color: 'bg-green-100 text-green-800' },
+  { value: 'ENTREGA_FUTURA', label: 'Entrega Futura', color: 'bg-blue-100 text-blue-800' }
 ]
 
 export default function ContratistaProyectosPage() {

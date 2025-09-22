@@ -251,12 +251,12 @@ export default function ContratistasPage() {
       {/* Header */}
       <div className="flex items-start justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">Gestión de Contratistas</h1>
-          <p className="text-muted-foreground mt-1">Administra los contratistas del sistema</p>
+          <h1 className="text-3xl font-bold text-foreground">Gestión de Brokers</h1>
+          <p className="text-muted-foreground mt-1">Administra los brokers del sistema</p>
         </div>
         <Button onClick={() => setIsCreateModalOpen(true)} className="gap-2">
           <Plus className="h-4 w-4" />
-          Nuevo Contratista
+          Nuevo Broker
         </Button>
       </div>
 
@@ -264,7 +264,7 @@ export default function ContratistasPage() {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Contratistas</CardTitle>
+            <CardTitle className="text-sm font-medium">Total Brokers</CardTitle>
             <Users className="h-4 w-4 text-primary" />
           </CardHeader>
           <CardContent>
@@ -304,7 +304,7 @@ export default function ContratistasPage() {
       <div className="relative max-w-md">
         <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
         <Input
-          placeholder="Buscar contratistas..."
+          placeholder="Buscar brokers..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
           className="pl-10"
@@ -314,7 +314,7 @@ export default function ContratistasPage() {
       {/* Table */}
       <Card>
         <CardHeader>
-          <CardTitle>Lista de Contratistas</CardTitle>
+          <CardTitle>Lista de Brokers</CardTitle>
         </CardHeader>
         <CardContent>
           {loading ? (
@@ -339,7 +339,7 @@ export default function ContratistasPage() {
                 {filteredContratistas.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
-                      No se encontraron contratistas
+                      No se encontraron brokers
                     </TableCell>
                   </TableRow>
                 ) : (
@@ -488,7 +488,7 @@ export default function ContratistasPage() {
               <Button type="button" variant="outline" onClick={() => setIsCreateModalOpen(false)}>
                 Cancelar
               </Button>
-              <Button type="submit">Crear Contratista</Button>
+              <Button type="submit">Crear Broker</Button>
             </div>
           </form>
         </DialogContent>
@@ -498,9 +498,9 @@ export default function ContratistasPage() {
       <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Editar Contratista</DialogTitle>
+            <DialogTitle>Editar Broker</DialogTitle>
             <DialogDescription>
-              Modifique los datos del contratista. Deje la contraseña vacía si no desea cambiarla.
+              Modifique los datos del broker. Deje la contraseña vacía si no desea cambiarla.
             </DialogDescription>
           </DialogHeader>
           <form onSubmit={handleEditContratista} className="space-y-4">

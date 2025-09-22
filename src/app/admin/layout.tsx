@@ -12,7 +12,12 @@ import {
   BarChart3,
   Home,
   LogOut,
-  User
+  User,
+  TrendingUp,
+  DollarSign,
+  ChevronDown,
+  ChevronRight,
+  FileCheck
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/lib/hooks/use-auth'
@@ -20,9 +25,19 @@ import { useAuth } from '@/lib/hooks/use-auth'
 const menuItems = [
   { icon: Home, label: 'Dashboard', href: '/admin' },
   { icon: Building2, label: 'Proyectos', href: '/admin/proyectos' },
-  { icon: Users, label: 'Contratistas', href: '/admin/contratistas' },
+  { icon: Users, label: 'Brokers', href: '/admin/contratistas' },
   { icon: Calculator, label: 'Comisiones', href: '/admin/comisiones' },
-  { icon: BarChart3, label: 'Reportes', href: '/admin/reportes' },
+  { icon: FileCheck, label: 'Conciliación', href: '/admin/conciliacion' },
+  {
+    icon: BarChart3,
+    label: 'Reportes',
+    href: '/admin/reportes',
+    hasSubmenu: true,
+    submenu: [
+      { icon: TrendingUp, label: 'Performance Contratistas', href: '/admin/reportes' },
+      { icon: DollarSign, label: 'Flujo de Caja', href: '/admin/reportes/flujo-caja' },
+    ]
+  },
 ]
 
 export default function AdminLayout({
@@ -31,8 +46,17 @@ export default function AdminLayout({
   children: React.ReactNode
 }) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
+  const [expandedMenus, setExpandedMenus] = useState<string[]>([])
   const router = useRouter()
   const { user, loading, logout } = useAuth()
+
+  const toggleSubmenu = (label: string) => {
+    setExpandedMenus(prev =>
+      prev.includes(label)
+        ? prev.filter(item => item !== label)
+        : [...prev, label]
+    )
+  }
 
   // Handle redirect after loading is complete
   useEffect(() => {
@@ -95,6 +119,9 @@ export default function AdminLayout({
             <ul className="space-y-1">
               {menuItems.map((item) => {
                 const isActive = router && typeof window !== 'undefined' && window.location.pathname === item.href
+                const isExpanded = expandedMenus.includes(item.label)
+                const hasSubmenu = item.hasSubmenu && item.submenu
+
                 return (
                   <li key={item.href}>
                     <Button
@@ -106,13 +133,56 @@ export default function AdminLayout({
                           : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
                       )}
                       onClick={() => {
-                        router.push(item.href)
-                        setIsSidebarOpen(false)
+                        if (hasSubmenu) {
+                          toggleSubmenu(item.label)
+                        } else {
+                          router.push(item.href)
+                          setIsSidebarOpen(false)
+                        }
                       }}
                     >
                       <item.icon className="mr-3 h-5 w-5" />
                       {item.label}
+                      {hasSubmenu && (
+                        <div className="ml-auto">
+                          {isExpanded ? (
+                            <ChevronDown className="h-4 w-4" />
+                          ) : (
+                            <ChevronRight className="h-4 w-4" />
+                          )}
+                        </div>
+                      )}
                     </Button>
+
+                    {/* Submenu */}
+                    {hasSubmenu && isExpanded && (
+                      <ul className="ml-6 mt-1 space-y-1">
+                        {item.submenu.map((subItem) => {
+                          const isSubActive = router && typeof window !== 'undefined' && window.location.pathname === subItem.href
+                          return (
+                            <li key={subItem.href}>
+                              <Button
+                                variant={isSubActive ? "default" : "ghost"}
+                                size="sm"
+                                className={cn(
+                                  "w-full justify-start text-left transition-colors",
+                                  isSubActive
+                                    ? "bg-sidebar-primary text-sidebar-primary-foreground hover:bg-sidebar-primary/90"
+                                    : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                                )}
+                                onClick={() => {
+                                  router.push(subItem.href)
+                                  setIsSidebarOpen(false)
+                                }}
+                              >
+                                <subItem.icon className="mr-3 h-4 w-4" />
+                                {subItem.label}
+                              </Button>
+                            </li>
+                          )
+                        })}
+                      </ul>
+                    )}
                   </li>
                 )
               })}

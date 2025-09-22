@@ -95,7 +95,7 @@ export default function ComisionesPage() {
     fechaCambio: '',
     comisionId: '',
     edificioId: '',
-    tipoUnidadId: ''
+    tipoUnidadId: 'all'
   })
 
   useEffect(() => {
@@ -276,7 +276,7 @@ export default function ComisionesPage() {
       fechaCambio: '',
       comisionId: '',
       edificioId: '',
-      tipoUnidadId: ''
+      tipoUnidadId: 'all'
     })
   }
 
@@ -296,7 +296,7 @@ export default function ComisionesPage() {
           fechaCambio: cambioForm.fechaCambio,
           comisionId: cambioForm.comisionId,
           edificioId: cambioForm.edificioId,
-          tipoUnidadId: cambioForm.tipoUnidadId || undefined
+          tipoUnidadId: cambioForm.tipoUnidadId === "all" ? undefined : cambioForm.tipoUnidadId || undefined
         })
       })
 
@@ -630,7 +630,7 @@ export default function ComisionesPage() {
                               <SelectValue placeholder="Todo el proyecto o tipo específico" />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="">Todo el proyecto</SelectItem>
+                              <SelectItem value="all">Todo el proyecto</SelectItem>
                               {tiposUnidad
                                 .filter(tipo => cambioForm.edificioId ? tipo.edificioId === cambioForm.edificioId : true)
                                 .map((tipo) => (

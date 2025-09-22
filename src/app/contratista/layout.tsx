@@ -8,7 +8,7 @@ import {
   X,
   Building2,
   Home,
-  History,
+  BarChart3,
   Calculator,
   LogOut,
   User,
@@ -22,7 +22,7 @@ const menuItems = [
   { icon: Building2, label: 'Proyectos', href: '/contratista/proyectos' },
   { icon: Plus, label: 'Generar Contrato', href: '/contratista/generar-contrato' },
   { icon: Calculator, label: 'Mis Ventas', href: '/contratista/ventas' },
-  { icon: History, label: 'Historial', href: '/contratista/historial' },
+  { icon: BarChart3, label: 'Reportes', href: '/contratista/reportes' },
 ]
 
 export default function ContratistaLayout({
@@ -127,7 +127,7 @@ export default function ContratistaLayout({
               </div>
               <div className="flex flex-col">
                 <span className="text-sm font-medium text-sidebar-foreground">{user.nombre}</span>
-                <span className="text-xs text-muted-foreground">Contratista</span>
+                <span className="text-xs text-muted-foreground">Broker</span>
               </div>
             </div>
           </div>
@@ -149,7 +149,7 @@ export default function ContratistaLayout({
                 <Menu className="h-5 w-5" />
               </Button>
               <h1 className="text-lg font-semibold text-foreground">
-                Panel de Contratista
+                Panel de Broker
               </h1>
             </div>
 

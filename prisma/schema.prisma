@@ -29,7 +29,7 @@ model Edificio {
   nombre             String
   direccion          String
   descripcion        String?
-  estado             EstadoEdificio             @default(PLANIFICACION)
+  estado             EstadoEdificio             @default(ENTREGA_FUTURA)
   comisionId         String
   createdAt          DateTime                   @default(now())
   updatedAt          DateTime                   @updatedAt
@@ -104,6 +104,8 @@ model Contrato {
   fechaCheckin          DateTime?
   postulacion           String?
   observaciones         String?
+  conciliado            Boolean        @default(false)
+  fechaConciliacion     DateTime?
   createdAt             DateTime       @default(now())
   updatedAt             DateTime       @updatedAt
   contratistaId         String
@@ -155,9 +157,8 @@ enum Role {
 }
 
 enum EstadoEdificio {
-  PLANIFICACION
-  CONSTRUCCION
-  COMPLETADO
+  ENTREGA_INMEDIATA
+  ENTREGA_FUTURA
 }
 
 enum EstadoUnidad {
