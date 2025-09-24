@@ -6,6 +6,17 @@ const prisma = new PrismaClient()
 async function main() {
   console.log('🌱 Iniciando seed de la base de datos con nueva estructura...')
 
+  // Limpiar datos existentes (orden importante por foreign keys)
+  console.log('🧹 Limpiando datos existentes...')
+  await prisma.contrato.deleteMany({})
+  await prisma.cliente.deleteMany({})
+  await prisma.unidad.deleteMany({})
+  await prisma.cambioComisionProgramado.deleteMany({})
+  await prisma.tipoUnidadEdificio.deleteMany({})
+  await prisma.edificio.deleteMany({})
+  await prisma.user.deleteMany({})
+  await prisma.comision.deleteMany({})
+
   // 1. Crear comisiones base (porcentajes)
   console.log('💰 Creando comisiones...')
   const comisionBasica = await prisma.comision.create({
@@ -44,7 +55,7 @@ async function main() {
     }
   })
 
-  // 2. Crear usuarios con RUT
+  // 2. Crear usuarios con RUT (1 admin + 6 contratistas)
   console.log('👤 Creando usuarios...')
   const hashedPassword = await bcrypt.hash('123456', 10)
 
@@ -92,6 +103,39 @@ async function main() {
     }
   })
 
+  const contratista4 = await prisma.user.create({
+    data: {
+      email: 'ana.martinez@email.com',
+      password: hashedPassword,
+      nombre: 'Ana Martínez',
+      rut: '65432109-8',
+      telefono: '+569 6543 2109',
+      role: 'CONTRATISTA',
+    }
+  })
+
+  const contratista5 = await prisma.user.create({
+    data: {
+      email: 'pedro.sanchez@email.com',
+      password: hashedPassword,
+      nombre: 'Pedro Sánchez',
+      rut: '54321098-7',
+      telefono: '+569 5432 1098',
+      role: 'CONTRATISTA',
+    }
+  })
+
+  const contratista6 = await prisma.user.create({
+    data: {
+      email: 'lucia.torres@email.com',
+      password: hashedPassword,
+      nombre: 'Lucía Torres',
+      rut: '43210987-6',
+      telefono: '+569 4321 0987',
+      role: 'CONTRATISTA',
+    }
+  })
+
   // 3. Crear edificios con comisión base
   console.log('🏢 Creando edificios...')
   const edificio1 = await prisma.edificio.create({
@@ -121,6 +165,26 @@ async function main() {
       descripcion: 'Proyecto urbano en el corazón de la ciudad',
       estado: 'ENTREGA_INMEDIATA',
       comisionId: comisionBasica.id // 3% base
+    }
+  })
+
+  const edificio4 = await prisma.edificio.create({
+    data: {
+      nombre: 'Alto Mirador',
+      direccion: 'Av. Apoquindo 5678, Las Condes, Santiago',
+      descripcion: 'Torre de lujo con vista panorámica',
+      estado: 'ENTREGA_FUTURA',
+      comisionId: comisionVip.id // 10% base
+    }
+  })
+
+  const edificio5 = await prisma.edificio.create({
+    data: {
+      nombre: 'Condominio Verde',
+      direccion: 'Pasaje Los Olivos 987, Ñuñoa, Santiago',
+      descripcion: 'Proyecto sustentable con áreas verdes',
+      estado: 'ENTREGA_INMEDIATA',
+      comisionId: comisionStandard.id // 5% base
     }
   })
 
@@ -155,6 +219,15 @@ async function main() {
     }
   })
 
+  const tipoPenthouseTorres = await prisma.tipoUnidadEdificio.create({
+    data: {
+      nombre: 'Penthouse Torres',
+      codigo: 'PH',
+      comisionId: null, // Usará la comisión del proyecto (5%)
+      edificioId: edificio1.id
+    }
+  })
+
   // Vista Mar - Tipos de unidad
   const tipoPenthouseVista = await prisma.tipoUnidadEdificio.create({
     data: {
@@ -184,7 +257,6 @@ async function main() {
     }
   })
 
-  // Tipo sin comisión específica (usa la del proyecto)
   const tipo1DormParque = await prisma.tipoUnidadEdificio.create({
     data: {
       nombre: '1 Dormitorio Estándar',
@@ -194,13 +266,41 @@ async function main() {
     }
   })
 
-  // Torres del Sol - Tipo sin comisión específica
-  const tipoPenthouseTorres = await prisma.tipoUnidadEdificio.create({
+  // Alto Mirador - Tipos de unidad
+  const tipoLuxuryMirador = await prisma.tipoUnidadEdificio.create({
     data: {
-      nombre: 'Penthouse Torres',
+      nombre: 'Luxury Suite',
+      codigo: 'LUXURY',
+      comisionId: comisionVip.id, // 10%
+      edificioId: edificio4.id
+    }
+  })
+
+  const tipoPenthouseMirador = await prisma.tipoUnidadEdificio.create({
+    data: {
+      nombre: 'Penthouse Mirador',
       codigo: 'PH',
-      comisionId: null, // Usará la comisión del proyecto (5%)
-      edificioId: edificio1.id
+      comisionId: null, // Usará la comisión del proyecto (10%)
+      edificioId: edificio4.id
+    }
+  })
+
+  // Condominio Verde - Tipos de unidad
+  const tipoEcoStudio = await prisma.tipoUnidadEdificio.create({
+    data: {
+      nombre: 'Eco Studio',
+      codigo: 'ECO_STUDIO',
+      comisionId: comisionStandard.id, // 5%
+      edificioId: edificio5.id
+    }
+  })
+
+  const tipo2DormVerde = await prisma.tipoUnidadEdificio.create({
+    data: {
+      nombre: '2 Dormitorios Verde',
+      codigo: '2DORM',
+      comisionId: comisionPremium.id, // 7%
+      edificioId: edificio5.id
     }
   })
 
@@ -208,7 +308,7 @@ async function main() {
   console.log('🏘️ Creando unidades...')
 
   // Torres del Sol - Unidades
-  const unidades1 = await prisma.unidad.createMany({
+  await prisma.unidad.createMany({
     data: [
       {
         numero: '101',
@@ -262,7 +362,7 @@ async function main() {
   })
 
   // Vista Mar - Unidades
-  const unidades2 = await prisma.unidad.createMany({
+  await prisma.unidad.createMany({
     data: [
       {
         numero: 'PH01',
@@ -292,7 +392,7 @@ async function main() {
   })
 
   // Parque Central - Unidades
-  const unidades3 = await prisma.unidad.createMany({
+  await prisma.unidad.createMany({
     data: [
       {
         numero: '101',
@@ -329,158 +429,479 @@ async function main() {
     ]
   })
 
-  // 6. Crear clientes
+  // Alto Mirador - Unidades
+  await prisma.unidad.createMany({
+    data: [
+      {
+        numero: 'L101',
+        estado: 'DISPONIBLE',
+        descripcion: 'Luxury suite con vista panorámica',
+        metros2: 95.0,
+        edificioId: edificio4.id,
+        tipoUnidadEdificioId: tipoLuxuryMirador.id
+      },
+      {
+        numero: 'L201',
+        estado: 'VENDIDA',
+        descripcion: 'Luxury suite premium',
+        metros2: 98.5,
+        edificioId: edificio4.id,
+        tipoUnidadEdificioId: tipoLuxuryMirador.id
+      },
+      {
+        numero: 'PH01',
+        estado: 'RESERVADA',
+        descripcion: 'Penthouse con terraza exclusiva',
+        metros2: 200.0,
+        edificioId: edificio4.id,
+        tipoUnidadEdificioId: tipoPenthouseMirador.id
+      }
+    ]
+  })
+
+  // Condominio Verde - Unidades
+  await prisma.unidad.createMany({
+    data: [
+      {
+        numero: 'E101',
+        estado: 'DISPONIBLE',
+        descripcion: 'Eco studio con balcón verde',
+        metros2: 38.0,
+        edificioId: edificio5.id,
+        tipoUnidadEdificioId: tipoEcoStudio.id
+      },
+      {
+        numero: 'E102',
+        estado: 'VENDIDA',
+        descripcion: 'Eco studio con orientación sur',
+        metros2: 35.5,
+        edificioId: edificio5.id,
+        tipoUnidadEdificioId: tipoEcoStudio.id
+      },
+      {
+        numero: 'V201',
+        estado: 'DISPONIBLE',
+        descripcion: '2 dormitorios con jardín privado',
+        metros2: 72.0,
+        edificioId: edificio5.id,
+        tipoUnidadEdificioId: tipo2DormVerde.id
+      },
+      {
+        numero: 'V202',
+        estado: 'RESERVADA',
+        descripcion: '2 dormitorios con vista al parque',
+        metros2: 75.5,
+        edificioId: edificio5.id,
+        tipoUnidadEdificioId: tipo2DormVerde.id
+      }
+    ]
+  })
+
+  // 6. Crear clientes (20 clientes distribuidos entre 6 contratistas)
   console.log('👥 Creando clientes...')
-  const cliente1 = await prisma.cliente.create({
-    data: {
-      nombre: 'Ana García Pérez',
-      rut: '15234567-8',
-      email: 'ana.garcia@email.com',
-      telefono: '+569 1523 4567',
-      contratistaId: contratista1.id
+  const clientes = await Promise.all([
+    // Clientes para contratista1 (Carlos)
+    prisma.cliente.create({
+      data: {
+        nombre: 'Ana García Pérez',
+        rut: '15234567-8',
+        email: 'ana.garcia@email.com',
+        telefono: '+569 1523 4567',
+        contratistaId: contratista1.id
+      }
+    }),
+    prisma.cliente.create({
+      data: {
+        nombre: 'Roberto Silva Morales',
+        rut: '16345678-9',
+        email: 'roberto.silva@email.com',
+        telefono: '+569 1634 5678',
+        contratistaId: contratista1.id
+      }
+    }),
+    prisma.cliente.create({
+      data: {
+        nombre: 'Carla Fernández Ruiz',
+        rut: '19678901-2',
+        email: 'carla.fernandez@email.com',
+        telefono: '+569 1967 8901',
+        contratistaId: contratista1.id
+      }
+    }),
+    // Clientes para contratista2 (María)
+    prisma.cliente.create({
+      data: {
+        nombre: 'Carmen Ruiz Torres',
+        rut: '17456789-0',
+        email: 'carmen.ruiz@email.com',
+        telefono: '+569 1745 6789',
+        contratistaId: contratista2.id
+      }
+    }),
+    prisma.cliente.create({
+      data: {
+        nombre: 'Francisco Herrera Lima',
+        rut: '21890123-4',
+        email: 'francisco.herrera@email.com',
+        telefono: '+569 2189 0123',
+        contratistaId: contratista2.id
+      }
+    }),
+    prisma.cliente.create({
+      data: {
+        nombre: 'Isabel Castro Méndez',
+        rut: '22901234-5',
+        email: 'isabel.castro@email.com',
+        telefono: '+569 2290 1234',
+        contratistaId: contratista2.id
+      }
+    }),
+    // Clientes para contratista3 (Juan)
+    prisma.cliente.create({
+      data: {
+        nombre: 'Diego Mendoza Castro',
+        rut: '18567890-1',
+        email: 'diego.mendoza@email.com',
+        telefono: '+569 1856 7890',
+        contratistaId: contratista3.id
+      }
+    }),
+    prisma.cliente.create({
+      data: {
+        nombre: 'Valentina Ramos Ortiz',
+        rut: '24123456-7',
+        email: 'valentina.ramos@email.com',
+        telefono: '+569 2412 3456',
+        contratistaId: contratista3.id
+      }
+    }),
+    prisma.cliente.create({
+      data: {
+        nombre: 'Mateo Vargas León',
+        rut: '25234567-8',
+        email: 'mateo.vargas@email.com',
+        telefono: '+569 2523 4567',
+        contratistaId: contratista3.id
+      }
+    }),
+    // Clientes para contratista4 (Ana)
+    prisma.cliente.create({
+      data: {
+        nombre: 'Sofía Jiménez Rojas',
+        rut: '26345678-9',
+        email: 'sofia.jimenez@email.com',
+        telefono: '+569 2634 5678',
+        contratistaId: contratista4.id
+      }
+    }),
+    prisma.cliente.create({
+      data: {
+        nombre: 'Andrés Guerrero Soto',
+        rut: '27456789-0',
+        email: 'andres.guerrero@email.com',
+        telefono: '+569 2745 6789',
+        contratistaId: contratista4.id
+      }
+    }),
+    prisma.cliente.create({
+      data: {
+        nombre: 'Patricia Núñez Flores',
+        rut: '28567890-1',
+        email: 'patricia.nunez@email.com',
+        telefono: '+569 2856 7890',
+        contratistaId: contratista4.id
+      }
+    }),
+    // Clientes para contratista5 (Pedro)
+    prisma.cliente.create({
+      data: {
+        nombre: 'Gabriel Morales Díaz',
+        rut: '29678901-2',
+        email: 'gabriel.morales@email.com',
+        telefono: '+569 2967 8901',
+        contratistaId: contratista5.id
+      }
+    }),
+    prisma.cliente.create({
+      data: {
+        nombre: 'Camila Aguilar Ponce',
+        rut: '30789012-3',
+        email: 'camila.aguilar@email.com',
+        telefono: '+569 3078 9012',
+        contratistaId: contratista5.id
+      }
+    }),
+    prisma.cliente.create({
+      data: {
+        nombre: 'Tomás Espinoza Cruz',
+        rut: '31890123-4',
+        email: 'tomas.espinoza@email.com',
+        telefono: '+569 3189 0123',
+        contratistaId: contratista5.id
+      }
+    }),
+    // Clientes para contratista6 (Lucía)
+    prisma.cliente.create({
+      data: {
+        nombre: 'Natalia Campos Reyes',
+        rut: '32901234-5',
+        email: 'natalia.campos@email.com',
+        telefono: '+569 3290 1234',
+        contratistaId: contratista6.id
+      }
+    }),
+    prisma.cliente.create({
+      data: {
+        nombre: 'Sebastián Vidal Herrera',
+        rut: '33012345-6',
+        email: 'sebastian.vidal@email.com',
+        telefono: '+569 3301 2345',
+        contratistaId: contratista6.id
+      }
+    }),
+    prisma.cliente.create({
+      data: {
+        nombre: 'Elena Paredes Molina',
+        rut: '34123456-7',
+        email: 'elena.paredes@email.com',
+        telefono: '+569 3412 3456',
+        contratistaId: contratista6.id
+      }
+    }),
+    // Clientes adicionales para variedad
+    prisma.cliente.create({
+      data: {
+        nombre: 'Martín Sánchez Torres',
+        rut: '35234567-8',
+        email: 'martin.sanchez@email.com',
+        telefono: '+569 3523 4567',
+        contratistaId: contratista1.id
+      }
+    }),
+    prisma.cliente.create({
+      data: {
+        nombre: 'Fernanda López Moreno',
+        rut: '36345678-9',
+        email: 'fernanda.lopez@email.com',
+        telefono: '+569 3634 5678',
+        contratistaId: contratista2.id
+      }
+    })
+  ])
+
+  // 7. Crear contratos distribuidos en 2024 (~50 contratos)
+  console.log('📋 Creando ~50 contratos distribuidos en 2024...')
+
+  // Función auxiliar para generar fechas aleatorias en 2024
+  const getRandomDate2024 = (startMonth: number, endMonth: number) => {
+    const start = new Date(2024, startMonth - 1, 1)
+    const end = new Date(2024, endMonth - 1, 28)
+    return new Date(start.getTime() + Math.random() * (end.getTime() - start.getTime()))
+  }
+
+  // Función auxiliar para generar fechas aleatorias en 2025
+  const getRandomDate2025 = (startMonth: number, endMonth: number) => {
+    const start = new Date(2025, startMonth - 1, 1)
+    const end = new Date(2025, endMonth - 1, 28)
+    return new Date(start.getTime() + Math.random() * (end.getTime() - start.getTime()))
+  }
+
+  // Obtener unidades para asignar a algunos contratos
+  const unidades = await prisma.unidad.findMany({
+    include: {
+      tipoUnidadEdificio: {
+        include: {
+          comision: true,
+          edificio: { include: { comision: true } }
+        }
+      },
+      edificio: true
     }
   })
 
-  const cliente2 = await prisma.cliente.create({
-    data: {
-      nombre: 'Roberto Silva Morales',
-      rut: '16345678-9',
-      email: 'roberto.silva@email.com',
-      telefono: '+569 1634 5678',
-      contratistaId: contratista1.id
+  // Estados de contrato para variedad
+  const estados: ('ENTREGADO' | 'RESERVA_PAGADA' | 'APROBADO' | 'RECHAZADO')[] =
+    ['ENTREGADO', 'RESERVA_PAGADA', 'APROBADO', 'RECHAZADO']
+
+  // Postulaciones típicas
+  const postulaciones = [
+    'Crédito hipotecario Banco Estado',
+    'Crédito hipotecario BancoChile',
+    'Crédito hipotecario Santander',
+    'Pago contado',
+    'Crédito hipotecario BCI',
+    'Subsidio habitacional',
+    'Crédito CORFO'
+  ]
+
+  // Crear 50 contratos
+  const contratistas = [contratista1, contratista2, contratista3, contratista4, contratista5, contratista6]
+  const edificios = [edificio1, edificio2, edificio3, edificio4, edificio5]
+  const unidadesUsadas = new Set<string>() // Para evitar duplicados
+
+  for (let i = 0; i < 50; i++) {
+    const contraInd = i % 6 // Rotar entre contratistas
+    const clienteInd = Math.floor(i / 6) % Math.floor(clientes.length / 6) + (contraInd * Math.floor(clientes.length / 6))
+    const contraId = contratistas[contraInd].id
+    const clienteId = clientes[clienteInd % clientes.length].id
+
+    // Seleccionar unidad disponible (no usada) o null para contrato manual
+    let unidad = null
+    if (i < unidades.length && Math.random() > 0.3) { // Solo usar unidades reales si hay disponibles
+      const unidadesDisponibles = unidades.filter(u => !unidadesUsadas.has(u.id))
+      if (unidadesDisponibles.length > 0) {
+        unidad = unidadesDisponibles[Math.floor(Math.random() * unidadesDisponibles.length)]
+        unidadesUsadas.add(unidad.id)
+      }
     }
-  })
 
-  const cliente3 = await prisma.cliente.create({
-    data: {
-      nombre: 'Carmen Ruiz Torres',
-      rut: '17456789-0',
-      email: 'carmen.ruiz@email.com',
-      telefono: '+569 1745 6789',
-      contratistaId: contratista2.id
+    const edificio = unidad ? unidad.edificio : edificios[Math.floor(Math.random() * edificios.length)]
+
+    // Generar precio aleatorio según tipo
+    const precioBase = unidad ?
+      (unidad.metros2! * 1500000) + Math.random() * 50000000 : // Precio por m2 + variación
+      50000000 + Math.random() * 150000000 // Precio manual
+
+    const totalContrato = Math.round(precioBase / 1000000) * 1000000 // Redondear a millones
+    const montoUf = Math.round(totalContrato / 35000) // Aprox UF a 35.000 CLP
+
+    // Calcular comisión según tipo de unidad
+    let porcentajeComision = 0.05 // Default 5%
+    if (unidad) {
+      const comisionTipo = unidad.tipoUnidadEdificio.comision
+      const comisionEdificio = unidad.tipoUnidadEdificio.edificio.comision
+      porcentajeComision = comisionTipo ? comisionTipo.porcentaje : comisionEdificio.porcentaje
     }
-  })
 
-  const cliente4 = await prisma.cliente.create({
-    data: {
-      nombre: 'Diego Mendoza Castro',
-      rut: '18567890-1',
-      email: 'diego.mendoza@email.com',
-      telefono: '+569 1856 7890',
-      contratistaId: contratista3.id
+    const comision = Math.round(totalContrato * porcentajeComision)
+    const estado = estados[Math.floor(Math.random() * estados.length)]
+
+    // Fechas progresivas a lo largo del año
+    const mesBase = Math.floor((i / 50) * 12) + 1
+    const fechaReserva = getRandomDate2024(mesBase, mesBase + 1)
+    const fechaContrato = estado !== 'ENTREGADO' ?
+      new Date(fechaReserva.getTime() + (30 + Math.random() * 60) * 24 * 60 * 60 * 1000) :
+      undefined
+    const fechaCheckin = estado === 'APROBADO' ?
+      new Date((fechaContrato || fechaReserva).getTime() + (60 + Math.random() * 120) * 24 * 60 * 60 * 1000) :
+      undefined
+
+    const codigoUnidad = unidad ?
+      `${unidad.edificio.nombre.split(' ')[0].toUpperCase()}-${unidad.numero}` :
+      `MANUAL-${String(i + 1).padStart(3, '0')}`
+
+    const contratoData = {
+      codigoUnidad,
+      totalContrato,
+      montoUf,
+      comision,
+      estado,
+      fechaPagoReserva: fechaReserva,
+      fechaPagoContrato: fechaContrato,
+      fechaCheckin: fechaCheckin,
+      postulacion: postulaciones[Math.floor(Math.random() * postulaciones.length)],
+      observaciones: [
+        'Proceso estándar sin observaciones',
+        'Cliente solicita modificaciones menores',
+        'Entrega anticipada solicitada',
+        'Documentación pendiente',
+        'Proceso completado exitosamente',
+        null
+      ][Math.floor(Math.random() * 6)],
+      conciliado: Math.random() > 0.7, // 30% conciliados
+      fechaConciliacion: Math.random() > 0.7 ? getRandomDate2024(mesBase + 1, 12) : undefined,
+      contratistaId: contraId,
+      clienteId: clienteId,
+      unidadId: unidad?.id || null,
+      edificioId: edificio.id
     }
-  })
 
-  // 7. Crear contratos
-  console.log('📋 Creando contratos...')
+    await prisma.contrato.create({ data: contratoData })
+  }
 
-  // Obtener las unidades creadas para asignar a contratos
-  const unidadTorres301 = await prisma.unidad.findFirst({
-    where: { numero: '301', edificioId: edificio1.id }
-  })
+  // 7b. Crear 20 contratos adicionales distribuidos en 2025
+  console.log('📋 Creando 20 contratos adicionales distribuidos en 2025...')
 
-  const unidadTorres501 = await prisma.unidad.findFirst({
-    where: { numero: '501', edificioId: edificio1.id }
-  })
+  for (let i = 0; i < 20; i++) {
+    const contraInd = i % 6 // Rotar entre contratistas
+    const clienteInd = Math.floor(i / 6) % Math.floor(clientes.length / 6) + (contraInd * Math.floor(clientes.length / 6))
+    const contraId = contratistas[contraInd].id
+    const clienteId = clientes[clienteInd % clientes.length].id
 
-  const unidadVista302 = await prisma.unidad.findFirst({
-    where: { numero: '302', edificioId: edificio2.id }
-  })
-
-  const unidadParque101 = await prisma.unidad.findFirst({
-    where: { numero: '101', edificioId: edificio3.id }
-  })
-
-  // Contratos con unidades específicas
-  await prisma.contrato.create({
-    data: {
-      codigoUnidad: 'TDS-301',
-      totalContrato: 120000000, // $120M CLP
-      montoUf: 3500, // UF
-      comision: 8400000, // 7% del total
-      estado: 'RESERVA_PAGADA',
-      fechaPagoReserva: new Date('2024-01-15'),
-      fechaPagoContrato: new Date('2024-03-15'),
-      fechaCheckin: new Date('2024-06-01'),
-      postulacion: 'Credito hipotecario Banco Estado',
-      observaciones: 'Cliente prefiere entrega anticipada',
-      contratistaId: contratista1.id,
-      clienteId: cliente1.id,
-      unidadId: unidadTorres301?.id,
-      edificioId: edificio1.id
+    // Para 2025, usar más contratos manuales ya que las unidades físicas están agotadas
+    let unidad = null
+    const unidadesDisponibles = unidades.filter(u => !unidadesUsadas.has(u.id))
+    if (unidadesDisponibles.length > 0 && Math.random() > 0.7) { // 30% con unidades físicas, 70% manuales
+      unidad = unidadesDisponibles[Math.floor(Math.random() * unidadesDisponibles.length)]
+      unidadesUsadas.add(unidad.id)
     }
-  })
 
-  await prisma.contrato.create({
-    data: {
-      codigoUnidad: 'TDS-501',
-      totalContrato: 95000000, // $95M CLP
-      montoUf: 2800, // UF
-      comision: 6650000, // 7% del total
-      estado: 'APROBADO',
-      fechaPagoReserva: new Date('2023-12-10'),
-      fechaPagoContrato: new Date('2024-02-10'),
-      fechaCheckin: new Date('2024-04-01'),
-      postulacion: 'Credito hipotecario BancoChile',
-      observaciones: 'Venta finalizada exitosamente',
-      contratistaId: contratista1.id,
-      clienteId: cliente2.id,
-      unidadId: unidadTorres501?.id,
-      edificioId: edificio1.id
-    }
-  })
+    const edificio = unidad ? unidad.edificio : edificios[Math.floor(Math.random() * edificios.length)]
 
-  await prisma.contrato.create({
-    data: {
-      codigoUnidad: 'RVM-302',
-      totalContrato: 180000000, // $180M CLP
-      montoUf: 5100, // UF
-      comision: 12600000, // 7% del total
-      estado: 'ENTREGADO',
-      fechaPagoReserva: new Date('2024-02-01'),
-      observaciones: 'Proceso en curso, esperando documentación',
-      contratistaId: contratista2.id,
-      clienteId: cliente3.id,
-      unidadId: unidadVista302?.id,
-      edificioId: edificio2.id
-    }
-  })
+    // Generar precio aleatorio (precios 2025 ligeramente más altos)
+    const precioBase = unidad ?
+      (unidad.metros2! * 1600000) + Math.random() * 60000000 : // Precios 2025 más altos
+      60000000 + Math.random() * 180000000 // Precio manual 2025
 
-  await prisma.contrato.create({
-    data: {
-      codigoUnidad: 'PC-101',
-      totalContrato: 75000000, // $75M CLP
-      montoUf: 2200, // UF
-      comision: 2250000, // 3% del total
-      estado: 'APROBADO',
-      fechaPagoReserva: new Date('2023-11-20'),
-      fechaPagoContrato: new Date('2024-01-20'),
-      fechaCheckin: new Date('2024-03-01'),
-      postulacion: 'Pago contado',
-      observaciones: 'Venta completada satisfactoriamente',
-      contratistaId: contratista3.id,
-      clienteId: cliente4.id,
-      unidadId: unidadParque101?.id,
-      edificioId: edificio3.id
-    }
-  })
+    const totalContrato = Math.round(precioBase / 1000000) * 1000000 // Redondear a millones
+    const montoUf = Math.round(totalContrato / 36000) // UF estimada a 36.000 CLP en 2025
 
-  // Contrato manual (sin unidad específica asignada)
-  await prisma.contrato.create({
-    data: {
-      codigoUnidad: 'MANUAL-001',
-      totalContrato: 110000000, // $110M CLP
-      montoUf: 3200, // UF
-      comision: 7700000, // 7% del total
-      estado: 'ENTREGADO',
-      postulacion: 'Venta futura - terreno adyacente',
-      observaciones: 'Contrato pre-venta para nueva fase del proyecto',
-      contratistaId: contratista2.id,
-      clienteId: cliente3.id,
-      unidadId: null, // Sin unidad específica
-      edificioId: edificio2.id
+    // Calcular comisión según tipo de unidad
+    let porcentajeComision = 0.05 // Default 5%
+    if (unidad) {
+      const comisionTipo = unidad.tipoUnidadEdificio.comision
+      const comisionEdificio = unidad.tipoUnidadEdificio.edificio.comision
+      porcentajeComision = comisionTipo ? comisionTipo.porcentaje : comisionEdificio.porcentaje
     }
-  })
+
+    const comision = Math.round(totalContrato * porcentajeComision)
+    const estado = estados[Math.floor(Math.random() * estados.length)]
+
+    // Distribuir fechas a lo largo de 2025 (cada contrato en diferente mes)
+    // Para 20 contratos, asegurar que se cubran todos los meses del año
+    const mesesDistribucion = [1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7, 8, 8, 9, 9, 10, 11, 12]
+    const mes2025 = mesesDistribucion[i] || ((i % 12) + 1)
+    const fechaReserva = getRandomDate2025(mes2025, mes2025)
+
+    const fechaContrato = estado !== 'ENTREGADO' ?
+      new Date(fechaReserva.getTime() + (30 + Math.random() * 60) * 24 * 60 * 60 * 1000) :
+      undefined
+    const fechaCheckin = estado === 'APROBADO' ?
+      new Date((fechaContrato || fechaReserva).getTime() + (60 + Math.random() * 120) * 24 * 60 * 60 * 1000) :
+      undefined
+
+    const codigoUnidad = unidad ?
+      `${unidad.edificio.nombre.split(' ')[0].toUpperCase()}-${unidad.numero}-2025` :
+      `FUTURO-${String(i + 1).padStart(3, '0')}-2025`
+
+    const contratoData2025 = {
+      codigoUnidad,
+      totalContrato,
+      montoUf,
+      comision,
+      estado,
+      fechaPagoReserva: fechaReserva,
+      fechaPagoContrato: fechaContrato,
+      fechaCheckin: fechaCheckin,
+      postulacion: postulaciones[Math.floor(Math.random() * postulaciones.length)],
+      observaciones: [
+        'Contrato futuro 2025 - condiciones especiales',
+        'Pre-venta con descuento por pago anticipado',
+        'Cliente preferencial con historial exitoso',
+        'Proyecto en fase de planificación',
+        'Entrega programada para 2026',
+        'Reserva de unidad futura'
+      ][Math.floor(Math.random() * 6)],
+      conciliado: Math.random() > 0.8, // 20% conciliados (menos que en 2024 por ser futuros)
+      fechaConciliacion: Math.random() > 0.8 ? getRandomDate2025(Math.min(mes2025 + 1, 12), 12) : undefined,
+      contratistaId: contraId,
+      clienteId: clienteId,
+      unidadId: unidad?.id || null,
+      edificioId: edificio.id
+    }
+
+    await prisma.contrato.create({ data: contratoData2025 })
+  }
 
   // 8. Crear cambios programados de comisión
   console.log('⏰ Creando cambios programados de comisión...')
@@ -506,18 +927,26 @@ async function main() {
 
   console.log('✅ Seed completado exitosamente!')
   console.log('\n📊 Resumen de datos creados:')
-  console.log(`- ${4} Comisiones (3%, 5%, 7%, 10%)`)
-  console.log(`- ${4} Usuarios (1 admin, 3 contratistas)`)
-  console.log(`- ${3} Edificios`)
-  console.log(`- ${8} Tipos de unidad por edificio (incluyendo 2 sin comisión específica)`)
-  console.log(`- ${13} Unidades`)
-  console.log(`- ${4} Clientes`)
-  console.log(`- ${5} Contratos`)
-  console.log(`- ${2} Cambios programados`)
+  console.log(`- 4 Comisiones (3%, 5%, 7%, 10%)`)
+  console.log(`- 7 Usuarios (1 admin, 6 contratistas)`)
+  console.log(`- 5 Edificios`)
+  console.log(`- 12 Tipos de unidad por edificio`)
+  console.log(`- 20 Unidades`)
+  console.log(`- 20 Clientes (distribuidos entre contratistas)`)
+  console.log(`- 50 Contratos (distribuidos en 2024)`)
+  console.log(`- 20 Contratos adicionales (distribuidos en 2025)`)
+  console.log(`- 2 Cambios programados`)
   console.log('\n🔧 Casos de prueba incluidos:')
-  console.log('- Tipos de unidad con comisión específica')
-  console.log('- Tipos de unidad sin comisión (usan la del proyecto)')
-  console.log('- Diferentes estados de unidades y contratos')
+  console.log('- 6 contratistas activos con ventas distribuidas')
+  console.log('- 70 contratos totales: 50 en 2024 + 20 en 2025')
+  console.log('- Contratos 2025 distribuidos en todos los meses del año')
+  console.log('- Precios 2025 ajustados por inflación')
+  console.log('- Variedad en estados de contratos y unidades')
+  console.log('- Contratos con y sin unidades específicas')
+  console.log('- Diferentes tipos de comisiones por edificio y tipo de unidad')
+  console.log('- Postulaciones y métodos de pago variados')
+  console.log('- Algunos contratos conciliados para reportes')
+  console.log('- Contratos futuros con observaciones específicas para 2025')
 }
 
 main()

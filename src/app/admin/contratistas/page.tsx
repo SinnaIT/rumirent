@@ -51,7 +51,8 @@ interface Contratista {
   id: string
   email: string
   nombre: string
-  telefono?: string
+  rut: string
+  telefono: string | null
   activo: boolean
   ventasRealizadas: number
   comisionesTotales: number
@@ -61,7 +62,8 @@ interface Contratista {
 interface ContratistaFormData {
   email: string
   nombre: string
-  telefono?: string
+  rut: string
+  telefono: string
   password: string
   confirmPassword: string
 }
@@ -76,6 +78,7 @@ export default function ContratistasPage() {
   const [formData, setFormData] = useState<ContratistaFormData>({
     email: '',
     nombre: '',
+    rut: '',
     telefono: '',
     password: '',
     confirmPassword: ''
@@ -117,7 +120,8 @@ export default function ContratistasPage() {
         body: JSON.stringify({
           email: formData.email,
           nombre: formData.nombre,
-          telefono: formData.telefono,
+          rut: formData.rut,
+          telefono: formData.telefono || undefined,
           password: formData.password
         })
       })
@@ -144,7 +148,8 @@ export default function ContratistasPage() {
     try {
       const updateData: any = {
         nombre: formData.nombre,
-        telefono: formData.telefono
+        rut: formData.rut,
+        telefono: formData.telefono || undefined
       }
 
       if (formData.password && formData.password === formData.confirmPassword) {
@@ -214,6 +219,7 @@ export default function ContratistasPage() {
     setFormData({
       email: '',
       nombre: '',
+      rut: '',
       telefono: '',
       password: '',
       confirmPassword: ''
@@ -225,6 +231,7 @@ export default function ContratistasPage() {
     setFormData({
       email: contratista.email,
       nombre: contratista.nombre,
+      rut: contratista.rut,
       telefono: contratista.telefono || '',
       password: '',
       confirmPassword: ''
@@ -235,7 +242,8 @@ export default function ContratistasPage() {
   // Filtrar contratistas
   const filteredContratistas = contratistas.filter(contratista =>
     contratista.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    contratista.email.toLowerCase().includes(searchTerm.toLowerCase())
+    contratista.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    contratista.rut.toLowerCase().includes(searchTerm.toLowerCase())
   )
 
   // Estadísticas
@@ -326,6 +334,7 @@ export default function ContratistasPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Nombre</TableHead>
+                  <TableHead>RUT</TableHead>
                   <TableHead>Email</TableHead>
                   <TableHead>Teléfono</TableHead>
                   <TableHead>Estado</TableHead>
@@ -338,7 +347,7 @@ export default function ContratistasPage() {
               <TableBody>
                 {filteredContratistas.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
                       No se encontraron brokers
                     </TableCell>
                   </TableRow>
@@ -346,6 +355,7 @@ export default function ContratistasPage() {
                   filteredContratistas.map((contratista) => (
                     <TableRow key={contratista.id}>
                       <TableCell className="font-medium">{contratista.nombre}</TableCell>
+                      <TableCell className="font-mono text-sm">{contratista.rut}</TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
                           <Mail className="h-4 w-4 text-muted-foreground" />
@@ -353,7 +363,7 @@ export default function ContratistasPage() {
                         </div>
                       </TableCell>
                       <TableCell>
-                        {contratista.telefono ? (
+                        {contratista.telefono && contratista.telefono.trim() !== '' ? (
                           <div className="flex items-center gap-2">
                             <Phone className="h-4 w-4 text-muted-foreground" />
                             {contratista.telefono}
@@ -445,6 +455,16 @@ export default function ContratistasPage() {
               />
             </div>
             <div className="space-y-2">
+              <Label htmlFor="create-rut">RUT</Label>
+              <Input
+                id="create-rut"
+                placeholder="12345678-9"
+                value={formData.rut}
+                onChange={(e) => setFormData(prev => ({ ...prev, rut: e.target.value }))}
+                required
+              />
+            </div>
+            <div className="space-y-2">
               <Label htmlFor="create-email">Email</Label>
               <Input
                 id="create-email"
@@ -510,6 +530,16 @@ export default function ContratistasPage() {
                 id="edit-nombre"
                 value={formData.nombre}
                 onChange={(e) => setFormData(prev => ({ ...prev, nombre: e.target.value }))}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-rut">RUT</Label>
+              <Input
+                id="edit-rut"
+                placeholder="12345678-9"
+                value={formData.rut}
+                onChange={(e) => setFormData(prev => ({ ...prev, rut: e.target.value }))}
                 required
               />
             </div>

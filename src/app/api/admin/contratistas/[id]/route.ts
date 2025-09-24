@@ -30,6 +30,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
         id: true,
         email: true,
         nombre: true,
+        rut: true,
         telefono: true,
         activo: true,
         createdAt: true,
@@ -106,12 +107,12 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
 
     const { id } = params
     const body = await request.json()
-    const { nombre, telefono, password } = body
+    const { nombre, rut, telefono, password } = body
 
     // Validaciones básicas
-    if (!nombre) {
+    if (!nombre || !rut) {
       return NextResponse.json(
-        { error: 'El nombre es requerido' },
+        { error: 'El nombre y RUT son requeridos' },
         { status: 400 }
       )
     }
@@ -131,9 +132,24 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       )
     }
 
+    // Verificar si el RUT ya existe en otro usuario
+    if (rut !== existingContratista.rut) {
+      const existingRut = await prisma.user.findUnique({
+        where: { rut }
+      })
+
+      if (existingRut) {
+        return NextResponse.json(
+          { error: 'Ya existe un usuario con este RUT' },
+          { status: 400 }
+        )
+      }
+    }
+
     // Preparar datos de actualización
     const updateData: any = {
       nombre,
+      rut,
       telefono: telefono || null
     }
 
@@ -156,6 +172,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
         id: true,
         email: true,
         nombre: true,
+        rut: true,
         telefono: true,
         activo: true,
         createdAt: true

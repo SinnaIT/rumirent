@@ -23,6 +23,7 @@ export async function GET(request: NextRequest) {
         id: true,
         email: true,
         nombre: true,
+        rut: true,
         telefono: true,
         activo: true,
         createdAt: true,
@@ -47,6 +48,7 @@ export async function GET(request: NextRequest) {
       id: contratista.id,
       email: contratista.email,
       nombre: contratista.nombre,
+      rut: contratista.rut,
       telefono: contratista.telefono,
       activo: contratista.activo,
       ventasRealizadas: contratista._count.contratos,
@@ -80,12 +82,12 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { email, nombre, telefono, password } = body
+    const { email, nombre, rut, telefono, password } = body
 
     // Validaciones básicas
-    if (!email || !nombre || !password) {
+    if (!email || !nombre || !rut || !password) {
       return NextResponse.json(
-        { error: 'Email, nombre y contraseña son requeridos' },
+        { error: 'Email, nombre, RUT y contraseña son requeridos' },
         { status: 400 }
       )
     }
@@ -98,13 +100,25 @@ export async function POST(request: NextRequest) {
     }
 
     // Verificar si el email ya existe
-    const existingUser = await prisma.user.findUnique({
+    const existingEmail = await prisma.user.findUnique({
       where: { email }
     })
 
-    if (existingUser) {
+    if (existingEmail) {
       return NextResponse.json(
         { error: 'Ya existe un usuario con este email' },
+        { status: 400 }
+      )
+    }
+
+    // Verificar si el RUT ya existe
+    const existingRut = await prisma.user.findUnique({
+      where: { rut }
+    })
+
+    if (existingRut) {
+      return NextResponse.json(
+        { error: 'Ya existe un usuario con este RUT' },
         { status: 400 }
       )
     }
@@ -117,6 +131,7 @@ export async function POST(request: NextRequest) {
       data: {
         email,
         nombre,
+        rut,
         telefono: telefono || undefined,
         password: hashedPassword,
         role: 'CONTRATISTA',
@@ -126,6 +141,7 @@ export async function POST(request: NextRequest) {
         id: true,
         email: true,
         nombre: true,
+        rut: true,
         telefono: true,
         activo: true,
         createdAt: true
