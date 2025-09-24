@@ -67,7 +67,7 @@ export async function POST(request: NextRequest) {
         where: { id: unidadId },
         include: {
           edificio: true,
-          contratos: true
+          contratos: true  // Este es un Contrato? (opcional)
         }
       })
 
@@ -86,11 +86,8 @@ export async function POST(request: NextRequest) {
       }
 
       // Verificar que no hay un contrato activo para esta unidad
-      const contratoActivo = unidad.contratos.find(c =>
-        c.estado !== 'CANCELADO'
-      )
-
-      if (contratoActivo) {
+      // En el esquema, contratos es Contrato? (uno a uno opcional)
+      if (unidad.contratos && unidad.contratos.estado !== 'CANCELADO') {
         return NextResponse.json(
           { error: 'La unidad ya tiene un contrato activo' },
           { status: 400 }
