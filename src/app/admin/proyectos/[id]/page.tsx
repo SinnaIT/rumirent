@@ -76,7 +76,6 @@ interface EdificioDetail {
   nombre: string
   direccion: string
   descripcion?: string
-  estado: 'ENTREGA_INMEDIATA' | 'ENTREGA_FUTURA'
   totalUnidades: number
   unidadesDisponibles: number
   unidadesVendidas: number
@@ -94,10 +93,6 @@ interface EdificioDetail {
   updatedAt: string
 }
 
-const ESTADOS_EDIFICIO = [
-  { value: 'ENTREGA_INMEDIATA', label: 'Entrega Inmediata', color: 'bg-green-100 text-green-800' },
-  { value: 'ENTREGA_FUTURA', label: 'Entrega Futura', color: 'bg-blue-100 text-blue-800' }
-]
 
 export default function ProyectoDetailPage() {
   const params = useParams()
@@ -416,10 +411,6 @@ export default function ProyectoDetailPage() {
     }
   }
 
-  const formatearEstado = (estado: string) => {
-    const estadoObj = ESTADOS_EDIFICIO.find(e => e.value === estado)
-    return estadoObj || { label: estado, color: 'bg-gray-100 text-gray-800' }
-  }
 
 
   if (loading) {
@@ -441,7 +432,6 @@ export default function ProyectoDetailPage() {
     )
   }
 
-  const estado = formatearEstado(edificio.estado)
 
   return (
     <div className="space-y-6">
@@ -464,9 +454,6 @@ export default function ProyectoDetailPage() {
           </div>
         </div>
         <div className="flex items-center space-x-2">
-          <Badge className={estado.color}>
-            {estado.label}
-          </Badge>
           <Button
             variant="outline"
             onClick={fetchEdificio}

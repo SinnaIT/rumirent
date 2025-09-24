@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, usePathname } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import {
   Menu,
@@ -17,7 +17,8 @@ import {
   DollarSign,
   ChevronDown,
   ChevronRight,
-  FileCheck
+  FileCheck,
+  UserCheck
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/lib/hooks/use-auth'
@@ -26,6 +27,7 @@ const menuItems = [
   { icon: Home, label: 'Dashboard', href: '/admin' },
   { icon: Building2, label: 'Proyectos', href: '/admin/proyectos' },
   { icon: Users, label: 'Brokers', href: '/admin/contratistas' },
+  { icon: UserCheck, label: 'Clientes', href: '/admin/clientes' },
   { icon: Calculator, label: 'Comisiones', href: '/admin/comisiones' },
   { icon: FileCheck, label: 'Conciliación', href: '/admin/conciliacion' },
   {
@@ -48,6 +50,7 @@ export default function AdminLayout({
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
   const [expandedMenus, setExpandedMenus] = useState<string[]>([])
   const router = useRouter()
+  const pathname = usePathname()
   const { user, loading, logout } = useAuth()
 
   const toggleSubmenu = (label: string) => {
@@ -118,7 +121,7 @@ export default function AdminLayout({
           <nav className="flex-1 p-4">
             <ul className="space-y-1">
               {menuItems.map((item) => {
-                const isActive = router && typeof window !== 'undefined' && window.location.pathname === item.href
+                const isActive = pathname === item.href
                 const isExpanded = expandedMenus.includes(item.label)
                 const hasSubmenu = item.hasSubmenu && item.submenu
 
@@ -158,7 +161,7 @@ export default function AdminLayout({
                     {hasSubmenu && isExpanded && (
                       <ul className="ml-6 mt-1 space-y-1">
                         {item.submenu.map((subItem) => {
-                          const isSubActive = router && typeof window !== 'undefined' && window.location.pathname === subItem.href
+                          const isSubActive = pathname === subItem.href
                           return (
                             <li key={subItem.href}>
                               <Button

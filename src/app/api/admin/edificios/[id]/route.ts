@@ -84,7 +84,6 @@ export async function GET(
       nombre: edificio.nombre,
       direccion: edificio.direccion,
       descripcion: edificio.descripcion,
-      estado: edificio.estado,
       comision: edificio.comision,
       totalUnidades: edificio._count.unidades,
       unidadesDisponibles,
@@ -143,9 +142,9 @@ export async function PUT(
     }
 
     const body = await request.json()
-    const { nombre, direccion, descripcion, estado, comisionId } = body
+    const { nombre, direccion, descripcion, comisionId } = body
 
-    console.log('📝 Datos a actualizar:', { nombre, direccion, descripcion, estado, comisionId })
+    console.log('📝 Datos a actualizar:', { nombre, direccion, descripcion, comisionId })
 
     // Validaciones básicas
     if (!nombre || !direccion) {
@@ -203,7 +202,6 @@ export async function PUT(
         nombre,
         direccion,
         descripcion: descripcion || null,
-        estado: estado || 'PLANIFICACION',
         comisionId: comisionId === 'none' || !comisionId ? null : comisionId
       },
       include: {

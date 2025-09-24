@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, usePathname } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import {
   Menu,
@@ -32,6 +32,7 @@ export default function ContratistaLayout({
 }) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
   const router = useRouter()
+  const pathname = usePathname()
   const { user, loading, logout } = useAuth()
 
   // Handle redirect after loading is complete
@@ -94,7 +95,7 @@ export default function ContratistaLayout({
           <nav className="flex-1 p-4">
             <ul className="space-y-1">
               {menuItems.map((item) => {
-                const isActive = router && typeof window !== 'undefined' && window.location.pathname === item.href
+                const isActive = pathname === item.href
                 return (
                   <li key={item.href}>
                     <Button

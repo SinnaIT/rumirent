@@ -143,7 +143,6 @@ async function main() {
       nombre: 'Torres del Sol',
       direccion: 'Av. Las Condes 12345, Las Condes, Santiago',
       descripcion: 'Moderno conjunto habitacional con vista panorámica a la cordillera',
-      estado: 'ENTREGA_FUTURA',
       comisionId: comisionStandard.id // 5% base
     }
   })
@@ -153,7 +152,6 @@ async function main() {
       nombre: 'Residencial Vista Mar',
       direccion: 'Av. del Mar 6789, Viña del Mar, Valparaíso',
       descripcion: 'Exclusivo proyecto frente al océano con amenities de lujo',
-      estado: 'ENTREGA_FUTURA',
       comisionId: comisionPremium.id // 7% base
     }
   })
@@ -163,7 +161,6 @@ async function main() {
       nombre: 'Parque Central',
       direccion: 'Calle Nueva 1234, Providencia, Santiago',
       descripcion: 'Proyecto urbano en el corazón de la ciudad',
-      estado: 'ENTREGA_INMEDIATA',
       comisionId: comisionBasica.id // 3% base
     }
   })
@@ -173,7 +170,6 @@ async function main() {
       nombre: 'Alto Mirador',
       direccion: 'Av. Apoquindo 5678, Las Condes, Santiago',
       descripcion: 'Torre de lujo con vista panorámica',
-      estado: 'ENTREGA_FUTURA',
       comisionId: comisionVip.id // 10% base
     }
   })
@@ -183,7 +179,6 @@ async function main() {
       nombre: 'Condominio Verde',
       direccion: 'Pasaje Los Olivos 987, Ñuñoa, Santiago',
       descripcion: 'Proyecto sustentable con áreas verdes',
-      estado: 'ENTREGA_INMEDIATA',
       comisionId: comisionStandard.id // 5% base
     }
   })

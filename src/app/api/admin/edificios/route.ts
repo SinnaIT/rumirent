@@ -79,7 +79,6 @@ export async function GET(request: NextRequest) {
         nombre: edificio.nombre,
         direccion: edificio.direccion,
         descripcion: edificio.descripcion,
-        estado: edificio.estado,
         comision: edificio.comision,
         totalUnidades: edificio._count.unidades,
         unidadesDisponibles,
@@ -126,7 +125,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { nombre, direccion, descripcion, estado, comisionId } = body
+    const { nombre, direccion, descripcion, comisionId } = body
 
     // Validaciones básicas
     if (!nombre || !direccion) {
@@ -161,7 +160,6 @@ export async function POST(request: NextRequest) {
         nombre,
         direccion,
         descripcion: descripcion || undefined,
-        estado: estado || 'PLANIFICACION',
         comisionId
       }
     })

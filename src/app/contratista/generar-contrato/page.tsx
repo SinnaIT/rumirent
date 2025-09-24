@@ -565,7 +565,9 @@ export default function GenerarContratoPage() {
                       <Input
                         id="rut"
                         value={clientData.rut}
-                        onChange={(e) => handleRutChange(e.target.value)}
+                        onChange={(e) => setClientData({ ...clientData, rut: e.target.value })}
+                        onBlur={(e) => handleRutChange(e.target.value)}
+                        onKeyDown={(e) => {if (e.key === 'Enter') {handleRutChange(clientData.rut)}}}
                         placeholder="ej: 12.345.678-9"
                         className={`${
                           clientExists === true ? 'border-green-500 bg-green-50' :

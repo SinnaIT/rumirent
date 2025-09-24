@@ -38,7 +38,6 @@ interface Edificio {
   nombre: string
   direccion: string
   descripcion?: string
-  estado: 'ENTREGA_INMEDIATA' | 'ENTREGA_FUTURA'
   comision?: Comision | null
   totalUnidades: number
   unidadesDisponibles: number
@@ -48,10 +47,6 @@ interface Edificio {
   updatedAt: string
 }
 
-const ESTADOS_EDIFICIO = [
-  { value: 'ENTREGA_INMEDIATA', label: 'Entrega Inmediata', color: 'bg-green-100 text-green-800' },
-  { value: 'ENTREGA_FUTURA', label: 'Entrega Futura', color: 'bg-blue-100 text-blue-800' }
-]
 
 export default function ProyectosPage() {
   const router = useRouter()
@@ -67,7 +62,6 @@ export default function ProyectosPage() {
     nombre: '',
     direccion: '',
     descripcion: '',
-    estado: 'ENTREGA_FUTURA' as const,
     comisionId: 'none'
   })
 
@@ -115,7 +109,6 @@ export default function ProyectosPage() {
       nombre: '',
       direccion: '',
       descripcion: '',
-      estado: 'ENTREGA_FUTURA',
       comisionId: 'none'
     })
     setEditingEdificio(null)
@@ -131,7 +124,6 @@ export default function ProyectosPage() {
       nombre: edificio.nombre,
       direccion: edificio.direccion,
       descripcion: edificio.descripcion || '',
-      estado: edificio.estado,
       comisionId: edificio.comision?.id || 'none'
     })
     setEditingEdificio(edificio)
@@ -201,10 +193,6 @@ export default function ProyectosPage() {
     }
   }
 
-  const formatearEstado = (estado: string) => {
-    const estadoObj = ESTADOS_EDIFICIO.find(e => e.value === estado)
-    return estadoObj || { label: estado, color: 'bg-gray-100 text-gray-800' }
-  }
 
 
   if (loading) {
@@ -279,21 +267,6 @@ export default function ProyectosPage() {
                   />
                 </div>
 
-                <div className="grid grid-cols-1 gap-2">
-                  <Label htmlFor="estado">Estado del Proyecto</Label>
-                  <Select value={formData.estado} onValueChange={(value: any) => setFormData({ ...formData, estado: value })}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {ESTADOS_EDIFICIO.map((estado) => (
-                        <SelectItem key={estado.value} value={estado.value}>
-                          {estado.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
 
                 <div className="grid grid-cols-1 gap-2">
                   <Label htmlFor="comision">Comisión del Proyecto</Label>
@@ -427,7 +400,6 @@ export default function ProyectosPage() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Proyecto</TableHead>
-                    <TableHead>Estado</TableHead>
                     <TableHead>Comisión</TableHead>
                     <TableHead>Unidades</TableHead>
                     <TableHead>Vendidas</TableHead>
@@ -437,7 +409,6 @@ export default function ProyectosPage() {
                 </TableHeader>
                 <TableBody>
                   {edificios.map((edificio) => {
-                    const estado = formatearEstado(edificio.estado)
                     return (
                       <TableRow key={edificio.id}>
                         <TableCell>
@@ -448,11 +419,6 @@ export default function ProyectosPage() {
                               {edificio.direccion}
                             </div>
                           </div>
-                        </TableCell>
-                        <TableCell>
-                          <Badge className={estado.color}>
-                            {estado.label}
-                          </Badge>
                         </TableCell>
                         <TableCell>
                           {edificio.comision ? (

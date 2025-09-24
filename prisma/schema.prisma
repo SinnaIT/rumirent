@@ -29,7 +29,6 @@ model Edificio {
   nombre             String
   direccion          String
   descripcion        String?
-  estado             EstadoEdificio             @default(ENTREGA_FUTURA)
   comisionId         String
   createdAt          DateTime                   @default(now())
   updatedAt          DateTime                   @updatedAt
@@ -154,11 +153,6 @@ model CambioComisionProgramado {
 enum Role {
   ADMIN
   CONTRATISTA
-}
-
-enum EstadoEdificio {
-  ENTREGA_INMEDIATA
-  ENTREGA_FUTURA
 }
 
 enum EstadoUnidad {
