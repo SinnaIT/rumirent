@@ -28,7 +28,7 @@ export async function GET(request: NextRequest) {
     // Obtener brokers activos
     const brokers = await prisma.user.findMany({
       where: {
-        role: 'CONTRATISTA',
+        role: 'BROKER', // Note: Database uses BROKER enum
         activo: true
       },
       select: {

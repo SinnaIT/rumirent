@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url)
     const estado = searchParams.get('estado')
-    const contratistaId = searchParams.get('contratistaId')
+    const brokerId = searchParams.get('brokerId')
     const edificioId = searchParams.get('edificioId')
     const limit = searchParams.get('limit')
     const offset = searchParams.get('offset')
@@ -23,18 +23,18 @@ export async function GET(request: NextRequest) {
     // Construir filtros
     const whereClause: any = {}
     if (estado) whereClause.estado = estado
-    if (contratistaId) whereClause.contratistaId = contratistaId
+    if (brokerId) whereClause.brokerId = brokerId
     if (edificioId) {
       whereClause.unidad = {
         edificioId: edificioId
       }
     }
 
-    // Obtener contratos con relaciones
-    const contratos = await prisma.contrato.findMany({
+    // Obtener leads con relaciones
+    const leads = await prisma.lead.findMany({
       where: whereClause,
       include: {
-        contratista: {
+        broker: {
           select: {
             id: true,
             nombre: true,
@@ -67,41 +67,41 @@ export async function GET(request: NextRequest) {
       skip: offset ? parseInt(offset) : undefined
     })
 
-    const contratosFormatted = contratos.map(contrato => ({
-      id: contrato.id,
-      numero: contrato.numero,
-      prioridad: contrato.prioridad,
-      rutCliente: contrato.rutCliente,
-      nombreCliente: contrato.nombreCliente,
-      precioPesos: contrato.precioPesos,
-      precioUF: contrato.precioUF,
-      comisionAsesor: contrato.comisionAsesor,
-      estado: contrato.estado,
-      fechaPagoReserva: contrato.fechaPagoReserva?.toISOString(),
-      fechaPagoContrato: contrato.fechaPagoContrato?.toISOString(),
-      fechaCheckin: contrato.fechaCheckin?.toISOString(),
-      observaciones: contrato.observaciones,
-      contratista: contrato.contratista,
+    const leadsFormatted = leads.map(lead => ({
+      id: lead.id,
+      numero: lead.numero,
+      prioridad: lead.prioridad,
+      rutCliente: lead.rutCliente,
+      nombreCliente: lead.nombreCliente,
+      precioPesos: lead.precioPesos,
+      precioUF: lead.precioUF,
+      comisionAsesor: lead.comisionAsesor,
+      estado: lead.estado,
+      fechaPagoReserva: lead.fechaPagoReserva?.toISOString(),
+      fechaPagoLead: lead.fechaPagoLead?.toISOString(),
+      fechaCheckin: lead.fechaCheckin?.toISOString(),
+      observaciones: lead.observaciones,
+      broker: lead.broker,
       unidad: {
-        id: contrato.unidad.id,
-        numero: contrato.unidad.numero,
-        precio: contrato.unidad.precio,
-        estado: contrato.unidad.estado,
-        edificio: contrato.unidad.edificio,
+        id: lead.unidad.id,
+        numero: lead.unidad.numero,
+        precio: lead.unidad.precio,
+        estado: lead.unidad.estado,
+        edificio: lead.unidad.edificio,
         tipoUnidad: {
-          id: contrato.unidad.tipoUnidad.id,
-          nombre: contrato.unidad.tipoUnidad.nombre,
-          codigo: contrato.unidad.tipoUnidad.codigo,
-          comision: contrato.unidad.tipoUnidad.comision
+          id: lead.unidad.tipoUnidad.id,
+          nombre: lead.unidad.tipoUnidad.nombre,
+          codigo: lead.unidad.tipoUnidad.codigo,
+          comision: lead.unidad.tipoUnidad.comision
         }
       },
-      createdAt: contrato.createdAt.toISOString(),
-      updatedAt: contrato.updatedAt.toISOString()
+      createdAt: lead.createdAt.toISOString(),
+      updatedAt: lead.updatedAt.toISOString()
     }))
 
     // Obtener totales para estadísticas
-    const totalContratos = await prisma.contrato.count({ where: whereClause })
-    const estadisticas = await prisma.contrato.groupBy({
+    const totalLeads = await prisma.lead.count({ where: whereClause })
+    const estadisticas = await prisma.lead.groupBy({
       by: ['estado'],
       where: whereClause,
       _count: true,
@@ -113,10 +113,10 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      contratos: contratosFormatted,
+      leads: leadsFormatted,
       pagination: {
-        total: totalContratos,
-        limit: limit ? parseInt(limit) : totalContratos,
+        total: totalLeads,
+        limit: limit ? parseInt(limit) : totalLeads,
         offset: offset ? parseInt(offset) : 0
       },
       estadisticas: estadisticas.map(stat => ({
@@ -128,7 +128,7 @@ export async function GET(request: NextRequest) {
     })
 
   } catch (error) {
-    console.error('Error al obtener contratos:', error)
+    console.error('Error al obtener leads:', error)
     return NextResponse.json(
       { error: 'Error interno del servidor' },
       { status: 500 }
@@ -158,41 +158,41 @@ export async function POST(request: NextRequest) {
       comisionAsesor,
       estado,
       fechaPagoReserva,
-      fechaPagoContrato,
+      fechaPagoLead,
       fechaCheckin,
       observaciones,
-      contratistaId,
+      brokerId,
       unidadId
     } = body
 
     // Validaciones básicas
-    if (!numero || !rutCliente || !nombreCliente || !precioPesos || !precioUF || !comisionAsesor || !contratistaId || !unidadId) {
+    if (!numero || !rutCliente || !nombreCliente || !precioPesos || !precioUF || !comisionAsesor || !brokerId || !unidadId) {
       return NextResponse.json(
-        { error: 'Los campos requeridos son: numero, rutCliente, nombreCliente, precioPesos, precioUF, comisionAsesor, contratistaId, unidadId' },
+        { error: 'Los campos requeridos son: numero, rutCliente, nombreCliente, precioPesos, precioUF, comisionAsesor, brokerId, unidadId' },
         { status: 400 }
       )
     }
 
-    // Verificar que no existe otro contrato con el mismo número
-    const existingContrato = await prisma.contrato.findFirst({
+    // Verificar que no existe otro lead con el mismo número
+    const existingLead = await prisma.lead.findFirst({
       where: { numero: parseInt(numero) }
     })
 
-    if (existingContrato) {
+    if (existingLead) {
       return NextResponse.json(
-        { error: 'Ya existe un contrato con este número' },
+        { error: 'Ya existe un lead con este número' },
         { status: 400 }
       )
     }
 
-    // Verificar que el contratista existe
-    const contratista = await prisma.user.findUnique({
-      where: { id: contratistaId }
+    // Verificar que el broker existe
+    const broker = await prisma.user.findUnique({
+      where: { id: brokerId }
     })
 
-    if (!contratista) {
+    if (!broker) {
       return NextResponse.json(
-        { error: 'Contratista no encontrado' },
+        { error: 'broker no encontrado' },
         { status: 404 }
       )
     }
@@ -201,7 +201,7 @@ export async function POST(request: NextRequest) {
     const unidad = await prisma.unidad.findUnique({
       where: { id: unidadId },
       include: {
-        contratos: true
+        leads: true
       }
     })
 
@@ -212,15 +212,15 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    if (unidad.contratos.length > 0) {
+    if (unidad.leads.length > 0) {
       return NextResponse.json(
-        { error: 'Esta unidad ya tiene un contrato asociado' },
+        { error: 'Esta unidad ya tiene un lead asociado' },
         { status: 400 }
       )
     }
 
-    // Crear contrato
-    const newContrato = await prisma.contrato.create({
+    // Crear lead
+    const newLead = await prisma.lead.create({
       data: {
         numero: parseInt(numero),
         prioridad: prioridad || 'BAJA',
@@ -231,14 +231,14 @@ export async function POST(request: NextRequest) {
         comisionAsesor: parseFloat(comisionAsesor),
         estado: estado || 'POSTULACION',
         fechaPagoReserva: fechaPagoReserva ? new Date(fechaPagoReserva) : undefined,
-        fechaPagoContrato: fechaPagoContrato ? new Date(fechaPagoContrato) : undefined,
+        fechaPagoLead: fechaPagoLead ? new Date(fechaPagoLead) : undefined,
         fechaCheckin: fechaCheckin ? new Date(fechaCheckin) : undefined,
         observaciones,
-        contratistaId,
+        brokerId,
         unidadId
       },
       include: {
-        contratista: {
+        broker: {
           select: {
             id: true,
             nombre: true,
@@ -258,7 +258,7 @@ export async function POST(request: NextRequest) {
       }
     })
 
-    // Actualizar estado de la unidad según el estado del contrato
+    // Actualizar estado de la unidad según el estado del lead
     let nuevoEstadoUnidad = 'DISPONIBLE'
     if (estado === 'RESERVADO') nuevoEstadoUnidad = 'RESERVADA'
     else if (estado === 'CONTRATADO' || estado === 'CHECKIN_REALIZADO') nuevoEstadoUnidad = 'VENDIDA'
@@ -270,12 +270,12 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      message: 'Contrato creado exitosamente',
-      contrato: newContrato
+      message: 'Lead creado exitosamente',
+      lead: newLead
     }, { status: 201 })
 
   } catch (error) {
-    console.error('Error al crear contrato:', error)
+    console.error('Error al crear lead:', error)
     return NextResponse.json(
       { error: 'Error interno del servidor' },
       { status: 500 }

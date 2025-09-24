@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is a **Sistema de Gestión de Contratistas y Comisiones** - a Next.js 15 application built with TypeScript for managing real estate contractors and their commissions based on building projects and unit sales. The system features dynamic commission calculations based on sales priority/urgency.
+This is a **Sistema de Gestión de Brokers y Comisiones** - a Next.js 15 application built with TypeScript for managing real estate contractors and their commissions based on building projects and unit sales. The system features dynamic commission calculations based on sales priority/urgency.
 
 ## Development Commands
 
@@ -22,7 +22,7 @@ This is a **Sistema de Gestión de Contratistas y Comisiones** - a Next.js 15 ap
 - **Framework**: Next.js 15 with App Router
 - **Language**: TypeScript
 - **Database**: PostgreSQL with Prisma ORM
-- **Authentication**: JWT with bcryptjs (roles: admin/contratista)
+- **Authentication**: JWT with bcryptjs (roles: admin/broker)
 - **Styling**: Tailwind CSS v4 with CSS variables
 - **UI Components**: shadcn/ui with Radix UI primitives
 - **Forms**: React Hook Form with Zod validation
@@ -48,21 +48,21 @@ src/
 ### Domain Entities
 
 #### Core Business Entities:
-- **User**: Authenticated users with roles (ADMIN/CONTRATISTA), includes RUT field
+- **User**: Authenticated users with roles (ADMIN/BROKER), includes RUT field
 - **Edificio**: Real estate projects with base commission, contains multiple unit types
 - **TipoUnidadEdificio**: Unit types per building with specific commissions (replaces enum)
 - **Unidad**: Individual apartments/units, references TipoUnidadEdificio
 - **Cliente**: Clients created by contractors, with RUT and contact info
-- **Contrato**: Sales contracts with flexible pricing, dates, and optional unit reference
+- ****: Sales contracts with flexible pricing, dates, and optional unit reference
 - **Comision**: Commission configurations with percentage rates
 - **CambioComisionProgramado**: Scheduled commission changes
 
 #### Key Enums:
 ```typescript
-enum Role { ADMIN, CONTRATISTA }
+enum Role { ADMIN, BROKER }
 enum EstadoEdificio { PLANIFICACION, CONSTRUCCION, COMPLETADO }
 enum EstadoUnidad { DISPONIBLE, RESERVADA, VENDIDA }
-enum EstadoContrato { ENTREGADO, RESERVA_PAGADA, APROBADO, RECHAZADO }
+enum Estado { ENTREGADO, RESERVA_PAGADA, APROBADO, RECHAZADO }
 ```
 ### Style Rules
 for every style or design related descition you mae read first the strsucture on de folder /design
@@ -79,20 +79,20 @@ for every style or design related descition you mae read first the strsucture on
 #### Contract System:
 - **Flexible units**: Contracts can reference existing units OR use manual `codigoUnidad`
 - **Multiple dates**: Tracks reservation payment, contract payment, and checkin dates
-- **Dual pricing**: Supports both peso amounts (`totalContrato`) and UF amounts (`montoUf`)
+- **Dual pricing**: Supports both peso amounts (`total`) and UF amounts (`montoUf`)
 - **Status tracking**: Contractors update contract status through defined workflow
 - **Client ownership**: Each client belongs to the contractor who created them
 
 #### User Roles & Permissions:
 - **ADMIN**: Full CRUD operations, commission configuration, analytics, all buildings/units
-- **CONTRATISTA**: Manage own clients, register sales, view assigned units, view personal history
+- **BROKER**: Manage own clients, register sales, view assigned units, view personal history
 
 #### Database Schema Key Changes:
 - **Eliminated**: `asignaciones_comision` table (redundant)
 - **Eliminated**: `PrioridadVenta` enum (replaced by commission structure)
 - **Eliminated**: `TipoUnidad` enum (replaced by `TipoUnidadEdificio` table)
 - **Added**: `Cliente` entity with contractor ownership
-- **Enhanced**: `Contrato` with flexible pricing and dates
+- **Enhanced**: `` with flexible pricing and dates
 
 ### Directory Structure
 
@@ -105,10 +105,10 @@ src/
 │   ├── admin/                    # Administrator interface
 │   │   ├── edificios/           # Building management
 │   │   ├── unidades/            # Unit management
-│   │   ├── contratistas/        # Contractor management
+│   │   ├── brokers/        # Contractor management
 │   │   ├── comisiones/          # Commission configuration
 │   │   └── reportes/            # Reports & analytics
-│   ├── contratista/             # Contractor interface
+│   ├── broker/             # Contractor interface
 │   │   ├── unidades/            # Available units view
 │   │   ├── ventas/              # Sales registration
 │   │   └── historial/           # Sales history
@@ -116,7 +116,7 @@ src/
 │       ├── auth/
 │       ├── edificios/
 │       ├── unidades/
-│       ├── contratos/
+│       ├── s/
 │       └── comisiones/
 ├── core/                         # Hexagonal Architecture
 │   ├── domain/
@@ -152,15 +152,15 @@ src/
 2. **Gestionar Tipos de Unidad**: CRUD operations for unit types per building with specific commissions
 3. **Gestionar Unidades**: CRUD operations for individual units linked to unit types
 4. **Configurar Comisiones**: Create and manage commission rates and schedules
-5. **Gestionar Contratistas**: CRUD operations for contractor users with RUT validation
+5. **Gestionar Brokers**: CRUD operations for contractor users with RUT validation
 6. **Gestionar Clientes**: View all clients across contractors
 7. **Ver Analytics**: Dashboard with sales metrics, commission reports, and building performance
 
 #### Contractor Use Cases:
 1. **Gestionar Clientes**: CRUD operations for own clients with RUT validation
 2. **Ver Unidades Disponibles**: View available units with commission calculation from unit types
-3. **Registrar Contratos**: Create contracts with flexible unit reference (existing unit OR manual code)
-4. **Gestionar Contratos**: Update contract status through workflow stages
+3. **Registrar s**: Create contracts with flexible unit reference (existing unit OR manual code)
+4. **Gestionar s**: Update contract status through workflow stages
 5. **Ver Historial**: View personal sales history and earned commissions
 6. **Calcular Comisiones**: Real-time commission calculation based on unit type rates
 
@@ -184,21 +184,21 @@ src/
 │   ├── clientes/
 │   │   ├── route.ts             # GET all clients (admin view)
 │   │   └── [id]/route.ts        # GET, PUT, DELETE client
-│   ├── contratos/
+│   ├── s/
 │   │   ├── route.ts             # GET, POST contracts (admin)
 │   │   └── [id]/route.ts        # GET, PUT contract details
 │   ├── comisiones/
 │   │   ├── route.ts             # GET, POST commissions
 │   │   ├── [id]/route.ts        # GET, PUT, DELETE commission
 │   │   └── programados/route.ts # GET, POST scheduled changes
-│   └── contratistas/
+│   └── brokers/
 │       ├── route.ts             # GET, POST contractors
 │       └── [id]/route.ts        # GET, PUT, DELETE contractor
-├── contratista/
+├── broker/
 │   ├── clientes/
 │   │   ├── route.ts             # GET, POST own clients
 │   │   └── [id]/route.ts        # GET, PUT, DELETE own client
-│   ├── contratos/
+│   ├── s/
 │   │   ├── route.ts             # GET, POST own contracts
 │   │   └── [id]/route.ts        # GET, PUT own contract
 │   ├── unidades/
@@ -262,7 +262,7 @@ model User {
   id       String @id @default(cuid())
   email    String @unique
   password String
-  role     Role   @default(CONTRATISTA)
+  role     Role   @default(BROKER)
   nombre   String
 }
 
@@ -282,7 +282,7 @@ model Unidad {
   estado      EstadoUnidad
   prioridad   PrioridadVenta
   edificio    Edificio @relation(fields: [edificioId], references: [id])
-  contratos   Contrato[]
+  s   []
 }
 ```
 
@@ -308,7 +308,7 @@ This application manages real estate sales with dynamic commission structures:
 
 - **Buildings (Edificios)** contain multiple **Units (Unidades)**
 - **Units** have different types and sales priorities
-- **Contractors (Contratistas)** sell units and earn commissions
+- **Contractors (Brokers)** sell units and earn commissions
 - **Commissions** vary based on unit type and sales urgency
 - **Administrators** manage the entire system and configure rates
 

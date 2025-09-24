@@ -58,7 +58,7 @@ interface Proyecto {
 }
 
 
-export default function ContratistaProyectosPage() {
+export default function BrokerProyectosPage() {
   const router = useRouter()
   const [proyectos, setProyectos] = useState<Proyecto[]>([])
   const [loading, setLoading] = useState(true)
@@ -71,7 +71,7 @@ export default function ContratistaProyectosPage() {
   const fetchProyectos = async () => {
     try {
       setLoading(true)
-      const response = await fetch('/api/contratista/proyectos')
+      const response = await fetch('/api/broker/proyectos')
       const data = await response.json()
 
       if (data.success) {
@@ -98,8 +98,8 @@ export default function ContratistaProyectosPage() {
   }
 
 
-  const handleGenerarContrato = (unidadId: string) => {
-    router.push(`/contratista/generar-contrato?unidadId=${unidadId}`)
+  const handleGenerarLead = (unidadId: string) => {
+    router.push(`/broker/generar-lead?unidadId=${unidadId}`)
   }
 
   if (loading) {
@@ -135,10 +135,10 @@ export default function ContratistaProyectosPage() {
             Actualizar
           </Button>
           <Button
-            onClick={() => router.push('/contratista/generar-contrato')}
+            onClick={() => router.push('/broker/generar-lead')}
           >
             <Plus className="w-4 h-4 mr-2" />
-            Generar Contrato
+            Generar Lead
           </Button>
         </div>
       </div>
@@ -322,10 +322,10 @@ export default function ContratistaProyectosPage() {
                                 <TableCell className="text-right">
                                   <Button
                                     size="sm"
-                                    onClick={() => handleGenerarContrato(unidad.id)}
+                                    onClick={() => handleGenerarLead(unidad.id)}
                                   >
                                     <Plus className="w-4 h-4 mr-2" />
-                                    Generar Contrato
+                                    Generar Lead
                                   </Button>
                                 </TableCell>
                               </TableRow>

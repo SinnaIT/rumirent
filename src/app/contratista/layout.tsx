@@ -18,14 +18,14 @@ import { cn } from '@/lib/utils'
 import { useAuth } from '@/lib/hooks/use-auth'
 
 const menuItems = [
-  { icon: Home, label: 'Dashboard', href: '/contratista' },
-  { icon: Building2, label: 'Proyectos', href: '/contratista/proyectos' },
-  { icon: Plus, label: 'Generar Contrato', href: '/contratista/generar-contrato' },
-  { icon: Calculator, label: 'Mis Ventas', href: '/contratista/ventas' },
-  { icon: BarChart3, label: 'Reportes', href: '/contratista/reportes' },
+  { icon: Home, label: 'Dashboard', href: '/broker' },
+  { icon: Building2, label: 'Proyectos', href: '/broker/proyectos' },
+  { icon: Plus, label: 'Generar Lead', href: '/broker/generar-lead' },
+  { icon: Calculator, label: 'Mis Prospectos', href: '/broker/ventas' },
+  { icon: BarChart3, label: 'Reportes', href: '/broker/reportes' },
 ]
 
-export default function ContratistaLayout({
+export default function BrokerLayout({
   children,
 }: {
   children: React.ReactNode
@@ -37,7 +37,7 @@ export default function ContratistaLayout({
 
   // Handle redirect after loading is complete
   useEffect(() => {
-    if (!loading && (!user || user.role !== 'CONTRATISTA')) {
+    if (!loading && (!user || user.role !== 'BROKER')) {
       router.push('/login')
     }
   }, [loading, user, router])
@@ -53,7 +53,7 @@ export default function ContratistaLayout({
     )
   }
 
-  if (!user || user.role !== 'CONTRATISTA') {
+  if (!user || user.role !== 'BROKER') {
     return null
   }
 

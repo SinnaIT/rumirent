@@ -11,14 +11,14 @@ import { Badge } from '@/components/ui/badge'
 
 interface ComisionMensual {
   id: string
-  contratoId: string
+  leadId: string
   clienteNombre: string
   edificioNombre: string
   unidadCodigo: string
   montoComision: number
   porcentajeComision: number
-  fechaContrato: string
-  estadoContrato: string
+  fechaLead: string
+  estadoLead: string
 }
 
 interface ResumenAnual {
@@ -58,7 +58,7 @@ export default function ReportesPage() {
   const fetchComisionesMensuales = async () => {
     setLoading(true)
     try {
-      const url = `/api/contratista/reportes/comisiones-mensuales?mes=${selectedMonth}&year=${selectedYear}`
+      const url = `/api/broker/reportes/comisiones-mensuales?mes=${selectedMonth}&year=${selectedYear}`
       console.log('Fetching URL:', url)
 
       const response = await fetch(url)
@@ -82,7 +82,7 @@ export default function ReportesPage() {
   const fetchResumenAnual = async () => {
     setLoading(true)
     try {
-      const url = `/api/contratista/reportes/resumen-anual?year=${selectedYear}`
+      const url = `/api/broker/reportes/resumen-anual?year=${selectedYear}`
       console.log('Fetching URL:', url)
 
       const response = await fetch(url)
@@ -219,7 +219,7 @@ export default function ReportesPage() {
               <CardContent>
                 <div className="text-2xl font-bold">{comisionesMensuales.length}</div>
                 <p className="text-xs text-muted-foreground">
-                  Contratos registrados
+                  Leads registrados
                 </p>
               </CardContent>
             </Card>
@@ -276,12 +276,12 @@ export default function ReportesPage() {
                           {formatCurrency(comision.montoComision)}
                         </TableCell>
                         <TableCell>
-                          <Badge className={getEstadoBadgeColor(comision.estadoContrato)}>
-                            {comision.estadoContrato.replace('_', ' ')}
+                          <Badge className={getEstadoBadgeColor(comision.estadoLead)}>
+                            {comision.estadoLead.replace('_', ' ')}
                           </Badge>
                         </TableCell>
                         <TableCell>
-                          {new Date(comision.fechaContrato).toLocaleDateString('es-CL')}
+                          {new Date(comision.fechaLead).toLocaleDateString('es-CL')}
                         </TableCell>
                       </TableRow>
                     ))}
@@ -345,7 +345,7 @@ export default function ReportesPage() {
               <CardContent>
                 <div className="text-2xl font-bold">{totalVentasAño}</div>
                 <p className="text-xs text-muted-foreground">
-                  Contratos en {selectedYear}
+                  Leads en {selectedYear}
                 </p>
               </CardContent>
             </Card>

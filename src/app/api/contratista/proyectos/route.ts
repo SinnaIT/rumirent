@@ -4,9 +4,9 @@ import { verifyAuth } from '@/lib/auth'
 
 export async function GET(request: NextRequest) {
   try {
-    // Verificar autenticación y rol de contratista
+    // Verificar autenticación y rol de broker
     const authResult = await verifyAuth(request)
-    if (!authResult.success || authResult.user?.role !== 'CONTRATISTA') {
+    if (!authResult.success || authResult.user?.role !== 'BROKER') {
       return NextResponse.json(
         { error: 'No autorizado' },
         { status: 401 }

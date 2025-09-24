@@ -1,6 +1,6 @@
 # Design System - RumiRent
 
-Esta carpeta contiene la documentación del sistema de diseño para RumiRent, una aplicación de gestión de contratistas y comisiones inmobiliarias.
+Esta carpeta contiene la documentación del sistema de diseño para RumiRent, una aplicación de gestión de brokers y comisiones inmobiliarias.
 
 ## Estructura
 

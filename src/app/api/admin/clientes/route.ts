@@ -25,10 +25,10 @@ export async function GET(request: NextRequest) {
 
     console.log('✅ Usuario autorizado, consultando clientes...')
 
-    // Obtener clientes con información del contratista
+    // Obtener clientes con información del broker
     const clientes = await prisma.cliente.findMany({
       include: {
-        contratista: {
+        broker: {
           select: {
             id: true,
             nombre: true,
@@ -38,7 +38,7 @@ export async function GET(request: NextRequest) {
         },
         _count: {
           select: {
-            contratos: true
+            leads: true // BD field name, but we'll map to totalLeads
           }
         }
       },
@@ -56,13 +56,13 @@ export async function GET(request: NextRequest) {
       rut: cliente.rut,
       email: cliente.email,
       telefono: cliente.telefono,
-      contratista: {
-        id: cliente.contratista.id,
-        nombre: cliente.contratista.nombre,
-        email: cliente.contratista.email,
-        rut: cliente.contratista.rut
+      broker: {
+        id: cliente.broker.id,
+        nombre: cliente.broker.nombre,
+        email: cliente.broker.email,
+        rut: cliente.broker.rut
       },
-      totalContratos: cliente._count.contratos,
+      totalLeads: cliente._count.leads, // BD field name, mapped to totalLeads
       createdAt: cliente.createdAt.toISOString(),
       updatedAt: cliente.updatedAt.toISOString()
     }))

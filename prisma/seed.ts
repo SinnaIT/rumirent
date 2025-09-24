@@ -8,7 +8,7 @@ async function main() {
 
   // Limpiar datos existentes (orden importante por foreign keys)
   console.log('🧹 Limpiando datos existentes...')
-  await prisma.contrato.deleteMany({})
+  await prisma.lead.deleteMany({})
   await prisma.cliente.deleteMany({})
   await prisma.unidad.deleteMany({})
   await prisma.cambioComisionProgramado.deleteMany({})
@@ -55,7 +55,7 @@ async function main() {
     }
   })
 
-  // 2. Crear usuarios con RUT (1 admin + 6 contratistas)
+  // 2. Crear usuarios con RUT (1 admin + 6 brokers)
   console.log('👤 Creando usuarios...')
   const hashedPassword = await bcrypt.hash('123456', 10)
 
@@ -70,69 +70,69 @@ async function main() {
     }
   })
 
-  const contratista1 = await prisma.user.create({
+  const broker1 = await prisma.user.create({
     data: {
       email: 'carlos.rodriguez@email.com',
       password: hashedPassword,
       nombre: 'Carlos Rodríguez',
       rut: '98765432-1',
       telefono: '+569 8765 4321',
-      role: 'CONTRATISTA',
+      role: 'BROKER',
     }
   })
 
-  const contratista2 = await prisma.user.create({
+  const broker2 = await prisma.user.create({
     data: {
       email: 'maria.gonzalez@email.com',
       password: hashedPassword,
       nombre: 'María González',
       rut: '87654321-0',
       telefono: '+569 8765 1234',
-      role: 'CONTRATISTA',
+      role: 'BROKER',
     }
   })
 
-  const contratista3 = await prisma.user.create({
+  const broker3 = await prisma.user.create({
     data: {
       email: 'juan.lopez@email.com',
       password: hashedPassword,
       nombre: 'Juan López',
       rut: '76543210-K',
       telefono: '+569 7654 3210',
-      role: 'CONTRATISTA',
+      role: 'BROKER',
     }
   })
 
-  const contratista4 = await prisma.user.create({
+  const broker4 = await prisma.user.create({
     data: {
       email: 'ana.martinez@email.com',
       password: hashedPassword,
       nombre: 'Ana Martínez',
       rut: '65432109-8',
       telefono: '+569 6543 2109',
-      role: 'CONTRATISTA',
+      role: 'BROKER',
     }
   })
 
-  const contratista5 = await prisma.user.create({
+  const broker5 = await prisma.user.create({
     data: {
       email: 'pedro.sanchez@email.com',
       password: hashedPassword,
       nombre: 'Pedro Sánchez',
       rut: '54321098-7',
       telefono: '+569 5432 1098',
-      role: 'CONTRATISTA',
+      role: 'BROKER',
     }
   })
 
-  const contratista6 = await prisma.user.create({
+  const broker6 = await prisma.user.create({
     data: {
       email: 'lucia.torres@email.com',
       password: hashedPassword,
       nombre: 'Lucía Torres',
       rut: '43210987-6',
       telefono: '+569 4321 0987',
-      role: 'CONTRATISTA',
+      role: 'BROKER',
     }
   })
 
@@ -492,17 +492,17 @@ async function main() {
     ]
   })
 
-  // 6. Crear clientes (20 clientes distribuidos entre 6 contratistas)
+  // 6. Crear clientes (20 clientes distribuidos entre 6 brokers)
   console.log('👥 Creando clientes...')
   const clientes = await Promise.all([
-    // Clientes para contratista1 (Carlos)
+    // Clientes para broker1 (Carlos)
     prisma.cliente.create({
       data: {
         nombre: 'Ana García Pérez',
         rut: '15234567-8',
         email: 'ana.garcia@email.com',
         telefono: '+569 1523 4567',
-        contratistaId: contratista1.id
+        brokerId: broker1.id
       }
     }),
     prisma.cliente.create({
@@ -511,7 +511,7 @@ async function main() {
         rut: '16345678-9',
         email: 'roberto.silva@email.com',
         telefono: '+569 1634 5678',
-        contratistaId: contratista1.id
+        brokerId: broker1.id
       }
     }),
     prisma.cliente.create({
@@ -520,17 +520,17 @@ async function main() {
         rut: '19678901-2',
         email: 'carla.fernandez@email.com',
         telefono: '+569 1967 8901',
-        contratistaId: contratista1.id
+        brokerId: broker1.id
       }
     }),
-    // Clientes para contratista2 (María)
+    // Clientes para broker2 (María)
     prisma.cliente.create({
       data: {
         nombre: 'Carmen Ruiz Torres',
         rut: '17456789-0',
         email: 'carmen.ruiz@email.com',
         telefono: '+569 1745 6789',
-        contratistaId: contratista2.id
+        brokerId: broker2.id
       }
     }),
     prisma.cliente.create({
@@ -539,7 +539,7 @@ async function main() {
         rut: '21890123-4',
         email: 'francisco.herrera@email.com',
         telefono: '+569 2189 0123',
-        contratistaId: contratista2.id
+        brokerId: broker2.id
       }
     }),
     prisma.cliente.create({
@@ -548,17 +548,17 @@ async function main() {
         rut: '22901234-5',
         email: 'isabel.castro@email.com',
         telefono: '+569 2290 1234',
-        contratistaId: contratista2.id
+        brokerId: broker2.id
       }
     }),
-    // Clientes para contratista3 (Juan)
+    // Clientes para broker3 (Juan)
     prisma.cliente.create({
       data: {
         nombre: 'Diego Mendoza Castro',
         rut: '18567890-1',
         email: 'diego.mendoza@email.com',
         telefono: '+569 1856 7890',
-        contratistaId: contratista3.id
+        brokerId: broker3.id
       }
     }),
     prisma.cliente.create({
@@ -567,7 +567,7 @@ async function main() {
         rut: '24123456-7',
         email: 'valentina.ramos@email.com',
         telefono: '+569 2412 3456',
-        contratistaId: contratista3.id
+        brokerId: broker3.id
       }
     }),
     prisma.cliente.create({
@@ -576,17 +576,17 @@ async function main() {
         rut: '25234567-8',
         email: 'mateo.vargas@email.com',
         telefono: '+569 2523 4567',
-        contratistaId: contratista3.id
+        brokerId: broker3.id
       }
     }),
-    // Clientes para contratista4 (Ana)
+    // Clientes para broker4 (Ana)
     prisma.cliente.create({
       data: {
         nombre: 'Sofía Jiménez Rojas',
         rut: '26345678-9',
         email: 'sofia.jimenez@email.com',
         telefono: '+569 2634 5678',
-        contratistaId: contratista4.id
+        brokerId: broker4.id
       }
     }),
     prisma.cliente.create({
@@ -595,7 +595,7 @@ async function main() {
         rut: '27456789-0',
         email: 'andres.guerrero@email.com',
         telefono: '+569 2745 6789',
-        contratistaId: contratista4.id
+        brokerId: broker4.id
       }
     }),
     prisma.cliente.create({
@@ -604,17 +604,17 @@ async function main() {
         rut: '28567890-1',
         email: 'patricia.nunez@email.com',
         telefono: '+569 2856 7890',
-        contratistaId: contratista4.id
+        brokerId: broker4.id
       }
     }),
-    // Clientes para contratista5 (Pedro)
+    // Clientes para broker5 (Pedro)
     prisma.cliente.create({
       data: {
         nombre: 'Gabriel Morales Díaz',
         rut: '29678901-2',
         email: 'gabriel.morales@email.com',
         telefono: '+569 2967 8901',
-        contratistaId: contratista5.id
+        brokerId: broker5.id
       }
     }),
     prisma.cliente.create({
@@ -623,7 +623,7 @@ async function main() {
         rut: '30789012-3',
         email: 'camila.aguilar@email.com',
         telefono: '+569 3078 9012',
-        contratistaId: contratista5.id
+        brokerId: broker5.id
       }
     }),
     prisma.cliente.create({
@@ -632,17 +632,17 @@ async function main() {
         rut: '31890123-4',
         email: 'tomas.espinoza@email.com',
         telefono: '+569 3189 0123',
-        contratistaId: contratista5.id
+        brokerId: broker5.id
       }
     }),
-    // Clientes para contratista6 (Lucía)
+    // Clientes para broker6 (Lucía)
     prisma.cliente.create({
       data: {
         nombre: 'Natalia Campos Reyes',
         rut: '32901234-5',
         email: 'natalia.campos@email.com',
         telefono: '+569 3290 1234',
-        contratistaId: contratista6.id
+        brokerId: broker6.id
       }
     }),
     prisma.cliente.create({
@@ -651,7 +651,7 @@ async function main() {
         rut: '33012345-6',
         email: 'sebastian.vidal@email.com',
         telefono: '+569 3301 2345',
-        contratistaId: contratista6.id
+        brokerId: broker6.id
       }
     }),
     prisma.cliente.create({
@@ -660,7 +660,7 @@ async function main() {
         rut: '34123456-7',
         email: 'elena.paredes@email.com',
         telefono: '+569 3412 3456',
-        contratistaId: contratista6.id
+        brokerId: broker6.id
       }
     }),
     // Clientes adicionales para variedad
@@ -670,7 +670,7 @@ async function main() {
         rut: '35234567-8',
         email: 'martin.sanchez@email.com',
         telefono: '+569 3523 4567',
-        contratistaId: contratista1.id
+        brokerId: broker1.id
       }
     }),
     prisma.cliente.create({
@@ -679,13 +679,13 @@ async function main() {
         rut: '36345678-9',
         email: 'fernanda.lopez@email.com',
         telefono: '+569 3634 5678',
-        contratistaId: contratista2.id
+        brokerId: broker2.id
       }
     })
   ])
 
-  // 7. Crear contratos distribuidos en 2024 (~50 contratos)
-  console.log('📋 Creando ~50 contratos distribuidos en 2024...')
+  // 7. Crear leads distribuidos en 2024 (~50 leads)
+  console.log('📋 Creando ~50 leads distribuidos en 2024...')
 
   // Función auxiliar para generar fechas aleatorias en 2024
   const getRandomDate2024 = (startMonth: number, endMonth: number) => {
@@ -701,7 +701,7 @@ async function main() {
     return new Date(start.getTime() + Math.random() * (end.getTime() - start.getTime()))
   }
 
-  // Obtener unidades para asignar a algunos contratos
+  // Obtener unidades para asignar a algunos leads
   const unidades = await prisma.unidad.findMany({
     include: {
       tipoUnidadEdificio: {
@@ -714,7 +714,7 @@ async function main() {
     }
   })
 
-  // Estados de contrato para variedad
+  // Estados de lead para variedad
   const estados: ('ENTREGADO' | 'RESERVA_PAGADA' | 'APROBADO' | 'RECHAZADO')[] =
     ['ENTREGADO', 'RESERVA_PAGADA', 'APROBADO', 'RECHAZADO']
 
@@ -729,18 +729,18 @@ async function main() {
     'Crédito CORFO'
   ]
 
-  // Crear 50 contratos
-  const contratistas = [contratista1, contratista2, contratista3, contratista4, contratista5, contratista6]
+  // Crear 50 leads
+  const brokers = [broker1, broker2, broker3, broker4, broker5, broker6]
   const edificios = [edificio1, edificio2, edificio3, edificio4, edificio5]
   const unidadesUsadas = new Set<string>() // Para evitar duplicados
 
   for (let i = 0; i < 50; i++) {
-    const contraInd = i % 6 // Rotar entre contratistas
+    const contraInd = i % 6 // Rotar entre brokers
     const clienteInd = Math.floor(i / 6) % Math.floor(clientes.length / 6) + (contraInd * Math.floor(clientes.length / 6))
-    const contraId = contratistas[contraInd].id
+    const contraId = brokers[contraInd].id
     const clienteId = clientes[clienteInd % clientes.length].id
 
-    // Seleccionar unidad disponible (no usada) o null para contrato manual
+    // Seleccionar unidad disponible (no usada) o null para lead manual
     let unidad = null
     if (i < unidades.length && Math.random() > 0.3) { // Solo usar unidades reales si hay disponibles
       const unidadesDisponibles = unidades.filter(u => !unidadesUsadas.has(u.id))
@@ -757,8 +757,8 @@ async function main() {
       (unidad.metros2! * 1500000) + Math.random() * 50000000 : // Precio por m2 + variación
       50000000 + Math.random() * 150000000 // Precio manual
 
-    const totalContrato = Math.round(precioBase / 1000000) * 1000000 // Redondear a millones
-    const montoUf = Math.round(totalContrato / 35000) // Aprox UF a 35.000 CLP
+    const totallead = Math.round(precioBase / 1000000) * 1000000 // Redondear a millones
+    const montoUf = Math.round(totallead / 35000) // Aprox UF a 35.000 CLP
 
     // Calcular comisión según tipo de unidad
     let porcentajeComision = 0.05 // Default 5%
@@ -768,31 +768,31 @@ async function main() {
       porcentajeComision = comisionTipo ? comisionTipo.porcentaje : comisionEdificio.porcentaje
     }
 
-    const comision = Math.round(totalContrato * porcentajeComision)
+    const comision = Math.round(totallead * porcentajeComision)
     const estado = estados[Math.floor(Math.random() * estados.length)]
 
     // Fechas progresivas a lo largo del año
     const mesBase = Math.floor((i / 50) * 12) + 1
     const fechaReserva = getRandomDate2024(mesBase, mesBase + 1)
-    const fechaContrato = estado !== 'ENTREGADO' ?
+    const fechalead = estado !== 'ENTREGADO' ?
       new Date(fechaReserva.getTime() + (30 + Math.random() * 60) * 24 * 60 * 60 * 1000) :
       undefined
     const fechaCheckin = estado === 'APROBADO' ?
-      new Date((fechaContrato || fechaReserva).getTime() + (60 + Math.random() * 120) * 24 * 60 * 60 * 1000) :
+      new Date((fechalead || fechaReserva).getTime() + (60 + Math.random() * 120) * 24 * 60 * 60 * 1000) :
       undefined
 
     const codigoUnidad = unidad ?
       `${unidad.edificio.nombre.split(' ')[0].toUpperCase()}-${unidad.numero}` :
       `MANUAL-${String(i + 1).padStart(3, '0')}`
 
-    const contratoData = {
+    const leadData = {
       codigoUnidad,
-      totalContrato,
+      totallead,
       montoUf,
       comision,
       estado,
       fechaPagoReserva: fechaReserva,
-      fechaPagoContrato: fechaContrato,
+      fechaPagolead: fechalead,
       fechaCheckin: fechaCheckin,
       postulacion: postulaciones[Math.floor(Math.random() * postulaciones.length)],
       observaciones: [
@@ -805,25 +805,25 @@ async function main() {
       ][Math.floor(Math.random() * 6)],
       conciliado: Math.random() > 0.7, // 30% conciliados
       fechaConciliacion: Math.random() > 0.7 ? getRandomDate2024(mesBase + 1, 12) : undefined,
-      contratistaId: contraId,
+      brokerId: contraId,
       clienteId: clienteId,
       unidadId: unidad?.id || null,
       edificioId: edificio.id
     }
 
-    await prisma.contrato.create({ data: contratoData })
+    await prisma.lead.create({ data: leadData })
   }
 
-  // 7b. Crear 20 contratos adicionales distribuidos en 2025
-  console.log('📋 Creando 20 contratos adicionales distribuidos en 2025...')
+  // 7b. Crear 20 leads adicionales distribuidos en 2025
+  console.log('📋 Creando 20 leads adicionales distribuidos en 2025...')
 
   for (let i = 0; i < 20; i++) {
-    const contraInd = i % 6 // Rotar entre contratistas
+    const contraInd = i % 6 // Rotar entre brokers
     const clienteInd = Math.floor(i / 6) % Math.floor(clientes.length / 6) + (contraInd * Math.floor(clientes.length / 6))
-    const contraId = contratistas[contraInd].id
+    const contraId = brokers[contraInd].id
     const clienteId = clientes[clienteInd % clientes.length].id
 
-    // Para 2025, usar más contratos manuales ya que las unidades físicas están agotadas
+    // Para 2025, usar más leads manuales ya que las unidades físicas están agotadas
     let unidad = null
     const unidadesDisponibles = unidades.filter(u => !unidadesUsadas.has(u.id))
     if (unidadesDisponibles.length > 0 && Math.random() > 0.7) { // 30% con unidades físicas, 70% manuales
@@ -838,8 +838,8 @@ async function main() {
       (unidad.metros2! * 1600000) + Math.random() * 60000000 : // Precios 2025 más altos
       60000000 + Math.random() * 180000000 // Precio manual 2025
 
-    const totalContrato = Math.round(precioBase / 1000000) * 1000000 // Redondear a millones
-    const montoUf = Math.round(totalContrato / 36000) // UF estimada a 36.000 CLP en 2025
+    const totallead = Math.round(precioBase / 1000000) * 1000000 // Redondear a millones
+    const montoUf = Math.round(totallead / 36000) // UF estimada a 36.000 CLP en 2025
 
     // Calcular comisión según tipo de unidad
     let porcentajeComision = 0.05 // Default 5%
@@ -849,38 +849,38 @@ async function main() {
       porcentajeComision = comisionTipo ? comisionTipo.porcentaje : comisionEdificio.porcentaje
     }
 
-    const comision = Math.round(totalContrato * porcentajeComision)
+    const comision = Math.round(totallead * porcentajeComision)
     const estado = estados[Math.floor(Math.random() * estados.length)]
 
-    // Distribuir fechas a lo largo de 2025 (cada contrato en diferente mes)
-    // Para 20 contratos, asegurar que se cubran todos los meses del año
+    // Distribuir fechas a lo largo de 2025 (cada lead en diferente mes)
+    // Para 20 leads, asegurar que se cubran todos los meses del año
     const mesesDistribucion = [1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7, 8, 8, 9, 9, 10, 11, 12]
     const mes2025 = mesesDistribucion[i] || ((i % 12) + 1)
     const fechaReserva = getRandomDate2025(mes2025, mes2025)
 
-    const fechaContrato = estado !== 'ENTREGADO' ?
+    const fechalead = estado !== 'ENTREGADO' ?
       new Date(fechaReserva.getTime() + (30 + Math.random() * 60) * 24 * 60 * 60 * 1000) :
       undefined
     const fechaCheckin = estado === 'APROBADO' ?
-      new Date((fechaContrato || fechaReserva).getTime() + (60 + Math.random() * 120) * 24 * 60 * 60 * 1000) :
+      new Date((fechalead || fechaReserva).getTime() + (60 + Math.random() * 120) * 24 * 60 * 60 * 1000) :
       undefined
 
     const codigoUnidad = unidad ?
       `${unidad.edificio.nombre.split(' ')[0].toUpperCase()}-${unidad.numero}-2025` :
       `FUTURO-${String(i + 1).padStart(3, '0')}-2025`
 
-    const contratoData2025 = {
+    const leadData2025 = {
       codigoUnidad,
-      totalContrato,
+      totallead,
       montoUf,
       comision,
       estado,
       fechaPagoReserva: fechaReserva,
-      fechaPagoContrato: fechaContrato,
+      fechaPagolead: fechalead,
       fechaCheckin: fechaCheckin,
       postulacion: postulaciones[Math.floor(Math.random() * postulaciones.length)],
       observaciones: [
-        'Contrato futuro 2025 - condiciones especiales',
+        'lead futuro 2025 - condiciones especiales',
         'Pre-venta con descuento por pago anticipado',
         'Cliente preferencial con historial exitoso',
         'Proyecto en fase de planificación',
@@ -889,13 +889,13 @@ async function main() {
       ][Math.floor(Math.random() * 6)],
       conciliado: Math.random() > 0.8, // 20% conciliados (menos que en 2024 por ser futuros)
       fechaConciliacion: Math.random() > 0.8 ? getRandomDate2025(Math.min(mes2025 + 1, 12), 12) : undefined,
-      contratistaId: contraId,
+      brokerId: contraId,
       clienteId: clienteId,
       unidadId: unidad?.id || null,
       edificioId: edificio.id
     }
 
-    await prisma.contrato.create({ data: contratoData2025 })
+    await prisma.lead.create({ data: leadData2025 })
   }
 
   // 8. Crear cambios programados de comisión
@@ -923,25 +923,25 @@ async function main() {
   console.log('✅ Seed completado exitosamente!')
   console.log('\n📊 Resumen de datos creados:')
   console.log(`- 4 Comisiones (3%, 5%, 7%, 10%)`)
-  console.log(`- 7 Usuarios (1 admin, 6 contratistas)`)
+  console.log(`- 7 Usuarios (1 admin, 6 brokers)`)
   console.log(`- 5 Edificios`)
   console.log(`- 12 Tipos de unidad por edificio`)
   console.log(`- 20 Unidades`)
-  console.log(`- 20 Clientes (distribuidos entre contratistas)`)
-  console.log(`- 50 Contratos (distribuidos en 2024)`)
-  console.log(`- 20 Contratos adicionales (distribuidos en 2025)`)
+  console.log(`- 20 Clientes (distribuidos entre brokers)`)
+  console.log(`- 50 leads (distribuidos en 2024)`)
+  console.log(`- 20 leads adicionales (distribuidos en 2025)`)
   console.log(`- 2 Cambios programados`)
   console.log('\n🔧 Casos de prueba incluidos:')
-  console.log('- 6 contratistas activos con ventas distribuidas')
-  console.log('- 70 contratos totales: 50 en 2024 + 20 en 2025')
-  console.log('- Contratos 2025 distribuidos en todos los meses del año')
+  console.log('- 6 brokers activos con ventas distribuidas')
+  console.log('- 70 leads totales: 50 en 2024 + 20 en 2025')
+  console.log('- leads 2025 distribuidos en todos los meses del año')
   console.log('- Precios 2025 ajustados por inflación')
-  console.log('- Variedad en estados de contratos y unidades')
-  console.log('- Contratos con y sin unidades específicas')
+  console.log('- Variedad en estados de leads y unidades')
+  console.log('- leads con y sin unidades específicas')
   console.log('- Diferentes tipos de comisiones por edificio y tipo de unidad')
   console.log('- Postulaciones y métodos de pago variados')
-  console.log('- Algunos contratos conciliados para reportes')
-  console.log('- Contratos futuros con observaciones específicas para 2025')
+  console.log('- Algunos leads conciliados para reportes')
+  console.log('- leads futuros con observaciones específicas para 2025')
 }
 
 main()

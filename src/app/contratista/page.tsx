@@ -2,7 +2,7 @@
 
 import { Home, DollarSign, TrendingUp, Target, Calendar, MapPin } from 'lucide-react'
 
-export default function ContratistaDashboard() {
+export default function BrokerDashboard() {
   // Datos de ejemplo - en producción vendrían de la API
   const stats = [
     {

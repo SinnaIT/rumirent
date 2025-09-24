@@ -12,7 +12,7 @@ export default function LoginPage() {
   const [rememberMe, setRememberMe] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-  const [loginSuccess, setLoginSuccess] = useState<{ role: 'ADMIN' | 'CONTRATISTA', token: string } | null>(null)
+  const [loginSuccess, setLoginSuccess] = useState<{ role: 'ADMIN' | 'BROKER', token: string } | null>(null)
   const router = useRouter()
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -43,7 +43,7 @@ export default function LoginPage() {
 
       // Set login success state to trigger AuthRedirect component
       setLoginSuccess({
-        role: data.user.role as 'ADMIN' | 'CONTRATISTA',
+        role: data.user.role as 'ADMIN' | 'BROKER',
         token: data.token
       })
     } catch (error) {
@@ -115,7 +115,7 @@ export default function LoginPage() {
                     type="email"
                     required
                     className="block w-full pl-10 pr-3 py-3 border border-gray-200 rounded-xl bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder-gray-400 text-sm"
-                    placeholder="contratista@rumirent.com"
+                    placeholder="broker@rumirent.com"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                   />

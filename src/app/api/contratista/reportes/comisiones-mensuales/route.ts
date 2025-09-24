@@ -5,7 +5,7 @@ import { prisma } from '@/lib/db'
 export async function GET(request: NextRequest) {
   try {
     const authResult = await verifyAuth(request)
-    if (!authResult.success || authResult.user?.role !== 'CONTRATISTA') {
+    if (!authResult.success || authResult.user?.role !== 'BROKER') {
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
     }
 
@@ -25,25 +25,25 @@ export async function GET(request: NextRequest) {
     const fechaFin = new Date(yearNum, mesNum + 1, 0, 23, 59, 59, 999)
 
     console.log('Búsqueda de comisiones:', {
-      contratistaId: authResult.user.id,
+      brokerId: authResult.user.id,
       fechaInicio,
       fechaFin,
       mes: mesNum,
       year: yearNum
     })
 
-    // Primero verificar si el contratista tiene contratos en general
-    const totalContratos = await prisma.contrato.count({
+    // Primero verificar si el broker tiene leads en general
+    const totalLeads = await prisma.lead.count({
       where: {
-        contratistaId: authResult.user.id,
+        brokerId: authResult.user.id,
       },
     })
-    console.log(`Total contratos del contratista: ${totalContratos}`)
+    console.log(`Total leads del broker: ${totalLeads}`)
 
-    // Buscar contratos del contratista en el mes específico
-    const contratos = await prisma.contrato.findMany({
+    // Buscar leads del broker en el mes específico
+    const leads = await prisma.lead.findMany({
       where: {
-        contratistaId: authResult.user.id,
+        brokerId: authResult.user.id,
         createdAt: {
           gte: fechaInicio,
           lte: fechaFin,
@@ -67,32 +67,32 @@ export async function GET(request: NextRequest) {
       },
     })
 
-    console.log(`Encontrados ${contratos.length} contratos para el usuario ${authResult.user.id}`)
+    console.log(`Encontrados ${leads.length} leads para el usuario ${authResult.user.id}`)
 
-    // Calcular comisiones para cada contrato
-    const comisionesMensuales = contratos.map((contrato) => {
+    // Calcular comisiones para cada lead
+    const comisionesMensuales = leads.map((lead) => {
       // El schema muestra que la comisión ya está calculada en el campo 'comision'
-      const montoComision = contrato.comision || 0
+      const montoComision = lead.comision || 0
 
       // Calcular porcentaje basado en el tipo de unidad si existe
       let porcentajeComision = 0
-      if (contrato.unidad?.tipoUnidadEdificio?.comision) {
-        porcentajeComision = contrato.unidad.tipoUnidadEdificio.comision.porcentaje
-      } else if (contrato.totalContrato && montoComision) {
+      if (lead.unidad?.tipoUnidadEdificio?.comision) {
+        porcentajeComision = lead.unidad.tipoUnidadEdificio.comision.porcentaje
+      } else if (lead.totalLead && montoComision) {
         // Calcular porcentaje retroactivamente si no hay tipo de unidad
-        porcentajeComision = (montoComision / contrato.totalContrato) * 100
+        porcentajeComision = (montoComision / lead.totalLead) * 100
       }
 
       return {
-        id: contrato.id,
-        contratoId: contrato.id,
-        clienteNombre: contrato.cliente.nombre,
-        edificioNombre: contrato.edificio?.nombre || 'Sin edificio',
-        unidadCodigo: contrato.unidad?.numero || contrato.codigoUnidad || 'Sin código',
+        id: lead.id,
+        leadId: lead.id,
+        clienteNombre: lead.cliente.nombre,
+        edificioNombre: lead.edificio?.nombre || 'Sin edificio',
+        unidadCodigo: lead.unidad?.numero || lead.codigoUnidad || 'Sin código',
         montoComision,
         porcentajeComision: Math.round(porcentajeComision * 100) / 100, // Redondear a 2 decimales
-        fechaContrato: contrato.createdAt.toISOString(),
-        estadoContrato: contrato.estado,
+        fechaLead: lead.createdAt.toISOString(),
+        estadoLead: lead.estado,
       }
     })
 

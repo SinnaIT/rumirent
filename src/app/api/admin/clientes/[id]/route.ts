@@ -26,7 +26,7 @@ export async function GET(
     const cliente = await prisma.cliente.findUnique({
       where: { id },
       include: {
-        contratista: {
+        broker: {
           select: {
             id: true,
             nombre: true,
@@ -36,7 +36,7 @@ export async function GET(
         },
         _count: {
           select: {
-            contratos: true
+            leads: true // BD field name, but we'll map to totalLeads
           }
         }
       }
@@ -55,8 +55,8 @@ export async function GET(
       rut: cliente.rut,
       email: cliente.email,
       telefono: cliente.telefono,
-      contratista: cliente.contratista,
-      totalContratos: cliente._count.contratos,
+      broker: cliente.broker,
+      totalLeads: cliente._count.leads, // BD field name, mapped to totalLeads
       createdAt: cliente.createdAt.toISOString(),
       updatedAt: cliente.updatedAt.toISOString()
     }
@@ -97,12 +97,12 @@ export async function PUT(
     }
 
     const body = await request.json()
-    const { nombre, rut, email, telefono, contratistaId } = body
+    const { nombre, rut, email, telefono, brokerId } = body
 
-    console.log('📝 Datos a actualizar:', { nombre, rut, email, telefono, contratistaId })
+    console.log('📝 Datos a actualizar:', { nombre, rut, email, telefono, brokerId })
 
     // Validaciones básicas
-    if (!nombre || !rut || !contratistaId) {
+    if (!nombre || !rut || !brokerId) {
       return NextResponse.json(
         { error: 'Nombre, RUT y broker son requeridos' },
         { status: 400 }
@@ -137,14 +137,14 @@ export async function PUT(
     }
 
     // Verificar que el broker existe
-    const contratistaExists = await prisma.user.findUnique({
+    const brokerExists = await prisma.user.findUnique({
       where: {
-        id: contratistaId,
-        role: 'CONTRATISTA'
+        id: brokerId,
+        role: 'BROKER'
       }
     })
 
-    if (!contratistaExists) {
+    if (!brokerExists) {
       return NextResponse.json(
         { error: 'El broker especificado no existe o no es válido' },
         { status: 400 }
@@ -159,10 +159,10 @@ export async function PUT(
         rut,
         email: email || null,
         telefono: telefono || null,
-        contratistaId
+        brokerId
       },
       include: {
-        contratista: {
+        broker: {
           select: {
             id: true,
             nombre: true,
@@ -172,7 +172,7 @@ export async function PUT(
         },
         _count: {
           select: {
-            contratos: true
+            leads: true // BD field name, but we'll map to totalLeads
           }
         }
       }
@@ -186,8 +186,8 @@ export async function PUT(
       rut: updatedCliente.rut,
       email: updatedCliente.email,
       telefono: updatedCliente.telefono,
-      contratista: updatedCliente.contratista,
-      totalContratos: updatedCliente._count.contratos,
+      broker: updatedCliente.broker,
+      totalLeads: updatedCliente._count.leads, // BD field name, mapped to totalLeads
       createdAt: updatedCliente.createdAt.toISOString(),
       updatedAt: updatedCliente.updatedAt.toISOString()
     }

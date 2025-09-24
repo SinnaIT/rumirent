@@ -21,8 +21,8 @@ Migración de la estructura de base de datos y código para implementar el nuevo
 - [ ] **Migrar edificios existentes** asignándoles comisión base
 - [ ] **Crear tipos de unidad** para edificios existentes
 - [ ] **Migrar unidades** conectándolas a tipos de unidad
-- [ ] **Crear clientes** desde contratos existentes
-- [ ] **Migrar contratos** al nuevo formato
+- [ ] **Crear clientes** desde leads existentes
+- [ ] **Migrar leads** al nuevo formato
 
 ## Fase 2: Actualización de APIs Backend
 
@@ -69,30 +69,30 @@ Migración de la estructura de base de datos y código para implementar el nuevo
   - [ ] Validación RUT chileno
 - [ ] **src/app/api/admin/clientes/[id]/route.ts**
   - [ ] GET, PUT, DELETE para admin
-- [ ] **src/app/api/contratista/clientes/route.ts**
-  - [ ] GET: Solo clientes del contratista actual
-  - [ ] POST: Crear cliente (asignar contratistaId automático)
-- [ ] **src/app/api/contratista/clientes/[id]/route.ts**
+- [ ] **src/app/api/broker/clientes/route.ts**
+  - [ ] GET: Solo clientes del broker actual
+  - [ ] POST: Crear cliente (asignar brokerId automático)
+- [ ] **src/app/api/broker/clientes/[id]/route.ts**
   - [ ] GET, PUT, DELETE: Solo si es propietario
 
-#### 2.1.6 Contratos (Reestructurar completamente)
-- [ ] **src/app/api/admin/contratos/route.ts**
+#### 2.1.6 leads (Reestructurar completamente)
+- [ ] **src/app/api/admin/leads/route.ts**
   - [ ] GET: Incluir nuevos campos (fechas, montos, estado)
   - [ ] POST: Validar nueva estructura
-- [ ] **src/app/api/admin/contratos/[id]/route.ts**
+- [ ] **src/app/api/admin/leads/[id]/route.ts**
   - [ ] Actualizar para nuevos campos
-- [ ] **src/app/api/contratista/contratos/route.ts**
-  - [ ] GET: Solo contratos del contratista
-  - [ ] POST: Crear contrato con validaciones
-- [ ] **src/app/api/contratista/contratos/[id]/route.ts**
-  - [ ] PUT: Permitir cambio de estado del contrato
+- [ ] **src/app/api/broker/leads/route.ts**
+  - [ ] GET: Solo leads del broker
+  - [ ] POST: Crear lead con validaciones
+- [ ] **src/app/api/broker/leads/[id]/route.ts**
+  - [ ] PUT: Permitir cambio de estado del lead
 
 ### 2.2 APIs de Soporte
 
 #### 2.2.1 Usuarios (Agregar RUT)
 - [ ] **src/app/api/auth/register/route.ts**
   - [ ] Agregar validación RUT obligatorio
-- [ ] **src/app/api/admin/contratistas/route.ts**
+- [ ] **src/app/api/admin/brokers/route.ts**
   - [ ] Incluir RUT en listados y operaciones
 
 #### 2.2.2 Cálculo de Comisiones
@@ -117,7 +117,7 @@ Migración de la estructura de base de datos y código para implementar el nuevo
 - [ ] **src/lib/validations.ts**
   - [ ] Agregar validación RUT chileno
   - [ ] Actualizar schemas Zod para todas las entidades
-  - [ ] Validaciones para nuevos campos de contrato
+  - [ ] Validaciones para nuevos campos de lead
 
 ### 3.3 Componentes Admin
 
@@ -152,32 +152,32 @@ Migración de la estructura de base de datos y código para implementar el nuevo
 
 #### 3.3.5 Gestión de Clientes
 - [ ] **src/app/admin/clientes/page.tsx**
-  - [ ] Lista de todos los clientes con contratista
+  - [ ] Lista de todos los clientes con broker
 - [ ] **src/components/forms/ClienteForm.tsx**
   - [ ] Formulario con validación RUT
 
-#### 3.3.6 Gestión de Contratos
-- [ ] **src/app/admin/contratos/page.tsx**
+#### 3.3.6 Gestión de leads
+- [ ] **src/app/admin/leads/page.tsx**
   - [ ] Vista completa con nuevos campos
-- [ ] **src/components/forms/ContratoForm.tsx**
+- [ ] **src/components/forms/leadForm.tsx**
   - [ ] Formulario complejo con fechas, montos, estados
 
-### 3.4 Componentes Contratista
+### 3.4 Componentes Broker
 
 #### 3.4.1 Gestión de Clientes
-- [ ] **src/app/contratista/clientes/page.tsx**
+- [ ] **src/app/broker/clientes/page.tsx**
   - [ ] Solo clientes propios
-- [ ] **src/app/contratista/clientes/nuevo/page.tsx**
+- [ ] **src/app/broker/clientes/nuevo/page.tsx**
   - [ ] Crear cliente con validación RUT
 
-#### 3.4.2 Gestión de Contratos
-- [ ] **src/app/contratista/contratos/page.tsx**
+#### 3.4.2 Gestión de leads
+- [ ] **src/app/broker/leads/page.tsx**
   - [ ] Lista con filtros por estado
-- [ ] **src/app/contratista/contratos/nuevo/page.tsx**
-  - [ ] Formulario de contrato con unidad opcional
+- [ ] **src/app/broker/leads/nuevo/page.tsx**
+  - [ ] Formulario de lead con unidad opcional
 
-#### 3.4.3 Dashboard Contratista
-- [ ] **src/app/contratista/dashboard/page.tsx**
+#### 3.4.3 Dashboard Broker
+- [ ] **src/app/broker/dashboard/page.tsx**
   - [ ] Métricas con nuevos cálculos de comisión
 
 ### 3.5 Componentes Compartidos
@@ -202,7 +202,7 @@ Migración de la estructura de base de datos y código para implementar el nuevo
 ### 4.2 Testing Frontend
 - [ ] **Tests de componentes** nuevos y modificados
 - [ ] **Tests de formularios** con validaciones
-- [ ] **Tests E2E** flujos completos de contratista
+- [ ] **Tests E2E** flujos completos de broker
 
 ### 4.3 Validación de Datos
 - [ ] **Verificar migración** de datos existentes
@@ -229,7 +229,7 @@ Migración de la estructura de base de datos y código para implementar el nuevo
 ## Consideraciones Especiales
 
 ### Migración de Datos Existentes
-1. **Contratos existentes**: Crear clientes desde datos de contrato
+1. **leads existentes**: Crear clientes desde datos de lead
 2. **Unidades existentes**: Asignar a tipos de unidad genéricos inicialmente
 3. **Comisiones**: Establecer valores por defecto para edificios sin comisión
 
@@ -241,15 +241,15 @@ Migración de la estructura de base de datos y código para implementar el nuevo
 ### Performance
 1. **Índices de BD**: Agregar índices en campos de búsqueda frecuente
 2. **Caching**: Implementar cache para cálculos de comisión
-3. **Paginación**: En listados largos de clientes/contratos
+3. **Paginación**: En listados largos de clientes/leads
 
 ## Orden de Ejecución Recomendado
 
 1. **Fase 1** completa (DB + seed)
 2. **Comisiones** → **Edificios** → **Tipos Unidad** → **Unidades**
-3. **Clientes** → **Contratos**
+3. **Clientes** → **leads**
 4. **Frontend Admin** para cada entidad
-5. **Frontend Contratista**
+5. **Frontend Broker**
 6. **Testing** paralelo a desarrollo
 7. **Despliegue** escalonado
 

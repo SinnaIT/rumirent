@@ -47,7 +47,7 @@ import {
 } from 'lucide-react'
 import { toast } from 'sonner'
 
-interface Contratista {
+interface Broker {
   id: string
   email: string
   nombre: string
@@ -59,7 +59,7 @@ interface Contratista {
   createdAt: string
 }
 
-interface ContratistaFormData {
+interface BrokerFormData {
   email: string
   nombre: string
   rut: string
@@ -68,14 +68,14 @@ interface ContratistaFormData {
   confirmPassword: string
 }
 
-export default function ContratistasPage() {
-  const [contratistas, setContratistas] = useState<Contratista[]>([])
+export default function BrokersPage() {
+  const [brokers, setBrokers] = useState<Broker[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
-  const [editingContratista, setEditingContratista] = useState<Contratista | null>(null)
-  const [formData, setFormData] = useState<ContratistaFormData>({
+  const [editingBroker, setEditingBroker] = useState<Broker | null>(null)
+  const [formData, setFormData] = useState<BrokerFormData>({
     email: '',
     nombre: '',
     rut: '',
@@ -84,16 +84,16 @@ export default function ContratistasPage() {
     confirmPassword: ''
   })
 
-  // Cargar contratistas
-  const fetchContratistas = async () => {
+  // Cargar brokers
+  const fetchBrokers = async () => {
     try {
       setLoading(true)
-      const response = await fetch('/api/admin/contratistas')
-      if (!response.ok) throw new Error('Error al cargar contratistas')
+      const response = await fetch('/api/admin/brokers')
+      if (!response.ok) throw new Error('Error al cargar brokers')
       const data = await response.json()
-      setContratistas(data.contratistas)
+      setBrokers(data.brokers)
     } catch (error) {
-      toast.error('Error al cargar los contratistas')
+      toast.error('Error al cargar los brokers')
       console.error(error)
     } finally {
       setLoading(false)
@@ -101,11 +101,11 @@ export default function ContratistasPage() {
   }
 
   useEffect(() => {
-    fetchContratistas()
+    fetchBrokers()
   }, [])
 
-  // Crear contratista
-  const handleCreateContratista = async (e: React.FormEvent) => {
+  // Crear broker
+  const handleCreateBroker = async (e: React.FormEvent) => {
     e.preventDefault()
 
     if (formData.password !== formData.confirmPassword) {
@@ -114,7 +114,7 @@ export default function ContratistasPage() {
     }
 
     try {
-      const response = await fetch('/api/admin/contratistas', {
+      const response = await fetch('/api/admin/brokers', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -128,22 +128,22 @@ export default function ContratistasPage() {
 
       if (!response.ok) {
         const error = await response.json()
-        throw new Error(error.message || 'Error al crear contratista')
+        throw new Error(error.message || 'Error al crear broker')
       }
 
-      toast.success('Contratista creado exitosamente')
+      toast.success('Broker creado exitosamente')
       setIsCreateModalOpen(false)
       resetForm()
-      fetchContratistas()
+      fetchBrokers()
     } catch (error: any) {
       toast.error(error.message)
     }
   }
 
-  // Editar contratista
-  const handleEditContratista = async (e: React.FormEvent) => {
+  // Editar broker
+  const handleEditBroker = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!editingContratista) return
+    if (!editingBroker) return
 
     try {
       const updateData: any = {
@@ -156,7 +156,7 @@ export default function ContratistasPage() {
         updateData.password = formData.password
       }
 
-      const response = await fetch(`/api/admin/contratistas/${editingContratista.id}`, {
+      const response = await fetch(`/api/admin/brokers/${editingBroker.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(updateData)
@@ -164,33 +164,33 @@ export default function ContratistasPage() {
 
       if (!response.ok) {
         const error = await response.json()
-        throw new Error(error.message || 'Error al actualizar contratista')
+        throw new Error(error.message || 'Error al actualizar broker')
       }
 
-      toast.success('Contratista actualizado exitosamente')
+      toast.success('Broker actualizado exitosamente')
       setIsEditModalOpen(false)
-      setEditingContratista(null)
+      setEditingBroker(null)
       resetForm()
-      fetchContratistas()
+      fetchBrokers()
     } catch (error: any) {
       toast.error(error.message)
     }
   }
 
-  // Eliminar contratista
-  const handleDeleteContratista = async (id: string) => {
+  // Eliminar broker
+  const handleDeleteBroker = async (id: string) => {
     try {
-      const response = await fetch(`/api/admin/contratistas/${id}`, {
+      const response = await fetch(`/api/admin/brokers/${id}`, {
         method: 'DELETE'
       })
 
       if (!response.ok) {
         const error = await response.json()
-        throw new Error(error.message || 'Error al eliminar contratista')
+        throw new Error(error.message || 'Error al eliminar broker')
       }
 
-      toast.success('Contratista eliminado exitosamente')
-      fetchContratistas()
+      toast.success('Broker eliminado exitosamente')
+      fetchBrokers()
     } catch (error: any) {
       toast.error(error.message)
     }
@@ -199,7 +199,7 @@ export default function ContratistasPage() {
   // Toggle activo/inactivo
   const handleToggleStatus = async (id: string, currentStatus: boolean) => {
     try {
-      const response = await fetch(`/api/admin/contratistas/${id}/toggle-status`, {
+      const response = await fetch(`/api/admin/brokers/${id}/toggle-status`, {
         method: 'PATCH'
       })
 
@@ -208,8 +208,8 @@ export default function ContratistasPage() {
         throw new Error(error.message || 'Error al cambiar estado')
       }
 
-      toast.success(`Contratista ${currentStatus ? 'desactivado' : 'activado'} exitosamente`)
-      fetchContratistas()
+      toast.success(`Broker ${currentStatus ? 'desactivado' : 'activado'} exitosamente`)
+      fetchBrokers()
     } catch (error: any) {
       toast.error(error.message)
     }
@@ -226,32 +226,32 @@ export default function ContratistasPage() {
     })
   }
 
-  const openEditModal = (contratista: Contratista) => {
-    setEditingContratista(contratista)
+  const openEditModal = (broker: Broker) => {
+    setEditingBroker(broker)
     setFormData({
-      email: contratista.email,
-      nombre: contratista.nombre,
-      rut: contratista.rut,
-      telefono: contratista.telefono || '',
+      email: broker.email,
+      nombre: broker.nombre,
+      rut: broker.rut,
+      telefono: broker.telefono || '',
       password: '',
       confirmPassword: ''
     })
     setIsEditModalOpen(true)
   }
 
-  // Filtrar contratistas
-  const filteredContratistas = contratistas.filter(contratista =>
-    contratista.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    contratista.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    contratista.rut.toLowerCase().includes(searchTerm.toLowerCase())
+  // Filtrar brokers
+  const filteredBrokers = brokers.filter(broker =>
+    broker.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    broker.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    broker.rut.toLowerCase().includes(searchTerm.toLowerCase())
   )
 
   // Estadísticas
   const stats = {
-    total: contratistas.length,
-    activos: contratistas.filter(c => c.activo).length,
-    inactivos: contratistas.filter(c => !c.activo).length,
-    ventasTotales: contratistas.reduce((sum, c) => sum + c.ventasRealizadas, 0)
+    total: brokers.length,
+    activos: brokers.filter(c => c.activo).length,
+    inactivos: brokers.filter(c => !c.activo).length,
+    ventasTotales: brokers.reduce((sum, c) => sum + c.ventasRealizadas, 0)
   }
 
   return (
@@ -345,28 +345,28 @@ export default function ContratistasPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredContratistas.length === 0 ? (
+                {filteredBrokers.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
                       No se encontraron brokers
                     </TableCell>
                   </TableRow>
                 ) : (
-                  filteredContratistas.map((contratista) => (
-                    <TableRow key={contratista.id}>
-                      <TableCell className="font-medium">{contratista.nombre}</TableCell>
-                      <TableCell className="font-mono text-sm">{contratista.rut}</TableCell>
+                  filteredBrokers.map((broker) => (
+                    <TableRow key={broker.id}>
+                      <TableCell className="font-medium">{broker.nombre}</TableCell>
+                      <TableCell className="font-mono text-sm">{broker.rut}</TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
                           <Mail className="h-4 w-4 text-muted-foreground" />
-                          {contratista.email}
+                          {broker.email}
                         </div>
                       </TableCell>
                       <TableCell>
-                        {contratista.telefono && contratista.telefono.trim() !== '' ? (
+                        {broker.telefono && broker.telefono.trim() !== '' ? (
                           <div className="flex items-center gap-2">
                             <Phone className="h-4 w-4 text-muted-foreground" />
-                            {contratista.telefono}
+                            {broker.telefono}
                           </div>
                         ) : (
                           <span className="text-muted-foreground">-</span>
@@ -376,26 +376,26 @@ export default function ContratistasPage() {
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => handleToggleStatus(contratista.id, contratista.activo)}
+                          onClick={() => handleToggleStatus(broker.id, broker.activo)}
                         >
-                          <Badge variant={contratista.activo ? "default" : "secondary"}>
-                            {contratista.activo ? "Activo" : "Inactivo"}
+                          <Badge variant={broker.activo ? "default" : "secondary"}>
+                            {broker.activo ? "Activo" : "Inactivo"}
                           </Badge>
                         </Button>
                       </TableCell>
-                      <TableCell>{contratista.ventasRealizadas}</TableCell>
+                      <TableCell>{broker.ventasRealizadas}</TableCell>
                       <TableCell className="font-mono">
-                        ${contratista.comisionesTotales.toLocaleString()}
+                        ${broker.comisionesTotales.toLocaleString()}
                       </TableCell>
                       <TableCell className="text-sm text-muted-foreground">
-                        {new Date(contratista.createdAt).toLocaleDateString()}
+                        {new Date(broker.createdAt).toLocaleDateString()}
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => openEditModal(contratista)}
+                            onClick={() => openEditModal(broker)}
                           >
                             <Edit className="h-4 w-4" />
                           </Button>
@@ -407,16 +407,16 @@ export default function ContratistasPage() {
                             </AlertDialogTrigger>
                             <AlertDialogContent>
                               <AlertDialogHeader>
-                                <AlertDialogTitle>¿Eliminar contratista?</AlertDialogTitle>
+                                <AlertDialogTitle>¿Eliminar broker?</AlertDialogTitle>
                                 <AlertDialogDescription>
-                                  Esta acción no se puede deshacer. Se eliminará permanentemente el contratista
-                                  <strong> {contratista.nombre}</strong> y toda su información asociada.
+                                  Esta acción no se puede deshacer. Se eliminará permanentemente el broker
+                                  <strong> {broker.nombre}</strong> y toda su información asociada.
                                 </AlertDialogDescription>
                               </AlertDialogHeader>
                               <AlertDialogFooter>
                                 <AlertDialogCancel>Cancelar</AlertDialogCancel>
                                 <AlertDialogAction
-                                  onClick={() => handleDeleteContratista(contratista.id)}
+                                  onClick={() => handleDeleteBroker(broker.id)}
                                   className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                                 >
                                   Eliminar
@@ -439,12 +439,12 @@ export default function ContratistasPage() {
       <Dialog open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Crear Nuevo Contratista</DialogTitle>
+            <DialogTitle>Crear Nuevo Broker</DialogTitle>
             <DialogDescription>
-              Complete los datos para crear un nuevo contratista en el sistema.
+              Complete los datos para crear un nuevo broker en el sistema.
             </DialogDescription>
           </DialogHeader>
-          <form onSubmit={handleCreateContratista} className="space-y-4">
+          <form onSubmit={handleCreateBroker} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="create-nombre">Nombre completo</Label>
               <Input
@@ -523,7 +523,7 @@ export default function ContratistasPage() {
               Modifique los datos del broker. Deje la contraseña vacía si no desea cambiarla.
             </DialogDescription>
           </DialogHeader>
-          <form onSubmit={handleEditContratista} className="space-y-4">
+          <form onSubmit={handleEditBroker} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="edit-nombre">Nombre completo</Label>
               <Input

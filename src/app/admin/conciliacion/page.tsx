@@ -45,21 +45,21 @@ import {
 } from '@dnd-kit/utilities'
 
 interface ExcelData {
-  fechaContrato: string
+  fechaLead: string
   monto: number
   proyecto: string
   unidad: string
   raw: any
 }
 
-interface ContratoSistema {
+interface LeadSistema {
   id: string
-  fechaContrato: string
-  totalContrato: number
+  fechaLead: string
+  totalLead: number
   edificioNombre: string
   unidadCodigo: string
   clienteNombre: string
-  contratistaNombre: string
+  brokerNombre: string
   comision: number
   conciliado: boolean
 }
@@ -67,7 +67,7 @@ interface ContratoSistema {
 interface ConciliacionMatch {
   id: string
   excel: ExcelData
-  sistema: ContratoSistema
+  sistema: LeadSistema
   tipo: 'automatico' | 'manual'
   confidence: number
 }
@@ -117,7 +117,7 @@ export default function ConciliacionPage() {
 
   // Estados para los datos
   const [excelData, setExcelData] = useState<ExcelData[]>([])
-  const [contratosSistema, setContratosSistema] = useState<ContratoSistema[]>([])
+  const [leadsSistema, setLeadsSistema] = useState<LeadSistema[]>([])
   const [matches, setMatches] = useState<ConciliacionMatch[]>([])
 
   // Estados para drag and drop
@@ -180,7 +180,7 @@ export default function ConciliacionPage() {
       if (response.ok) {
         const data = await response.json()
         setExcelData(data.excelData)
-        setContratosSistema(data.contratosSistema)
+        setLeadsSistema(data.leadsSistema)
         setMatches(data.matches)
       } else {
         console.error('Error processing file')
@@ -192,13 +192,13 @@ export default function ConciliacionPage() {
     }
   }
 
-  const loadContratosPendientes = async () => {
+  const loadLeadsPendientes = async () => {
     setLoading(true)
     try {
-      const response = await fetch(`/api/admin/conciliacion/contratos-pendientes?mes=${selectedMonth}&year=${selectedYear}`)
+      const response = await fetch(`/api/admin/conciliacion/leads-pendientes?mes=${selectedMonth}&year=${selectedYear}`)
       if (response.ok) {
         const data = await response.json()
-        setContratosSistema(data.contratos)
+        setLeadsSistema(data.leads)
       }
     } catch (error) {
       console.error('Error loading contracts:', error)
@@ -207,23 +207,23 @@ export default function ConciliacionPage() {
     }
   }
 
-  const conciliarManual = async (excelIndex: number, contratoId: string) => {
+  const conciliarManual = async (excelIndex: number, leadId: string) => {
     try {
       const excel = excelData[excelIndex]
-      const contrato = contratosSistema.find(c => c.id === contratoId)
+      const lead = leadsSistema.find(c => c.id === leadId)
 
-      if (excel && contrato) {
+      if (excel && lead) {
         const newMatch: ConciliacionMatch = {
           id: `match-${Date.now()}`,
           excel,
-          sistema: contrato,
+          sistema: lead,
           tipo: 'manual',
           confidence: 0.5
         }
 
         setMatches(prev => [...prev, newMatch])
         setExcelData(prev => prev.filter((_, i) => i !== excelIndex))
-        setContratosSistema(prev => prev.filter(c => c.id !== contratoId))
+        setLeadsSistema(prev => prev.filter(c => c.id !== leadId))
       }
     } catch (error) {
       console.error('Error in manual conciliation:', error)
@@ -248,11 +248,11 @@ export default function ConciliacionPage() {
 
     if (!over) return
 
-    // Si se suelta sobre un contrato del sistema
+    // Si se suelta sobre un lead del sistema
     if (active.id.toString().startsWith('excel-') && over.id.toString().startsWith('sistema-')) {
       const excelIndex = parseInt(active.id.toString().replace('excel-', ''))
-      const contratoId = over.id.toString().replace('sistema-', '')
-      conciliarManual(excelIndex, contratoId)
+      const leadId = over.id.toString().replace('sistema-', '')
+      conciliarManual(excelIndex, leadId)
     }
   }
 
@@ -272,7 +272,7 @@ export default function ConciliacionPage() {
         // Limpiar datos después de confirmar
         setMatches([])
         setExcelData([])
-        setContratosSistema([])
+        setLeadsSistema([])
         setSelectedFile(null)
         if (fileInputRef.current) {
           fileInputRef.current.value = ''
@@ -298,9 +298,9 @@ export default function ConciliacionPage() {
   return (
     <div className="space-y-6">
       <div className="flex flex-col space-y-2">
-        <h1 className="text-3xl font-bold tracking-tight">Conciliación de Contratos</h1>
+        <h1 className="text-3xl font-bold tracking-tight">Conciliación de Leads</h1>
         <p className="text-muted-foreground">
-          Concilia los contratos del sistema con los datos de archivos Excel/CSV para el pago de comisiones
+          Concilia los leads del sistema con los datos de archivos Excel/CSV para el pago de comisiones
         </p>
       </div>
 
@@ -346,7 +346,7 @@ export default function ConciliacionPage() {
                 </Select>
               </div>
             </div>
-            <Button onClick={loadContratosPendientes} className="w-full" disabled={loading}>
+            <Button onClick={loadLeadsPendientes} className="w-full" disabled={loading}>
               {loading ? (
                 <>
                   <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
@@ -355,7 +355,7 @@ export default function ConciliacionPage() {
               ) : (
                 <>
                   <Filter className="mr-2 h-4 w-4" />
-                  Cargar Contratos Pendientes
+                  Cargar Leads Pendientes
                 </>
               )}
             </Button>
@@ -381,7 +381,7 @@ export default function ConciliacionPage() {
                 className="cursor-pointer"
               />
               <p className="text-sm text-muted-foreground mt-1">
-                Debe contener: fecha contrato, monto, proyecto, unidad
+                Debe contener: fecha lead, monto, proyecto, unidad
               </p>
             </div>
             <Button
@@ -406,7 +406,7 @@ export default function ConciliacionPage() {
       </div>
 
       {/* Estadísticas */}
-      {(excelData.length > 0 || contratosSistema.length > 0 || matches.length > 0) && (
+      {(excelData.length > 0 || leadsSistema.length > 0 || matches.length > 0) && (
         <div className="grid gap-4 md:grid-cols-4">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -421,11 +421,11 @@ export default function ConciliacionPage() {
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Contratos Sistema</CardTitle>
+              <CardTitle className="text-sm font-medium">Leads Sistema</CardTitle>
               <Clock className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{contratosSistema.length}</div>
+              <div className="text-2xl font-bold">{leadsSistema.length}</div>
               <p className="text-xs text-muted-foreground">Sin conciliar</p>
             </CardContent>
           </Card>
@@ -474,7 +474,7 @@ export default function ConciliacionPage() {
                   <span>Datos CSV/Excel ({excelData.length})</span>
                 </CardTitle>
                 <p className="text-sm text-muted-foreground">
-                  Arrastra un registro hacia la tabla de contratos del sistema para conciliar
+                  Arrastra un registro hacia la tabla de leads del sistema para conciliar
                 </p>
               </CardHeader>
               <CardContent>
@@ -494,7 +494,7 @@ export default function ConciliacionPage() {
                         <SortableContext items={excelData.map((_, i) => `excel-${i}`)} strategy={verticalListSortingStrategy}>
                           {excelData.map((row, index) => (
                             <DraggableRow key={`excel-${index}`} id={`excel-${index}`}>
-                              <TableCell>{formatDate(row.fechaContrato)}</TableCell>
+                              <TableCell>{formatDate(row.fechaLead)}</TableCell>
                               <TableCell className="font-medium">{row.proyecto}</TableCell>
                               <TableCell>{row.unidad}</TableCell>
                               <TableCell>{formatCurrency(row.monto)}</TableCell>
@@ -514,19 +514,19 @@ export default function ConciliacionPage() {
               </CardContent>
             </Card>
 
-            {/* Contratos Sistema - Derecha */}
+            {/* Leads Sistema - Derecha */}
             <Card className="h-fit">
               <CardHeader>
                 <CardTitle className="flex items-center space-x-2">
                   <Clock className="h-5 w-5" />
-                  <span>Contratos Sistema ({contratosSistema.length})</span>
+                  <span>Leads Sistema ({leadsSistema.length})</span>
                 </CardTitle>
                 <p className="text-sm text-muted-foreground">
                   Suelta aquí los registros del CSV para crear una conciliación
                 </p>
               </CardHeader>
               <CardContent>
-                {contratosSistema.length > 0 ? (
+                {leadsSistema.length > 0 ? (
                   <div className="max-h-96 overflow-y-auto">
                     <Table>
                       <TableHeader>
@@ -539,17 +539,17 @@ export default function ConciliacionPage() {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {contratosSistema.map((contrato) => (
+                        {leadsSistema.map((lead) => (
                           <TableRow
-                            key={`sistema-${contrato.id}`}
-                            id={`sistema-${contrato.id}`}
+                            key={`sistema-${lead.id}`}
+                            id={`sistema-${lead.id}`}
                             className="hover:bg-blue-50 transition-colors cursor-pointer border-l-4 border-l-transparent hover:border-l-blue-500"
                           >
-                            <TableCell>{formatDate(contrato.fechaContrato)}</TableCell>
-                            <TableCell>{contrato.clienteNombre}</TableCell>
-                            <TableCell className="font-medium">{contrato.edificioNombre}</TableCell>
-                            <TableCell>{contrato.unidadCodigo}</TableCell>
-                            <TableCell>{formatCurrency(contrato.totalContrato)}</TableCell>
+                            <TableCell>{formatDate(lead.fechaLead)}</TableCell>
+                            <TableCell>{lead.clienteNombre}</TableCell>
+                            <TableCell className="font-medium">{lead.edificioNombre}</TableCell>
+                            <TableCell>{lead.unidadCodigo}</TableCell>
+                            <TableCell>{formatCurrency(lead.totalLead)}</TableCell>
                           </TableRow>
                         ))}
                       </TableBody>
@@ -558,7 +558,7 @@ export default function ConciliacionPage() {
                 ) : (
                   <div className="text-center py-8 text-muted-foreground border-2 border-dashed border-gray-300 rounded-lg">
                     <Clock className="h-8 w-8 mx-auto mb-2" />
-                    <p>No hay contratos sin conciliar</p>
+                    <p>No hay leads sin conciliar</p>
                     <p className="text-xs">Para el período seleccionado</p>
                   </div>
                 )}
@@ -620,8 +620,8 @@ export default function ConciliacionPage() {
                           <TableCell>{match.sistema.clienteNombre}</TableCell>
                           <TableCell className="font-medium">{match.sistema.edificioNombre}</TableCell>
                           <TableCell>{match.sistema.unidadCodigo}</TableCell>
-                          <TableCell className="text-blue-700 font-medium">{formatCurrency(match.sistema.totalContrato)}</TableCell>
-                          <TableCell>{match.sistema.contratistaNombre}</TableCell>
+                          <TableCell className="text-blue-700 font-medium">{formatCurrency(match.sistema.totalLead)}</TableCell>
+                          <TableCell>{match.sistema.brokerNombre}</TableCell>
                           <TableCell className="text-orange-700 font-medium">{formatCurrency(match.sistema.comision)}</TableCell>
                           <TableCell>
                             <div className="flex items-center space-x-2">
@@ -646,7 +646,7 @@ export default function ConciliacionPage() {
                 <div className="text-center py-12 text-muted-foreground border-2 border-dashed border-gray-300 rounded-lg">
                   <CheckCircle className="h-12 w-12 mx-auto mb-4 opacity-50" />
                   <h3 className="text-lg font-medium mb-2">No hay registros conciliados</h3>
-                  <p className="text-sm">Arrastra registros del CSV hacia los contratos del sistema para crear conciliaciones</p>
+                  <p className="text-sm">Arrastra registros del CSV hacia los leads del sistema para crear conciliaciones</p>
                   <p className="text-xs mt-1">También puedes procesar un archivo para obtener coincidencias automáticas</p>
                 </div>
               )}

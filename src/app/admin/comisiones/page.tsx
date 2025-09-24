@@ -11,7 +11,7 @@ import { Badge } from '@/components/ui/badge'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { toast } from 'sonner'
-import { Calculator, Save, RefreshCw, Plus, Edit, Settings, Clock, Calendar, Trash2, CheckCircle, PlayCircle } from 'lucide-react'
+import { Calculator, Save, RefreshCw, Plus, Edit, Settings, Clock, Calendar, Trash2, CheckCircle, PlayCircle, BarChart3 } from 'lucide-react'
 
 // Interfaces
 interface Comision {
@@ -61,6 +61,21 @@ interface CambioProgramado {
   updatedAt: string
 }
 
+interface ReglaComision {
+  id: string
+  cantidadMinima: number
+  cantidadMaxima: number | null
+  porcentaje: number
+  comisionId: string
+  comision: {
+    id: string
+    nombre: string
+    codigo: string
+  }
+  createdAt: string
+  updatedAt: string
+}
+
 
 export default function ComisionesPage() {
   const [activeTab, setActiveTab] = useState('tipos')
@@ -83,6 +98,12 @@ export default function ComisionesPage() {
   const [loadingCambios, setLoadingCambios] = useState(true)
   const [isCambioDialogOpen, setIsCambioDialogOpen] = useState(false)
 
+  // Estados para reglas de comisión
+  const [reglasComision, setReglasComision] = useState<ReglaComision[]>([])
+  const [loadingReglas, setLoadingReglas] = useState(true)
+  const [isReglaDialogOpen, setIsReglaDialogOpen] = useState(false)
+  const [editingRegla, setEditingRegla] = useState<ReglaComision | null>(null)
+
   // Form states
   const [comisionForm, setComisionForm] = useState({
     nombre: '',
@@ -98,17 +119,25 @@ export default function ComisionesPage() {
     tipoUnidadId: 'all'
   })
 
+  const [reglaForm, setReglaForm] = useState({
+    cantidadMinima: '',
+    cantidadMaxima: '',
+    porcentaje: '',
+    comisionId: ''
+  })
+
   useEffect(() => {
     fetchComisiones()
     fetchEdificios()
     fetchTiposUnidad()
     fetchCambiosProgramados()
+    fetchReglasComision()
   }, [])
 
   const fetchComisiones = async () => {
     try {
       setLoadingComisiones(true)
-      const response = await fetch('/api/admin/comisiones/tipos')
+      const response = await fetch('/api/admin/comisiones')
       const data = await response.json()
 
       if (data.success) {
@@ -170,6 +199,25 @@ export default function ComisionesPage() {
     }
   }
 
+  const fetchReglasComision = async () => {
+    try {
+      setLoadingReglas(true)
+      const response = await fetch('/api/admin/comisiones/reglas')
+      const data = await response.json()
+
+      if (data.success) {
+        setReglasComision(data.reglas)
+      } else {
+        toast.error('Error al cargar reglas de comisión')
+      }
+    } catch (error) {
+      console.error('Error:', error)
+      toast.error('Error de conexión')
+    } finally {
+      setLoadingReglas(false)
+    }
+  }
+
   const resetComisionForm = () => {
     setComisionForm({
       nombre: '',
@@ -207,8 +255,8 @@ export default function ComisionesPage() {
 
     try {
       const url = editingComision
-        ? `/api/admin/comisiones/tipos/${editingComision.id}`
-        : '/api/admin/comisiones/tipos'
+        ? `/api/admin/comisiones/${editingComision.id}`
+        : '/api/admin/comisiones'
 
       const method = editingComision ? 'PUT' : 'POST'
 
@@ -242,7 +290,7 @@ export default function ComisionesPage() {
 
   const handleToggleComision = async (comision: Comision) => {
     try {
-      const response = await fetch(`/api/admin/comisiones/tipos/${comision.id}`, {
+      const response = await fetch(`/api/admin/comisiones/${comision.id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -336,6 +384,116 @@ export default function ComisionesPage() {
     }
   }
 
+  // Funciones para reglas de comisión
+  const resetReglaForm = () => {
+    setReglaForm({
+      cantidadMinima: '',
+      cantidadMaxima: '',
+      porcentaje: '',
+      comisionId: ''
+    })
+    setEditingRegla(null)
+  }
+
+  const handleOpenReglaDialog = (regla?: ReglaComision) => {
+    if (regla) {
+      setReglaForm({
+        cantidadMinima: regla.cantidadMinima.toString(),
+        cantidadMaxima: regla.cantidadMaxima ? regla.cantidadMaxima.toString() : '',
+        porcentaje: (regla.porcentaje * 100).toString(),
+        comisionId: regla.comisionId
+      })
+      setEditingRegla(regla)
+    } else {
+      resetReglaForm()
+    }
+    setIsReglaDialogOpen(true)
+  }
+
+  const handleSubmitRegla = async () => {
+    if (!reglaForm.cantidadMinima || !reglaForm.porcentaje || !reglaForm.comisionId) {
+      toast.error('Cantidad mínima, porcentaje y comisión son requeridos')
+      return
+    }
+
+    const cantidadMinima = parseFloat(reglaForm.cantidadMinima)
+    const cantidadMaxima = reglaForm.cantidadMaxima ? parseFloat(reglaForm.cantidadMaxima) : null
+    const porcentajeDecimal = parseFloat(reglaForm.porcentaje) / 100
+
+    if (isNaN(cantidadMinima) || cantidadMinima < 0) {
+      toast.error('La cantidad mínima debe ser un número mayor o igual a 0')
+      return
+    }
+
+    if (cantidadMaxima && (isNaN(cantidadMaxima) || cantidadMaxima <= cantidadMinima)) {
+      toast.error('La cantidad máxima debe ser mayor que la cantidad mínima')
+      return
+    }
+
+    if (isNaN(porcentajeDecimal) || porcentajeDecimal < 0 || porcentajeDecimal > 1) {
+      toast.error('El porcentaje debe ser un número entre 0 y 100')
+      return
+    }
+
+    try {
+      const url = editingRegla
+        ? `/api/admin/comisiones/reglas/${editingRegla.id}`
+        : '/api/admin/comisiones/reglas'
+
+      const method = editingRegla ? 'PUT' : 'POST'
+
+      const response = await fetch(url, {
+        method,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          cantidadMinima,
+          cantidadMaxima,
+          porcentaje: porcentajeDecimal,
+          comisionId: reglaForm.comisionId
+        })
+      })
+
+      const data = await response.json()
+
+      if (data.success) {
+        toast.success(data.message)
+        setIsReglaDialogOpen(false)
+        resetReglaForm()
+        fetchReglasComision()
+      } else {
+        toast.error(data.error)
+      }
+    } catch (error) {
+      console.error('Error:', error)
+      toast.error('Error de conexión')
+    }
+  }
+
+  const handleDeleteRegla = async (reglaId: string) => {
+    if (!confirm('¿Estás seguro de que quieres eliminar esta regla de comisión?')) {
+      return
+    }
+
+    try {
+      const response = await fetch(`/api/admin/comisiones/reglas/${reglaId}`, {
+        method: 'DELETE'
+      })
+
+      const data = await response.json()
+
+      if (data.success) {
+        toast.success(data.message)
+        fetchReglasComision()
+      } else {
+        toast.error(data.error)
+      }
+    } catch (error) {
+      console.error('Error:', error)
+      toast.error('Error de conexión')
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -353,6 +511,7 @@ export default function ComisionesPage() {
             fetchComisiones()
             fetchTiposUnidad()
             fetchCambiosProgramados()
+            fetchReglasComision()
           }}
         >
           <RefreshCw className="w-4 h-4 mr-2" />
@@ -362,10 +521,14 @@ export default function ComisionesPage() {
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-2">
+        <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="tipos" className="flex items-center space-x-2">
             <Settings className="w-4 h-4" />
             <span>Tipos de Comisión</span>
+          </TabsTrigger>
+          <TabsTrigger value="reglas" className="flex items-center space-x-2">
+            <BarChart3 className="w-4 h-4" />
+            <span>Reglas de Comisión</span>
           </TabsTrigger>
           <TabsTrigger value="programados" className="flex items-center space-x-2">
             <Clock className="w-4 h-4" />
@@ -526,6 +689,207 @@ export default function ComisionesPage() {
           </Card>
         </TabsContent>
 
+        {/* Tab: Reglas de Comisión */}
+        <TabsContent value="reglas" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="flex items-center">
+                    <BarChart3 className="w-5 h-5 mr-2" />
+                    Reglas de Comisión
+                  </CardTitle>
+                  <CardDescription>
+                    Define rangos de comisión basados en cantidades de venta
+                  </CardDescription>
+                </div>
+                <Dialog open={isReglaDialogOpen} onOpenChange={setIsReglaDialogOpen}>
+                  <DialogTrigger asChild>
+                    <Button onClick={() => handleOpenReglaDialog()}>
+                      <Plus className="w-4 h-4 mr-2" />
+                      Nueva Regla
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>
+                        {editingRegla ? 'Editar Regla de Comisión' : 'Nueva Regla de Comisión'}
+                      </DialogTitle>
+                      <DialogDescription>
+                        {editingRegla
+                          ? 'Modifica los datos de la regla existente'
+                          : 'Crea una nueva regla de comisión basada en rangos de cantidad'
+                        }
+                      </DialogDescription>
+                    </DialogHeader>
+
+                    <div className="grid gap-4 py-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="comision-regla-select">Comisión *</Label>
+                        <Select
+                          value={reglaForm.comisionId}
+                          onValueChange={(value) => setReglaForm({ ...reglaForm, comisionId: value })}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Seleccionar comisión" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {comisiones
+                              .filter(c => c.activa)
+                              .map((comision) => (
+                                <SelectItem key={comision.id} value={comision.id}>
+                                  {comision.nombre} ({comision.codigo})
+                                </SelectItem>
+                              ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="cantidadMinima">Cantidad Mínima *</Label>
+                          <Input
+                            id="cantidadMinima"
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            value={reglaForm.cantidadMinima}
+                            onChange={(e) => setReglaForm({ ...reglaForm, cantidadMinima: e.target.value })}
+                            placeholder="ej: 0"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="cantidadMaxima">Cantidad Máxima</Label>
+                          <Input
+                            id="cantidadMaxima"
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            value={reglaForm.cantidadMaxima}
+                            onChange={(e) => setReglaForm({ ...reglaForm, cantidadMaxima: e.target.value })}
+                            placeholder="ej: 1000000 (opcional)"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="porcentajeRegla">Porcentaje de Comisión (%) *</Label>
+                        <Input
+                          id="porcentajeRegla"
+                          type="number"
+                          min="0"
+                          max="100"
+                          step="0.1"
+                          value={reglaForm.porcentaje}
+                          onChange={(e) => setReglaForm({ ...reglaForm, porcentaje: e.target.value })}
+                          placeholder="ej: 5.5"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex justify-end space-x-2">
+                      <Button
+                        variant="outline"
+                        onClick={() => setIsReglaDialogOpen(false)}
+                      >
+                        Cancelar
+                      </Button>
+                      <Button onClick={handleSubmitRegla}>
+                        <Save className="w-4 h-4 mr-2" />
+                        {editingRegla ? 'Actualizar' : 'Crear'}
+                      </Button>
+                    </div>
+                  </DialogContent>
+                </Dialog>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {loadingReglas ? (
+                <div className="text-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+                  <p className="mt-2 text-muted-foreground">Cargando reglas de comisión...</p>
+                </div>
+              ) : reglasComision.length === 0 ? (
+                <div className="text-center py-8">
+                  <BarChart3 className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-foreground mb-2">No hay reglas de comisión definidas</h3>
+                  <p className="text-muted-foreground mb-4">
+                    Crea reglas para definir comisiones basadas en rangos de cantidad
+                  </p>
+                  <Button onClick={() => handleOpenReglaDialog()}>
+                    <Plus className="w-4 h-4 mr-2" />
+                    Crear Primera Regla
+                  </Button>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Comisión</TableHead>
+                        <TableHead>Rango de Cantidad</TableHead>
+                        <TableHead>Porcentaje</TableHead>
+                        <TableHead>Creada</TableHead>
+                        <TableHead className="text-right">Acciones</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {reglasComision
+                        .sort((a, b) => a.comision.nombre.localeCompare(b.comision.nombre) || a.cantidadMinima - b.cantidadMinima)
+                        .map((regla) => (
+                        <TableRow key={regla.id}>
+                          <TableCell>
+                            <div>
+                              <div className="font-medium">{regla.comision.nombre}</div>
+                              <div className="text-sm text-muted-foreground">
+                                Código: {regla.comision.codigo}
+                              </div>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="font-medium">
+                              ${regla.cantidadMinima.toLocaleString()}
+                              {regla.cantidadMaxima
+                                ? ` - $${regla.cantidadMaxima.toLocaleString()}`
+                                : ' en adelante'
+                              }
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="secondary">
+                              {(regla.porcentaje * 100).toFixed(2)}%
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-muted-foreground">
+                            {new Date(regla.createdAt).toLocaleDateString('es-ES')}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex items-center justify-end space-x-2">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleOpenReglaDialog(regla)}
+                              >
+                                <Edit className="w-4 h-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleDeleteRegla(regla.id)}
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
 
         {/* Tab: Cambios Programados */}
         <TabsContent value="programados" className="space-y-4">

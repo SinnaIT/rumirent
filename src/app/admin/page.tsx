@@ -14,7 +14,7 @@ export default function AdminDashboard() {
       bgColor: "bg-primary/10"
     },
     {
-      title: "Contratistas Activos",
+      title: "Brokers Activos",
       value: "8",
       change: "+1 este mes",
       icon: Users,
@@ -41,7 +41,7 @@ export default function AdminDashboard() {
 
   const recentActivity = [
     { type: "Venta", description: "Unidad 3A - Edificio Torre Verde", time: "Hace 2 horas", status: "success" },
-    { type: "Nuevo Contratista", description: "María González registrada", time: "Hace 4 horas", status: "info" },
+    { type: "Nuevo Broker", description: "María González registrada", time: "Hace 4 horas", status: "info" },
     { type: "Comisión", description: "Pago procesado - $2,850", time: "Hace 6 horas", status: "success" },
     { type: "Proyecto", description: "Torre Azul - Fase 2 iniciada", time: "Hace 1 día", status: "warning" }
   ]
@@ -153,7 +153,7 @@ export default function AdminDashboard() {
                 <Users className="h-6 w-6 text-secondary group-hover:scale-110 transition-transform" />
                 <div className="w-2 h-2 bg-secondary/30 rounded-full"></div>
               </div>
-              <p className="text-sm font-semibold text-foreground mb-1">Gestionar Contratistas</p>
+              <p className="text-sm font-semibold text-foreground mb-1">Gestionar Brokers</p>
               <p className="text-xs text-muted-foreground">Ver listado</p>
             </button>
             <button className="group p-5 text-left bg-gradient-to-br from-accent/10 to-accent/5 hover:from-accent/20 hover:to-accent/10 rounded-xl transition-all duration-300 border border-accent/10 hover:border-accent/30 hover:scale-[1.02]">

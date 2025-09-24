@@ -21,7 +21,7 @@ import {
   Edit
 } from 'lucide-react'
 
-interface Contratista {
+interface Broker {
   id: string
   nombre: string
   email: string
@@ -34,8 +34,8 @@ interface Cliente {
   rut: string
   email?: string
   telefono?: string
-  contratista: Contratista
-  totalContratos: number
+  broker: Broker
+  totalLeads: number
   createdAt: string
   updatedAt: string
 }
@@ -63,7 +63,7 @@ export default function ClientesPage() {
     rut: '',
     email: '',
     telefono: '',
-    contratistaId: ''
+    brokerId: ''
   })
 
   useEffect(() => {
@@ -77,8 +77,8 @@ export default function ClientesPage() {
       cliente.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
       cliente.rut.toLowerCase().includes(searchTerm.toLowerCase()) ||
       cliente.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      cliente.contratista.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      cliente.contratista.rut.toLowerCase().includes(searchTerm.toLowerCase())
+      cliente.broker.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      cliente.broker.rut.toLowerCase().includes(searchTerm.toLowerCase())
     )
     setFilteredClientes(filtered)
   }, [clientes, searchTerm])
@@ -123,7 +123,7 @@ export default function ClientesPage() {
       rut: '',
       email: '',
       telefono: '',
-      contratistaId: ''
+      brokerId: ''
     })
     setEditingCliente(null)
   }
@@ -134,14 +134,14 @@ export default function ClientesPage() {
       rut: cliente.rut,
       email: cliente.email || '',
       telefono: cliente.telefono || '',
-      contratistaId: cliente.contratista.id
+      brokerId: cliente.broker.id
     })
     setEditingCliente(cliente)
     setIsEditDialogOpen(true)
   }
 
   const handleSubmit = async () => {
-    if (!formData.nombre.trim() || !formData.rut.trim() || !formData.contratistaId) {
+    if (!formData.nombre.trim() || !formData.rut.trim() || !formData.brokerId) {
       toast.error('Nombre, RUT y broker son requeridos')
       return
     }
@@ -229,9 +229,9 @@ export default function ClientesPage() {
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-muted-foreground">Con Contratos</p>
+                  <p className="text-sm font-medium text-muted-foreground">Con Leads</p>
                   <p className="text-2xl font-bold">
-                    {clientes.filter(c => c.totalContratos > 0).length}
+                    {clientes.filter(c => c.totalLeads > 0).length}
                   </p>
                 </div>
                 <FileText className="h-8 w-8 text-green-600" />
@@ -303,7 +303,7 @@ export default function ClientesPage() {
               <p className="text-muted-foreground">
                 {searchTerm
                   ? 'Intenta con otros términos de búsqueda'
-                  : 'Los clientes serán creados por los brokers al generar contratos'
+                  : 'Los clientes serán creados por los brokers al generar leads'
                 }
               </p>
             </div>
@@ -316,7 +316,7 @@ export default function ClientesPage() {
                     <TableHead>RUT</TableHead>
                     <TableHead>Contacto</TableHead>
                     <TableHead>Broker</TableHead>
-                    <TableHead>Contratos</TableHead>
+                    <TableHead>Leads</TableHead>
                     <TableHead>Fecha Registro</TableHead>
                     <TableHead className="text-right">Acciones</TableHead>
                   </TableRow>
@@ -351,19 +351,19 @@ export default function ClientesPage() {
                       </TableCell>
                       <TableCell>
                         <div>
-                          <div className="font-medium text-sm">{cliente.contratista.nombre}</div>
+                          <div className="font-medium text-sm">{cliente.broker.nombre}</div>
                           <div className="text-xs text-muted-foreground">
-                            {cliente.contratista.rut}
+                            {cliente.broker.rut}
                           </div>
                         </div>
                       </TableCell>
                       <TableCell>
                         <div className="text-center">
                           <Badge
-                            variant={cliente.totalContratos > 0 ? "default" : "secondary"}
+                            variant={cliente.totalLeads > 0 ? "default" : "secondary"}
                             className="font-medium"
                           >
-                            {cliente.totalContratos}
+                            {cliente.totalLeads}
                           </Badge>
                         </div>
                       </TableCell>
@@ -441,7 +441,7 @@ export default function ClientesPage() {
 
                               <div className="grid grid-cols-1 gap-2">
                                 <Label htmlFor="broker">Broker Asignado *</Label>
-                                <Select value={formData.contratistaId} onValueChange={(value: string) => setFormData({ ...formData, contratistaId: value })}>
+                                <Select value={formData.brokerId} onValueChange={(value: string) => setFormData({ ...formData, brokerId: value })}>
                                   <SelectTrigger>
                                     <SelectValue placeholder="Seleccionar broker" />
                                   </SelectTrigger>
@@ -460,7 +460,7 @@ export default function ClientesPage() {
                                   <strong>⚠ Atención:</strong> Cambiar el broker asignará este cliente a un nuevo broker.
                                 </p>
                                 <p className="text-xs text-amber-700 mt-1">
-                                  Los contratos existentes mantendrán su broker original.
+                                  Los leads existentes mantendrán su broker original.
                                 </p>
                               </div>
                             </div>

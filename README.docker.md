@@ -1,6 +1,6 @@
 # 🐳 Docker Configuration - Rumirent App
 
-Configuración completa de Docker para ejecutar la aplicación de gestión de contratistas y comisiones en diferentes entornos.
+Configuración completa de Docker para ejecutar la aplicación de gestión de brokers y comisiones en diferentes entornos.
 
 ## 📋 Prerequisitos
 

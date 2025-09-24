@@ -7,10 +7,10 @@ export async function middleware(request: NextRequest) {
 
   console.log(`[MIDDLEWARE] ${request.method} ${pathname}`)
 
-  // In development, disable middleware for admin/contratista routes
+  // In development, disable middleware for admin/broker routes
   // Let pages handle their own authentication with localStorage
   if (process.env.NODE_ENV === 'development') {
-    if (pathname.startsWith('/admin') || pathname.startsWith('/contratista')) {
+    if (pathname.startsWith('/admin') || pathname.startsWith('/broker')) {
       console.log(`[MIDDLEWARE] Development mode - allowing access to ${pathname}`)
       return NextResponse.next()
     }
@@ -59,21 +59,21 @@ export async function middleware(request: NextRequest) {
         return NextResponse.redirect(new URL('/login', request.url))
       }
 
-      if (pathname.startsWith('/contratista') && payload.role !== 'CONTRATISTA') {
-        console.log(`[MIDDLEWARE] Usuario ${payload.role} intenta acceder a contratista`)
+      if (pathname.startsWith('/broker') && payload.role !== 'BROKER') {
+        console.log(`[MIDDLEWARE] Usuario ${payload.role} intenta acceder a broker`)
         return NextResponse.redirect(new URL('/login', request.url))
       }
 
       // Redirect root path to appropriate dashboard
       if (pathname === '/') {
-        const dashboardUrl = payload.role === 'ADMIN' ? '/admin' : '/contratista'
+        const dashboardUrl = payload.role === 'ADMIN' ? '/admin' : '/broker'
         console.log(`[MIDDLEWARE] Redirigiendo desde root a dashboard: ${dashboardUrl}`)
         return NextResponse.redirect(new URL(dashboardUrl, request.url))
       }
 
       // If authenticated user tries to access login page specifically, redirect to their dashboard
       if (pathname === '/login') {
-        const dashboardUrl = payload.role === 'ADMIN' ? '/admin' : '/contratista'
+        const dashboardUrl = payload.role === 'ADMIN' ? '/admin' : '/broker'
         console.log(`[MIDDLEWARE] Usuario autenticado en login, redirigiendo a: ${dashboardUrl}`)
         return NextResponse.redirect(new URL(dashboardUrl, request.url))
       }

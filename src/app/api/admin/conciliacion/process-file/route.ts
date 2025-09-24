@@ -5,21 +5,21 @@ import * as XLSX from 'xlsx'
 import Papa from 'papaparse'
 
 interface ExcelData {
-  fechaContrato: string
+  fechaLead: string
   monto: number
   proyecto: string
   unidad: string
   raw: any
 }
 
-interface ContratoSistema {
+interface LeadSistema {
   id: string
-  fechaContrato: string
-  totalContrato: number
+  fechaLead: string
+  totalLead: number
   edificioNombre: string
   unidadCodigo: string
   clienteNombre: string
-  contratistaNombre: string
+  brokerNombre: string
   comision: number
   conciliado: boolean
 }
@@ -27,7 +27,7 @@ interface ContratoSistema {
 interface ConciliacionMatch {
   id: string
   excel: ExcelData
-  sistema: ContratoSistema
+  sistema: LeadSistema
   tipo: 'automatico' | 'manual'
   confidence: number
 }
@@ -87,39 +87,39 @@ function levenshteinDistance(str1: string, str2: string): number {
 }
 
 // Función para hacer matching automático
-function findAutomaticMatches(excelData: ExcelData[], contratosSistema: ContratoSistema[]): {
+function findAutomaticMatches(excelData: ExcelData[], leadsSistema: LeadSistema[]): {
   matches: ConciliacionMatch[]
   remainingExcel: ExcelData[]
-  remainingContratos: ContratoSistema[]
+  remainingLeads: LeadSistema[]
 } {
   const matches: ConciliacionMatch[] = []
   const usedExcelIndices = new Set<number>()
-  const usedContratoIds = new Set<string>()
+  const usedLeadIds = new Set<string>()
 
   excelData.forEach((excel, excelIndex) => {
     if (usedExcelIndices.has(excelIndex)) return
 
-    let bestMatch: { contrato: ContratoSistema; confidence: number } | null = null
+    let bestMatch: { lead: LeadSistema; confidence: number } | null = null
 
-    contratosSistema.forEach((contrato) => {
-      if (usedContratoIds.has(contrato.id)) return
+    leadsSistema.forEach((lead) => {
+      if (usedLeadIds.has(lead.id)) return
 
       // Calcular confidence basado en múltiples factores
       let confidence = 0
       let factors = 0
 
       // Factor 1: Similitud del proyecto/edificio (peso: 0.4)
-      const proyectoSimilarity = calculateSimilarity(excel.proyecto, contrato.edificioNombre)
+      const proyectoSimilarity = calculateSimilarity(excel.proyecto, lead.edificioNombre)
       confidence += proyectoSimilarity * 0.4
       factors += 0.4
 
       // Factor 2: Similitud de la unidad (peso: 0.3)
-      const unidadSimilarity = calculateSimilarity(excel.unidad, contrato.unidadCodigo)
+      const unidadSimilarity = calculateSimilarity(excel.unidad, lead.unidadCodigo)
       confidence += unidadSimilarity * 0.3
       factors += 0.3
 
       // Factor 3: Diferencia de monto (peso: 0.3)
-      const montoDifference = Math.abs(excel.monto - contrato.totalContrato) / Math.max(excel.monto, contrato.totalContrato)
+      const montoDifference = Math.abs(excel.monto - lead.totalLead) / Math.max(excel.monto, lead.totalLead)
       const montoSimilarity = Math.max(0, 1 - montoDifference)
       confidence += montoSimilarity * 0.3
       factors += 0.3
@@ -129,7 +129,7 @@ function findAutomaticMatches(excelData: ExcelData[], contratosSistema: Contrato
 
       // Solo considerar matches con alta confidence (>= 0.85)
       if (confidence >= 0.85 && (!bestMatch || confidence > bestMatch.confidence)) {
-        bestMatch = { contrato, confidence }
+        bestMatch = { lead, confidence }
       }
     })
 
@@ -138,20 +138,20 @@ function findAutomaticMatches(excelData: ExcelData[], contratosSistema: Contrato
       matches.push({
         id: `auto-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
         excel,
-        sistema: bestMatch.contrato,
+        sistema: bestMatch.lead,
         tipo: 'automatico',
         confidence: bestMatch.confidence,
       })
 
       usedExcelIndices.add(excelIndex)
-      usedContratoIds.add(bestMatch.contrato.id)
+      usedLeadIds.add(bestMatch.lead.id)
     }
   })
 
   const remainingExcel = excelData.filter((_, index) => !usedExcelIndices.has(index))
-  const remainingContratos = contratosSistema.filter(contrato => !usedContratoIds.has(contrato.id))
+  const remainingLeads = leadsSistema.filter(lead => !usedLeadIds.has(lead.id))
 
-  return { matches, remainingExcel, remainingContratos }
+  return { matches, remainingExcel, remainingLeads }
 }
 
 export async function POST(request: NextRequest) {
@@ -197,8 +197,8 @@ export async function POST(request: NextRequest) {
     // Mapear datos del Excel/CSV (intentar diferentes nombres de columnas)
     const excelData: ExcelData[] = parsedData.map((row, index) => {
       // Buscar columnas por diferentes nombres posibles
-      const fechaContrato = row['fecha contrato'] || row['fecha_contrato'] || row['fechaContrato'] ||
-                           row['Fecha Contrato'] || row['FECHA CONTRATO'] || row['fecha'] || row['Fecha']
+      const fechaLead = row['fecha lead'] || row['fecha_lead'] || row['fechaLead'] ||
+                           row['Fecha Lead'] || row['FECHA CONTRATO'] || row['fecha'] || row['Fecha']
 
       const monto = parseFloat(row['monto'] || row['Monto'] || row['MONTO'] ||
                               row['total'] || row['Total'] || row['TOTAL'] ||
@@ -213,7 +213,7 @@ export async function POST(request: NextRequest) {
                     row['codigo'] || row['Codigo'] || 'Sin unidad'
 
       return {
-        fechaContrato: fechaContrato ? new Date(fechaContrato).toISOString() : new Date().toISOString(),
+        fechaLead: fechaLead ? new Date(fechaLead).toISOString() : new Date().toISOString(),
         monto: isNaN(monto) ? 0 : monto,
         proyecto: String(proyecto),
         unidad: String(unidad),
@@ -223,11 +223,11 @@ export async function POST(request: NextRequest) {
 
     console.log('Processed excel data:', excelData.length, 'valid records')
 
-    // Obtener contratos del sistema para el período
+    // Obtener leads del sistema para el período
     const fechaInicio = new Date(yearNum, mesNum, 1)
     const fechaFin = new Date(yearNum, mesNum + 1, 0, 23, 59, 59, 999)
 
-    const contratos = await prisma.contrato.findMany({
+    const leads = await prisma.lead.findMany({
       where: {
         createdAt: {
           gte: fechaInicio,
@@ -237,44 +237,44 @@ export async function POST(request: NextRequest) {
       },
       include: {
         cliente: { select: { nombre: true } },
-        contratista: { select: { nombre: true } },
+        broker: { select: { nombre: true } },
         edificio: { select: { nombre: true } },
         unidad: { select: { numero: true } },
       },
       orderBy: { createdAt: 'desc' },
     })
 
-    const contratosSistema: ContratoSistema[] = contratos.map((contrato) => ({
-      id: contrato.id,
-      fechaContrato: contrato.createdAt.toISOString(),
-      totalContrato: contrato.totalContrato,
-      edificioNombre: contrato.edificio.nombre,
-      unidadCodigo: contrato.unidad?.numero || contrato.codigoUnidad || 'Sin código',
-      clienteNombre: contrato.cliente.nombre,
-      contratistaNombre: contrato.contratista.nombre,
-      comision: contrato.comision || 0,
-      conciliado: contrato.conciliado,
+    const leadsSistema: LeadSistema[] = leads.map((lead) => ({
+      id: lead.id,
+      fechaLead: lead.createdAt.toISOString(),
+      totalLead: lead.totalLead,
+      edificioNombre: lead.edificio.nombre,
+      unidadCodigo: lead.unidad?.numero || lead.codigoUnidad || 'Sin código',
+      clienteNombre: lead.cliente.nombre,
+      brokerNombre: lead.broker.nombre,
+      comision: lead.comision || 0,
+      conciliado: lead.conciliado,
     }))
 
-    console.log('Sistema contracts:', contratosSistema.length)
+    console.log('Sistema contracts:', leadsSistema.length)
 
     // Realizar matching automático
-    const { matches, remainingExcel, remainingContratos } = findAutomaticMatches(excelData, contratosSistema)
+    const { matches, remainingExcel, remainingLeads } = findAutomaticMatches(excelData, leadsSistema)
 
     console.log('Automatic matches found:', matches.length)
     console.log('Remaining excel records:', remainingExcel.length)
-    console.log('Remaining system contracts:', remainingContratos.length)
+    console.log('Remaining system contracts:', remainingLeads.length)
 
     return NextResponse.json({
       excelData: remainingExcel,
-      contratosSistema: remainingContratos,
+      leadsSistema: remainingLeads,
       matches,
       stats: {
         totalExcelRecords: excelData.length,
-        totalSystemContracts: contratosSistema.length,
+        totalSystemContracts: leadsSistema.length,
         automaticMatches: matches.length,
         remainingExcel: remainingExcel.length,
-        remainingSystem: remainingContratos.length,
+        remainingSystem: remainingLeads.length,
       },
     })
   } catch (error) {

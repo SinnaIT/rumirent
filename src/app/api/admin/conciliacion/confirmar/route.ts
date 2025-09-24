@@ -4,7 +4,7 @@ import { prisma } from '@/lib/db'
 
 interface ConciliacionMatch {
   excel: {
-    fechaContrato: string
+    fechaLead: string
     monto: number
     proyecto: string
     unidad: string
@@ -12,12 +12,12 @@ interface ConciliacionMatch {
   }
   sistema: {
     id: string
-    fechaContrato: string
-    totalContrato: number
+    fechaLead: string
+    totalLead: number
     edificioNombre: string
     unidadCodigo: string
     clienteNombre: string
-    contratistaNombre: string
+    brokerNombre: string
     comision: number
     conciliado: boolean
   }
@@ -45,8 +45,8 @@ export async function POST(request: NextRequest) {
       const updatedContracts = []
 
       for (const match of matches) {
-        // Marcar el contrato como conciliado
-        const updatedContract = await tx.contrato.update({
+        // Marcar el lead como conciliado
+        const updatedContract = await tx.lead.update({
           where: {
             id: match.sistema.id,
           },
@@ -56,19 +56,19 @@ export async function POST(request: NextRequest) {
           },
           include: {
             cliente: { select: { nombre: true } },
-            contratista: { select: { nombre: true } },
+            broker: { select: { nombre: true } },
             edificio: { select: { nombre: true } },
             unidad: { select: { numero: true } },
           },
         })
 
         updatedContracts.push({
-          contratoId: updatedContract.id,
+          leadId: updatedContract.id,
           cliente: updatedContract.cliente.nombre,
-          contratista: updatedContract.contratista.nombre,
+          broker: updatedContract.broker.nombre,
           edificio: updatedContract.edificio.nombre,
           unidad: updatedContract.unidad?.numero || updatedContract.codigoUnidad,
-          monto: updatedContract.totalContrato,
+          monto: updatedContract.totalLead,
           comision: updatedContract.comision,
           tipoMatch: match.tipo,
           confidence: match.confidence,
@@ -79,13 +79,13 @@ export async function POST(request: NextRequest) {
       return updatedContracts
     })
 
-    console.log(`Conciliación confirmada exitosamente para ${result.length} contratos`)
+    console.log(`Conciliación confirmada exitosamente para ${result.length} leads`)
 
     return NextResponse.json({
       success: true,
-      message: `Se conciliaron ${result.length} contratos exitosamente`,
+      message: `Se conciliaron ${result.length} leads exitosamente`,
       conciliadosCount: result.length,
-      contratos: result,
+      leads: result,
       stats: {
         automaticos: matches.filter(m => m.tipo === 'automatico').length,
         manuales: matches.filter(m => m.tipo === 'manual').length,
@@ -100,7 +100,7 @@ export async function POST(request: NextRequest) {
     if (error instanceof Error) {
       if (error.message.includes('Record to update not found')) {
         return NextResponse.json(
-          { error: 'Uno o más contratos ya no existen en el sistema' },
+          { error: 'Uno o más leads ya no existen en el sistema' },
           { status: 404 }
         )
       }

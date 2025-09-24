@@ -43,17 +43,17 @@ export async function GET(request: NextRequest) {
 
     console.log('Performance query:', { period, fechaInicio, fechaFin })
 
-    // Obtener todos los contratistas
-    const contratistas = await prisma.user.findMany({
+    // Obtener todos los brokers
+    const brokers = await prisma.user.findMany({
       where: {
-        role: 'CONTRATISTA',
+        role: 'BROKER',
         activo: true,
       },
       select: {
         id: true,
         nombre: true,
         email: true,
-        contratos: {
+        leads: {
           include: {
             cliente: true,
             unidad: {
@@ -69,26 +69,26 @@ export async function GET(request: NextRequest) {
       },
     })
 
-    console.log(`Found ${contratistas.length} contratistas`)
+    console.log(`Found ${brokers.length} brokers`)
 
-    // Calcular métricas para cada contratista
-    const contratistasPerformance = contratistas.map((contratista) => {
-      // Filtrar contratos del período actual
-      const contratosDelPeriodo = contratista.contratos.filter(
-        (contrato) => contrato.createdAt >= fechaInicio && contrato.createdAt <= fechaFin
+    // Calcular métricas para cada broker
+    const brokersPerformance = brokers.map((broker) => {
+      // Filtrar leads del período actual
+      const leadsDelPeriodo = broker.leads.filter(
+        (lead) => lead.createdAt >= fechaInicio && lead.createdAt <= fechaFin
       )
 
-      // Calcular métricas totales (todos los contratos)
-      const totalVentas = contratista.contratos.length
-      const totalComisiones = contratista.contratos.reduce(
-        (sum, contrato) => sum + (contrato.comision || 0),
+      // Calcular métricas totales (todos los leads)
+      const totalVentas = broker.leads.length
+      const totalComisiones = broker.leads.reduce(
+        (sum, lead) => sum + (lead.comision || 0),
         0
       )
 
       // Métricas del período actual
-      const ventasEsteMes = contratosDelPeriodo.length
-      const comisionesEsteMes = contratosDelPeriodo.reduce(
-        (sum, contrato) => sum + (contrato.comision || 0),
+      const ventasEsteMes = leadsDelPeriodo.length
+      const comisionesEsteMes = leadsDelPeriodo.reduce(
+        (sum, lead) => sum + (lead.comision || 0),
         0
       )
 
@@ -96,17 +96,17 @@ export async function GET(request: NextRequest) {
       const hace12Meses = new Date()
       hace12Meses.setMonth(hace12Meses.getMonth() - 12)
 
-      const contratosUltimos12Meses = contratista.contratos.filter(
-        (contrato) => contrato.createdAt >= hace12Meses
+      const leadsUltimos12Meses = broker.leads.filter(
+        (lead) => lead.createdAt >= hace12Meses
       )
-      const promedioVentaMes = contratosUltimos12Meses.length / 12
+      const promedioVentaMes = leadsUltimos12Meses.length / 12
 
       // Última venta
-      const ultimaVenta = contratista.contratos.length > 0
-        ? contratista.contratos[0].createdAt.toISOString()
+      const ultimaVenta = broker.leads.length > 0
+        ? broker.leads[0].createdAt.toISOString()
         : null
 
-      // Tiempo promedio de venta (simulado - en un sistema real se calcularía desde lead a contrato)
+      // Tiempo promedio de venta (simulado - en un sistema real se calcularía desde lead a lead)
       const tiempoPromedioVenta = Math.floor(Math.random() * 30) + 15 // 15-45 días
 
       // Tasa de conversión (simulada - en un sistema real se calcularía con leads)
@@ -120,21 +120,21 @@ export async function GET(request: NextRequest) {
         const inicioMes = new Date(mesDate.getFullYear(), mesDate.getMonth(), 1)
         const finMes = new Date(mesDate.getFullYear(), mesDate.getMonth() + 1, 0, 23, 59, 59, 999)
 
-        const contratosMes = contratista.contratos.filter(
-          (contrato) => contrato.createdAt >= inicioMes && contrato.createdAt <= finMes
+        const leadsMes = broker.leads.filter(
+          (lead) => lead.createdAt >= inicioMes && lead.createdAt <= finMes
         )
 
         ventasPorMes.push({
           mes: mesDate.toLocaleDateString('es-CL', { month: 'short' }),
-          ventas: contratosMes.length,
-          comisiones: contratosMes.reduce((sum, contrato) => sum + (contrato.comision || 0), 0),
+          ventas: leadsMes.length,
+          comisiones: leadsMes.reduce((sum, lead) => sum + (lead.comision || 0), 0),
         })
       }
 
       return {
-        id: contratista.id,
-        nombre: contratista.nombre,
-        email: contratista.email,
+        id: broker.id,
+        nombre: broker.nombre,
+        email: broker.email,
         totalVentas,
         totalComisiones,
         ventasEsteMes,
@@ -150,37 +150,37 @@ export async function GET(request: NextRequest) {
     })
 
     // Ordenar por ventas del período y asignar rankings
-    const sortedByVentas = [...contratistasPerformance].sort((a, b) => b.ventasEsteMes - a.ventasEsteMes)
-    sortedByVentas.forEach((contratista, index) => {
-      const original = contratistasPerformance.find(c => c.id === contratista.id)
+    const sortedByVentas = [...brokersPerformance].sort((a, b) => b.ventasEsteMes - a.ventasEsteMes)
+    sortedByVentas.forEach((broker, index) => {
+      const original = brokersPerformance.find(c => c.id === broker.id)
       if (original) original.rankingVentas = index + 1
     })
 
     // Ordenar por comisiones del período y asignar rankings
-    const sortedByComisiones = [...contratistasPerformance].sort((a, b) => b.comisionesEsteMes - a.comisionesEsteMes)
-    sortedByComisiones.forEach((contratista, index) => {
-      const original = contratistasPerformance.find(c => c.id === contratista.id)
+    const sortedByComisiones = [...brokersPerformance].sort((a, b) => b.comisionesEsteMes - a.comisionesEsteMes)
+    sortedByComisiones.forEach((broker, index) => {
+      const original = brokersPerformance.find(c => c.id === broker.id)
       if (original) original.rankingComisiones = index + 1
     })
 
     // Calcular estadísticas generales
-    const contratistasActivos = contratistasPerformance.filter(c => c.ventasEsteMes > 0)
-    const totalVentasDelPeriodo = contratistasPerformance.reduce((sum, c) => sum + c.ventasEsteMes, 0)
-    const totalComisionesDelPeriodo = contratistasPerformance.reduce((sum, c) => sum + c.comisionesEsteMes, 0)
+    const brokersActivos = brokersPerformance.filter(c => c.ventasEsteMes > 0)
+    const totalVentasDelPeriodo = brokersPerformance.reduce((sum, c) => sum + c.ventasEsteMes, 0)
+    const totalComisionesDelPeriodo = brokersPerformance.reduce((sum, c) => sum + c.comisionesEsteMes, 0)
     const mejorVendedor = sortedByVentas[0] || { nombre: 'N/A', ventasEsteMes: 0 }
-    const promedioVentasPorContratista = contratistasActivos.length > 0
-      ? totalVentasDelPeriodo / contratistasActivos.length
+    const promedioVentasPorbroker = brokersActivos.length > 0
+      ? totalVentasDelPeriodo / brokersActivos.length
       : 0
 
     const stats = {
-      totalContratistas: contratistasActivos.length,
+      totalbrokers: brokersActivos.length,
       totalVentasDelMes: totalVentasDelPeriodo,
       totalComisionesDelMes: totalComisionesDelPeriodo,
       mejorVendedor: {
         nombre: mejorVendedor.nombre,
         ventas: mejorVendedor.ventasEsteMes,
       },
-      promedioVentasPorContratista: Math.round(promedioVentasPorContratista * 10) / 10,
+      promedioVentasPorbroker: Math.round(promedioVentasPorbroker * 10) / 10,
     }
 
     // Ordenar resultado final por ranking de ventas
@@ -190,7 +190,7 @@ export async function GET(request: NextRequest) {
     console.log('Top performer:', result[0]?.nombre, 'with', result[0]?.ventasEsteMes, 'sales')
 
     return NextResponse.json({
-      contratistas: result,
+      brokers: result,
       stats,
       period: {
         type: period,

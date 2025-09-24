@@ -4,9 +4,9 @@ import { verifyAuth } from '@/lib/auth'
 
 export async function GET(request: NextRequest) {
   try {
-    // Verificar autenticación y rol de contratista
+    // Verificar autenticación y rol de broker
     const authResult = await verifyAuth(request)
-    if (!authResult.success || authResult.user?.role !== 'CONTRATISTA') {
+    if (!authResult.success || authResult.user?.role !== 'BROKER') {
       return NextResponse.json(
         { error: 'No autorizado' },
         { status: 401 }
@@ -23,11 +23,11 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    // Buscar cliente por RUT (solo clientes del contratista actual)
+    // Buscar cliente por RUT (solo clientes del broker actual)
     const cliente = await prisma.cliente.findFirst({
       where: {
         rut: rut.trim(),
-        contratistaId: authResult.user.id
+        brokerId: authResult.user.id
       }
     })
 

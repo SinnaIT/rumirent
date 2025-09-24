@@ -12,6 +12,6 @@ export default async function HomePage() {
   if (user.role === 'ADMIN') {
     redirect('/admin')
   } else {
-    redirect('/contratista')
+    redirect('/broker')
   }
 }

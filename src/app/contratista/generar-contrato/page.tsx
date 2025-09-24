@@ -71,7 +71,7 @@ const ESTADOS_CONTRATO = [
   { value: 'RECHAZADO', label: 'Rechazado' }
 ]
 
-export default function GenerarContratoPage() {
+export default function GenerarLeadPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const unidadIdFromParams = searchParams.get('unidadId')
@@ -100,12 +100,12 @@ export default function GenerarContratoPage() {
     unidadId: unidadIdFromParams ?? '',
     codigoUnidad: '',
     clienteId: '',
-    totalContrato: '',
+    totalLead: '',
     montoUf: '',
     comision: '',
     estado: 'ENTREGADO' as const,
     fechaPagoReserva: '',
-    fechaPagoContrato: '',
+    fechaPagoLead: '',
     fechaCheckin: '',
     observaciones: ''
   })
@@ -137,7 +137,7 @@ export default function GenerarContratoPage() {
   const fetchProyectos = async () => {
     try {
       setLoading(true)
-      const response = await fetch('/api/contratista/proyectos')
+      const response = await fetch('/api/broker/proyectos')
       const data = await response.json()
 
       if (data.success) {
@@ -156,7 +156,7 @@ export default function GenerarContratoPage() {
   const fetchClientes = async () => {
     try {
       setLoadingClientes(true)
-      const response = await fetch('/api/contratista/clientes')
+      const response = await fetch('/api/broker/clientes')
       const data = await response.json()
 
       if (data.success) {
@@ -182,7 +182,7 @@ export default function GenerarContratoPage() {
 
     try {
       setSearchingClient(true)
-      const response = await fetch(`/api/contratista/clientes/search?rut=${encodeURIComponent(rut)}`)
+      const response = await fetch(`/api/broker/clientes/search?rut=${encodeURIComponent(rut)}`)
       const data = await response.json()
 
       if (data.success && data.cliente) {
@@ -259,9 +259,9 @@ export default function GenerarContratoPage() {
   }
 
   const calculateComision = () => {
-    if (!formData.totalContrato) return { amount: 0, rate: 0, source: 'none' }
+    if (!formData.totalLead) return { amount: 0, rate: 0, source: 'none' }
 
-    const precio = parseFloat(formData.totalContrato)
+    const precio = parseFloat(formData.totalLead)
     if (isNaN(precio)) return { amount: 0, rate: 0, source: 'none' }
 
     // Prioridad: Comisión específica de la unidad > Comisión del proyecto > 0
@@ -305,16 +305,16 @@ export default function GenerarContratoPage() {
       return
     }
 
-    if (!formData.totalContrato || !formData.montoUf) {
-      toast.error('Total del contrato y monto UF son requeridos')
+    if (!formData.totalLead || !formData.montoUf) {
+      toast.error('Total del lead y monto UF son requeridos')
       return
     }
 
-    const totalContrato = parseFloat(formData.totalContrato)
+    const totalLead = parseFloat(formData.totalLead)
     const montoUf = parseFloat(formData.montoUf)
 
-    if (isNaN(totalContrato) || totalContrato <= 0) {
-      toast.error('El total del contrato debe ser un número válido mayor a 0')
+    if (isNaN(totalLead) || totalLead <= 0) {
+      toast.error('El total del lead debe ser un número válido mayor a 0')
       return
     }
 
@@ -330,7 +330,7 @@ export default function GenerarContratoPage() {
 
       // Si el cliente no existe, crearlo primero
       if (!clientExists && clientData.rut.trim() && clientData.nombre.trim()) {
-        const clientResponse = await fetch('/api/contratista/clientes', {
+        const clientResponse = await fetch('/api/broker/clientes', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -357,7 +357,7 @@ export default function GenerarContratoPage() {
       const comisionData = calculateComision()
       const comisionCalculada = comisionData.amount
 
-      const response = await fetch('/api/contratista/contratos', {
+      const response = await fetch('/api/broker/leads', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -367,12 +367,12 @@ export default function GenerarContratoPage() {
           codigoUnidad: formData.codigoUnidad || undefined,
           clienteId: clienteId,
           edificioId: formData.edificioId,
-          totalContrato,
+          totalLead,
           montoUf,
           comision: comisionCalculada,
           estado: formData.estado,
           fechaPagoReserva: formData.fechaPagoReserva || undefined,
-          fechaPagoContrato: formData.fechaPagoContrato || undefined,
+          fechaPagoLead: formData.fechaPagoLead || undefined,
           fechaCheckin: formData.fechaCheckin || undefined,
           observaciones: formData.observaciones || undefined
         })
@@ -381,8 +381,8 @@ export default function GenerarContratoPage() {
       const data = await response.json()
 
       if (data.success) {
-        toast.success('Contrato generado exitosamente')
-        router.push('/contratista/ventas')
+        toast.success('Lead generado exitosamente')
+        router.push('/broker/ventas')
       } else {
         toast.error(data.error)
       }
@@ -427,9 +427,9 @@ export default function GenerarContratoPage() {
             Volver
           </Button>
           <div>
-            <h1 className="text-2xl font-bold text-foreground">Generar Nuevo Contrato</h1>
+            <h1 className="text-2xl font-bold text-foreground">Generar Nuevo Lead</h1>
             <p className="text-muted-foreground">
-              Crea un nuevo contrato de venta para una unidad disponible
+              Crea un nuevo lead de venta para una unidad disponible
             </p>
           </div>
         </div>
@@ -734,7 +734,7 @@ export default function GenerarContratoPage() {
                 <div className="p-3 bg-yellow-50 rounded-lg border border-yellow-200">
                   <h4 className="font-medium text-sm text-yellow-800">Nuevo Cliente</h4>
                   <p className="text-sm text-yellow-700">
-                    Complete los datos del cliente. Se creará automáticamente al generar el contrato.
+                    Complete los datos del cliente. Se creará automáticamente al generar el lead.
                   </p>
                 </div>
               )}
@@ -749,18 +749,18 @@ export default function GenerarContratoPage() {
                 Información Financiera
               </CardTitle>
               <CardDescription>
-                Precios del contrato
+                Precios del lead
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="totalContrato">Total del Contrato *</Label>
+                  <Label htmlFor="totalLead">Total del Lead *</Label>
                   <Input
-                    id="totalContrato"
+                    id="totalLead"
                     type="number"
-                    value={formData.totalContrato}
-                    onChange={(e) => setFormData({ ...formData, totalContrato: e.target.value })}
+                    value={formData.totalLead}
+                    onChange={(e) => setFormData({ ...formData, totalLead: e.target.value })}
                     placeholder="ej: 150000000"
                   />
                 </div>
@@ -781,7 +781,7 @@ export default function GenerarContratoPage() {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="estado">Estado del Contrato</Label>
+                  <Label htmlFor="estado">Estado del Lead</Label>
                   <Select value={formData.estado} onValueChange={(value: any) => setFormData({ ...formData, estado: value })}>
                     <SelectTrigger>
                       <SelectValue />
@@ -800,12 +800,12 @@ export default function GenerarContratoPage() {
             </CardContent>
           </Card>
 
-          {/* Fechas del Contrato */}
+          {/* Fechas del Lead */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center">
                 <Calendar className="w-5 h-5 mr-2" />
-                Fechas del Contrato
+                Fechas del Lead
               </CardTitle>
               <CardDescription>
                 Fechas importantes del proceso de venta (opcionales)
@@ -824,12 +824,12 @@ export default function GenerarContratoPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="fechaPagoContrato">Fecha Pago de Contrato</Label>
+                  <Label htmlFor="fechaPagoLead">Fecha Pago de Lead</Label>
                   <Input
-                    id="fechaPagoContrato"
+                    id="fechaPagoLead"
                     type="date"
-                    value={formData.fechaPagoContrato}
-                    onChange={(e) => setFormData({ ...formData, fechaPagoContrato: e.target.value })}
+                    value={formData.fechaPagoLead}
+                    onChange={(e) => setFormData({ ...formData, fechaPagoLead: e.target.value })}
                   />
                 </div>
 
@@ -851,14 +851,14 @@ export default function GenerarContratoPage() {
             <CardHeader>
               <CardTitle>Observaciones</CardTitle>
               <CardDescription>
-                Información adicional sobre el contrato (opcional)
+                Información adicional sobre el lead (opcional)
               </CardDescription>
             </CardHeader>
             <CardContent>
               <Textarea
                 value={formData.observaciones}
                 onChange={(e) => setFormData({ ...formData, observaciones: e.target.value })}
-                placeholder="Observaciones adicionales sobre el contrato..."
+                placeholder="Observaciones adicionales sobre el lead..."
                 rows={3}
               />
             </CardContent>
@@ -871,7 +871,7 @@ export default function GenerarContratoPage() {
             <CardHeader>
               <CardTitle className="flex items-center">
                 <Calculator className="w-5 h-5 mr-2" />
-                Resumen del Contrato
+                Resumen del Lead
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -897,7 +897,7 @@ export default function GenerarContratoPage() {
                       <>
                         <p className="font-medium">Sin unidad específica</p>
                         <p className="text-sm text-muted-foreground">
-                          Contrato general para el edificio
+                          Lead general para el edificio
                         </p>
                       </>
                     )}
@@ -914,10 +914,10 @@ export default function GenerarContratoPage() {
                     </div>
                   )}
 
-                  {formData.totalContrato && (
+                  {formData.totalLead && (
                     <div>
                       <h4 className="font-medium text-sm text-muted-foreground">PRECIO</h4>
-                      <p className="font-medium">{formatCurrency(parseFloat(formData.totalContrato))}</p>
+                      <p className="font-medium">{formatCurrency(parseFloat(formData.totalLead))}</p>
                       <p className="text-sm text-muted-foreground">{formData.montoUf} UF</p>
                     </div>
                   )}
@@ -946,7 +946,7 @@ export default function GenerarContratoPage() {
                           </div>
                         </div>
                       </div>
-                    ) : formData.totalContrato ? (
+                    ) : formData.totalLead ? (
                       <div className="p-3 bg-gray-50 rounded-lg border border-gray-200 mt-2">
                         <p className="text-sm text-gray-600">
                           Sin comisión configurada
@@ -959,7 +959,7 @@ export default function GenerarContratoPage() {
                     ) : (
                       <div className="p-3 bg-blue-50 rounded-lg border border-blue-200 mt-2">
                         <p className="text-sm text-blue-600">
-                          Ingresa el monto del contrato para calcular la comisión
+                          Ingresa el monto del lead para calcular la comisión
                         </p>
                       </div>
                     )}
@@ -974,7 +974,7 @@ export default function GenerarContratoPage() {
                       return proyecto ? (
                         <>
                           <p className="font-medium">{proyecto.nombre}</p>
-                          <p className="text-sm text-muted-foreground">Contrato general</p>
+                          <p className="text-sm text-muted-foreground">Lead general</p>
                         </>
                       ) : (
                         <p className="text-sm text-muted-foreground">Edificio seleccionado</p>
@@ -993,10 +993,10 @@ export default function GenerarContratoPage() {
                     </div>
                   )}
 
-                  {formData.totalContrato && (
+                  {formData.totalLead && (
                     <div>
                       <h4 className="font-medium text-sm text-muted-foreground">PRECIO</h4>
-                      <p className="font-medium">{formatCurrency(parseFloat(formData.totalContrato))}</p>
+                      <p className="font-medium">{formatCurrency(parseFloat(formData.totalLead))}</p>
                       <p className="text-sm text-muted-foreground">{formData.montoUf} UF</p>
                     </div>
                   )}
@@ -1025,7 +1025,7 @@ export default function GenerarContratoPage() {
                           </div>
                         </div>
                       </div>
-                    ) : formData.totalContrato ? (
+                    ) : formData.totalLead ? (
                       <div className="p-3 bg-gray-50 rounded-lg border border-gray-200 mt-2">
                         <p className="text-sm text-gray-600">
                           Sin comisión configurada
@@ -1037,7 +1037,7 @@ export default function GenerarContratoPage() {
                     ) : (
                       <div className="p-3 bg-blue-50 rounded-lg border border-blue-200 mt-2">
                         <p className="text-sm text-blue-600">
-                          Ingresa el monto del contrato para calcular la comisión
+                          Ingresa el monto del lead para calcular la comisión
                         </p>
                       </div>
                     )}
@@ -1054,9 +1054,9 @@ export default function GenerarContratoPage() {
           <Button
             className="w-full"
             onClick={handleSubmit}
-            disabled={saving || !clientData.rut.trim() || !clientData.nombre.trim() || !formData.edificioId || !formData.totalContrato}
+            disabled={saving || !clientData.rut.trim() || !clientData.nombre.trim() || !formData.edificioId || !formData.totalLead}
           >
-            {saving ? 'Generando...' : 'Generar Contrato'}
+            {saving ? 'Generando...' : 'Generar Lead'}
           </Button>
         </div>
       </div>

@@ -14,10 +14,10 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    // Obtener todos los contratistas con estadísticas
-    const contratistas = await prisma.user.findMany({
+    // Obtener todos los brokers con estadísticas
+    const brokers = await prisma.user.findMany({
       where: {
-        role: 'CONTRATISTA'
+        role: 'BROKER'
       },
       select: {
         id: true,
@@ -29,10 +29,10 @@ export async function GET(request: NextRequest) {
         createdAt: true,
         _count: {
           select: {
-            contratos: true
+            leads: true
           }
         },
-        contratos: {
+        leads: {
           select: {
             comision: true
           }
@@ -44,25 +44,25 @@ export async function GET(request: NextRequest) {
     })
 
     // Formatear datos con estadísticas calculadas
-    const contratistasFormatted = contratistas.map(contratista => ({
-      id: contratista.id,
-      email: contratista.email,
-      nombre: contratista.nombre,
-      rut: contratista.rut,
-      telefono: contratista.telefono,
-      activo: contratista.activo,
-      ventasRealizadas: contratista._count.contratos,
-      comisionesTotales: contratista.contratos.reduce((total, contrato) => total + (contrato.comision || 0), 0),
-      createdAt: contratista.createdAt.toISOString()
+    const brokersFormatted = brokers.map(broker => ({
+      id: broker.id,
+      email: broker.email,
+      nombre: broker.nombre,
+      rut: broker.rut,
+      telefono: broker.telefono,
+      activo: broker.activo,
+      ventasRealizadas: broker._count.leads,
+      comisionesTotales: broker.leads.reduce((total, lead) => total + (lead.comision || 0), 0),
+      createdAt: broker.createdAt.toISOString()
     }))
 
     return NextResponse.json({
       success: true,
-      contratistas: contratistasFormatted
+      brokers: brokersFormatted
     })
 
   } catch (error) {
-    console.error('Error al obtener contratistas:', error)
+    console.error('Error al obtener brokers:', error)
     return NextResponse.json(
       { error: 'Error interno del servidor' },
       { status: 500 }
@@ -126,15 +126,15 @@ export async function POST(request: NextRequest) {
     // Crear contraseña hasheada
     const hashedPassword = await bcrypt.hash(password, 12)
 
-    // Crear contratista
-    const newContratista = await prisma.user.create({
+    // Crear broker
+    const newbroker = await prisma.user.create({
       data: {
         email,
         nombre,
         rut,
         telefono: telefono || undefined,
         password: hashedPassword,
-        role: 'CONTRATISTA',
+        role: 'BROKER',
         activo: true
       },
       select: {
@@ -150,12 +150,12 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      message: 'Contratista creado exitosamente',
-      contratista: newContratista
+      message: 'broker creado exitosamente',
+      broker: newbroker
     }, { status: 201 })
 
   } catch (error) {
-    console.error('Error al crear contratista:', error)
+    console.error('Error al crear broker:', error)
     return NextResponse.json(
       { error: 'Error interno del servidor' },
       { status: 500 }

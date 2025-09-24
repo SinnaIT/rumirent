@@ -18,7 +18,8 @@ import {
   ChevronDown,
   ChevronRight,
   FileCheck,
-  UserCheck
+  UserCheck,
+  FileText
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/lib/hooks/use-auth'
@@ -26,8 +27,9 @@ import { useAuth } from '@/lib/hooks/use-auth'
 const menuItems = [
   { icon: Home, label: 'Dashboard', href: '/admin' },
   { icon: Building2, label: 'Proyectos', href: '/admin/proyectos' },
-  { icon: Users, label: 'Brokers', href: '/admin/contratistas' },
+  { icon: Users, label: 'Brokers', href: '/admin/brokers' },
   { icon: UserCheck, label: 'Clientes', href: '/admin/clientes' },
+  { icon: FileText, label: 'Leads', href: '/admin/leads' },
   { icon: Calculator, label: 'Comisiones', href: '/admin/comisiones' },
   { icon: FileCheck, label: 'Conciliación', href: '/admin/conciliacion' },
   {
@@ -36,7 +38,7 @@ const menuItems = [
     href: '/admin/reportes',
     hasSubmenu: true,
     submenu: [
-      { icon: TrendingUp, label: 'Performance Contratistas', href: '/admin/reportes' },
+      { icon: TrendingUp, label: 'Performance Brokers', href: '/admin/reportes' },
       { icon: DollarSign, label: 'Flujo de Caja', href: '/admin/reportes/flujo-caja' },
     ]
   },

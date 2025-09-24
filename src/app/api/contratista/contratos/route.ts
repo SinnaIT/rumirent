@@ -4,9 +4,9 @@ import { verifyAuth } from '@/lib/auth'
 
 export async function POST(request: NextRequest) {
   try {
-    // Verificar autenticación y rol de contratista
+    // Verificar autenticación y rol de broker
     const authResult = await verifyAuth(request)
-    if (!authResult.success || authResult.user?.role !== 'CONTRATISTA') {
+    if (!authResult.success || authResult.user?.role !== 'BROKER') {
       return NextResponse.json(
         { error: 'No autorizado' },
         { status: 401 }
@@ -25,11 +25,11 @@ export async function POST(request: NextRequest) {
     const {
       unidadId,
       codigoUnidad,
-      totalContrato,
+      totalLead,
       montoUf,
       comision,
       fechaPagoReserva,
-      fechaPagoContrato,
+      fechaPagoLead,
       fechaCheckin,
       estado,
       observaciones,
@@ -38,14 +38,14 @@ export async function POST(request: NextRequest) {
     } = body
 
     // Validaciones básicas - la unidad ahora es completamente opcional
-    if (!clienteId || !totalContrato || !montoUf || !edificioId) {
+    if (!clienteId || !totalLead || !montoUf || !edificioId) {
       return NextResponse.json(
         { error: 'Cliente, edificio y montos son requeridos' },
         { status: 400 }
       )
     }
 
-    if (totalContrato <= 0 || montoUf <= 0) {
+    if (totalLead <= 0 || montoUf <= 0) {
       return NextResponse.json(
         { error: 'Los montos deben ser mayor a 0' },
         { status: 400 }
@@ -67,7 +67,7 @@ export async function POST(request: NextRequest) {
         where: { id: unidadId },
         include: {
           edificio: true,
-          contratos: true  // Este es un Contrato? (opcional)
+          leads: true  // Este es un Lead? (opcional)
         }
       })
 
@@ -85,31 +85,31 @@ export async function POST(request: NextRequest) {
         )
       }
 
-      // Verificar que no hay un contrato activo para esta unidad
-      // En el esquema, contratos es Contrato? (uno a uno opcional)
-      if (unidad.contratos && unidad.contratos.estado !== 'CANCELADO') {
+      // Verificar que no hay un lead activo para esta unidad
+      // En el esquema, leads es Lead? (uno a uno opcional)
+      if (unidad.leads && unidad.leads.estado !== 'CANCELADO') {
         return NextResponse.json(
-          { error: 'La unidad ya tiene un contrato activo' },
+          { error: 'La unidad ya tiene un lead activo' },
           { status: 400 }
         )
       }
     }
 
-    // Crear el contrato en una transacción
+    // Crear el lead en una transacción
     const resultado = await prisma.$transaction(async (tx) => {
-      // Crear contrato
-      const nuevoContrato = await tx.contrato.create({
+      // Crear lead
+      const nuevoLead = await tx.lead.create({
         data: {
           codigoUnidad: codigoUnidad || undefined,
-          totalContrato,
+          totalLead,
           montoUf,
           comision,
           estado: estado || 'ENTREGADO',
           fechaPagoReserva: fechaPagoReserva ? new Date(fechaPagoReserva) : null,
-          fechaPagoContrato: fechaPagoContrato ? new Date(fechaPagoContrato) : null,
+          fechaPagoLead: fechaPagoLead ? new Date(fechaPagoLead) : null,
           fechaCheckin: fechaCheckin ? new Date(fechaCheckin) : null,
           observaciones: observaciones || undefined,
-          contratistaId: authResult.user.id,
+          brokerId: authResult.user.id,
           clienteId,
           unidadId: unidadId || null,
           edificioId
@@ -142,18 +142,18 @@ export async function POST(request: NextRequest) {
         })
       }
 
-      return nuevoContrato
+      return nuevoLead
     })
 
-    const contratoFormatted = {
+    const leadFormatted = {
       id: resultado.id,
       codigoUnidad: resultado.codigoUnidad,
-      totalContrato: resultado.totalContrato,
+      totalLead: resultado.totalLead,
       montoUf: resultado.montoUf,
       comision: resultado.comision,
       estado: resultado.estado,
       fechaPagoReserva: resultado.fechaPagoReserva?.toISOString(),
-      fechaPagoContrato: resultado.fechaPagoContrato?.toISOString(),
+      fechaPagoLead: resultado.fechaPagoLead?.toISOString(),
       fechaCheckin: resultado.fechaCheckin?.toISOString(),
       observaciones: resultado.observaciones,
       unidad: resultado.unidad ? {
@@ -175,12 +175,12 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      message: 'Contrato generado exitosamente',
-      contrato: contratoFormatted
+      message: 'Lead generado exitosamente',
+      lead: leadFormatted
     }, { status: 201 })
 
   } catch (error) {
-    console.error('Error al crear contrato:', error)
+    console.error('Error al crear lead:', error)
     return NextResponse.json(
       { error: 'Error interno del servidor' },
       { status: 500 }

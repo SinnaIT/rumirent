@@ -62,15 +62,15 @@ interface Cliente {
   telefono?: string
 }
 
-interface Contrato {
+interface Lead {
   id: string
   codigoUnidad?: string
-  totalContrato: number
+  totalLead: number
   montoUf: number
   comision: number
   estado: 'ENTREGADO' | 'RESERVA_PAGADA' | 'APROBADO' | 'RECHAZADO'
   fechaPagoReserva?: string
-  fechaPagoContrato?: string
+  fechaPagoLead?: string
   fechaCheckin?: string
   observaciones?: string
   cliente: Cliente | null
@@ -85,7 +85,7 @@ interface Contrato {
 }
 
 interface Estadisticas {
-  totalContratos: number
+  totalLeads: number
   entregados: number
   reservaPagada: number
   aprobados: number
@@ -101,9 +101,9 @@ const ESTADOS_CONTRATO = [
   { value: 'RECHAZADO', label: 'Rechazado', color: 'bg-red-100 text-red-800', icon: XCircle }
 ]
 
-export default function ContratistaVentasPage() {
+export default function BrokerVentasPage() {
   const router = useRouter()
-  const [contratos, setContratos] = useState<Contrato[]>([])
+  const [leads, setLeads] = useState<Lead[]>([])
   const [estadisticas, setEstadisticas] = useState<Estadisticas | null>(null)
   const [loading, setLoading] = useState(true)
   const [filtroEstado, setFiltroEstado] = useState<string>('todos')
@@ -119,13 +119,13 @@ export default function ContratistaVentasPage() {
   })
   const [mostrarFiltros, setMostrarFiltros] = useState(false)
 
-  // Estados para edición de contratos
-  const [contratoEditando, setContratoEditando] = useState<Contrato | null>(null)
-  const [editandoContrato, setEditandoContrato] = useState(false)
+  // Estados para edición de leads
+  const [leadEditando, setLeadEditando] = useState<Lead | null>(null)
+  const [editandoLead, setEditandoLead] = useState(false)
   const [datosEdicion, setDatosEdicion] = useState({
     estado: '',
     fechaPagoReserva: '',
-    fechaPagoContrato: '',
+    fechaPagoLead: '',
     fechaCheckin: '',
     observaciones: ''
   })
@@ -137,11 +137,11 @@ export default function ContratistaVentasPage() {
   const fetchVentas = async () => {
     try {
       setLoading(true)
-      const response = await fetch('/api/contratista/ventas')
+      const response = await fetch('/api/broker/ventas')
       const data = await response.json()
 
       if (data.success) {
-        setContratos(data.contratos)
+        setLeads(data.leads)
         setEstadisticas(data.estadisticas)
       } else {
         toast.error('Error al cargar ventas')
@@ -171,23 +171,23 @@ export default function ContratistaVentasPage() {
     }).format(amount)
   }
 
-  const abrirEdicionContrato = (contrato: Contrato) => {
-    setContratoEditando(contrato)
+  const abrirEdicionLead = (lead: Lead) => {
+    setLeadEditando(lead)
     setDatosEdicion({
-      estado: contrato.estado,
-      fechaPagoReserva: contrato.fechaPagoReserva ? contrato.fechaPagoReserva.split('T')[0] : '',
-      fechaPagoContrato: contrato.fechaPagoContrato ? contrato.fechaPagoContrato.split('T')[0] : '',
-      fechaCheckin: contrato.fechaCheckin ? contrato.fechaCheckin.split('T')[0] : '',
-      observaciones: contrato.observaciones || ''
+      estado: lead.estado,
+      fechaPagoReserva: lead.fechaPagoReserva ? lead.fechaPagoReserva.split('T')[0] : '',
+      fechaPagoLead: lead.fechaPagoLead ? lead.fechaPagoLead.split('T')[0] : '',
+      fechaCheckin: lead.fechaCheckin ? lead.fechaCheckin.split('T')[0] : '',
+      observaciones: lead.observaciones || ''
     })
-    setEditandoContrato(true)
+    setEditandoLead(true)
   }
 
-  const guardarEdicionContrato = async () => {
-    if (!contratoEditando) return
+  const guardarEdicionLead = async () => {
+    if (!leadEditando) return
 
     try {
-      const response = await fetch(`/api/contratista/contratos/${contratoEditando.id}`, {
+      const response = await fetch(`/api/broker/leads/${leadEditando.id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -195,7 +195,7 @@ export default function ContratistaVentasPage() {
         body: JSON.stringify({
           estado: datosEdicion.estado,
           fechaPagoReserva: datosEdicion.fechaPagoReserva || undefined,
-          fechaPagoContrato: datosEdicion.fechaPagoContrato || undefined,
+          fechaPagoLead: datosEdicion.fechaPagoLead || undefined,
           fechaCheckin: datosEdicion.fechaCheckin || undefined,
           observaciones: datosEdicion.observaciones || undefined
         })
@@ -204,12 +204,12 @@ export default function ContratistaVentasPage() {
       const data = await response.json()
 
       if (data.success) {
-        toast.success('Contrato actualizado exitosamente')
-        setEditandoContrato(false)
-        setContratoEditando(null)
+        toast.success('Lead actualizado exitosamente')
+        setEditandoLead(false)
+        setLeadEditando(null)
         fetchVentas() // Recargar la lista
       } else {
-        toast.error(data.error || 'Error al actualizar contrato')
+        toast.error(data.error || 'Error al actualizar lead')
       }
     } catch (error) {
       console.error('Error:', error)
@@ -229,9 +229,9 @@ export default function ContratistaVentasPage() {
     setFiltroEstado('todos')
   }
 
-  const contratosFiltrados = contratos.filter(contrato => {
+  const leadsFiltrados = leads.filter(lead => {
     // Filtro por estado
-    if (filtroEstado !== 'todos' && contrato.estado !== filtroEstado) {
+    if (filtroEstado !== 'todos' && lead.estado !== filtroEstado) {
       return false
     }
 
@@ -239,20 +239,20 @@ export default function ContratistaVentasPage() {
     if (filtros.busqueda) {
       const busqueda = filtros.busqueda.toLowerCase()
       const coincideBusqueda =
-        contrato.cliente?.nombre.toLowerCase().includes(busqueda) ||
-        contrato.cliente?.rut.toLowerCase().includes(busqueda) ||
-        contrato.id.toLowerCase().includes(busqueda) ||
-        contrato.codigoUnidad?.toLowerCase().includes(busqueda) ||
-        (contrato.unidad?.numero.toLowerCase().includes(busqueda)) ||
-        (contrato.unidad?.edificio.nombre.toLowerCase().includes(busqueda)) ||
-        (contrato.edificio?.nombre.toLowerCase().includes(busqueda))
+        lead.cliente?.nombre.toLowerCase().includes(busqueda) ||
+        lead.cliente?.rut.toLowerCase().includes(busqueda) ||
+        lead.id.toLowerCase().includes(busqueda) ||
+        lead.codigoUnidad?.toLowerCase().includes(busqueda) ||
+        (lead.unidad?.numero.toLowerCase().includes(busqueda)) ||
+        (lead.unidad?.edificio.nombre.toLowerCase().includes(busqueda)) ||
+        (lead.edificio?.nombre.toLowerCase().includes(busqueda))
 
       if (!coincideBusqueda) return false
     }
 
     // Filtro por edificio
     if (filtros.edificio !== 'todos') {
-      const edificioId = contrato.unidad?.edificio.id || contrato.edificio?.id
+      const edificioId = lead.unidad?.edificio.id || lead.edificio?.id
       if (edificioId !== filtros.edificio) {
         return false
       }
@@ -260,34 +260,34 @@ export default function ContratistaVentasPage() {
 
     // Filtro por fecha de creación
     if (filtros.fechaDesde) {
-      const fechaContrato = new Date(contrato.createdAt)
+      const fechaLead = new Date(lead.createdAt)
       const fechaDesde = new Date(filtros.fechaDesde)
-      if (fechaContrato < fechaDesde) return false
+      if (fechaLead < fechaDesde) return false
     }
 
     if (filtros.fechaHasta) {
-      const fechaContrato = new Date(contrato.createdAt)
+      const fechaLead = new Date(lead.createdAt)
       const fechaHasta = new Date(filtros.fechaHasta)
       fechaHasta.setHours(23, 59, 59, 999) // Incluir todo el día
-      if (fechaContrato > fechaHasta) return false
+      if (fechaLead > fechaHasta) return false
     }
 
     // Filtro por monto
     if (filtros.montoMin) {
       const montoMin = parseFloat(filtros.montoMin)
-      if (contrato.totalContrato < montoMin) return false
+      if (lead.totalLead < montoMin) return false
     }
 
     if (filtros.montoMax) {
       const montoMax = parseFloat(filtros.montoMax)
-      if (contrato.totalContrato > montoMax) return false
+      if (lead.totalLead > montoMax) return false
     }
 
     return true
   })
 
   // Obtener lista única de edificios para el filtro
-  const edificiosUnicos = contratos
+  const edificiosUnicos = leads
     .map(c => c.unidad?.edificio || c.edificio)
     .filter(Boolean)
     .reduce((acc: any[], edificio: any) => {
@@ -303,7 +303,7 @@ export default function ContratistaVentasPage() {
       <div className="flex items-center justify-center py-12">
         <div className="text-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
-          <p className="mt-2 text-muted-foreground">Cargando ventas...</p>
+          <p className="mt-2 text-muted-foreground">Cargando Prospectos...</p>
         </div>
       </div>
     )
@@ -314,9 +314,9 @@ export default function ContratistaVentasPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Mis Ventas</h1>
+          <h1 className="text-2xl font-bold text-foreground">Mis Prospectos</h1>
           <p className="text-muted-foreground">
-            Seguimiento de todos tus contratos y comisiones
+            Seguimiento de todos tus leads y comisiones
           </p>
         </div>
         <div className="flex space-x-2">
@@ -329,10 +329,10 @@ export default function ContratistaVentasPage() {
             Actualizar
           </Button>
           <Button
-            onClick={() => router.push('/contratista/generar-contrato')}
+            onClick={() => router.push('/broker/generar-lead')}
           >
             <Plus className="w-4 h-4 mr-2" />
-            Generar Contrato
+            Generar Lead
           </Button>
         </div>
       </div>
@@ -344,8 +344,8 @@ export default function ContratistaVentasPage() {
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-muted-foreground">Total Contratos</p>
-                  <p className="text-2xl font-bold">{estadisticas.totalContratos}</p>
+                  <p className="text-sm font-medium text-muted-foreground">Total Leads</p>
+                  <p className="text-2xl font-bold">{estadisticas.totalLeads}</p>
                 </div>
                 <Calculator className="h-8 w-8 text-muted-foreground" />
               </div>
@@ -395,9 +395,9 @@ export default function ContratistaVentasPage() {
         <CardHeader>
           <div className="flex items-center justify-between">
             <div>
-              <CardTitle>Mis Contratos</CardTitle>
+              <CardTitle>Mis Leads</CardTitle>
               <CardDescription>
-                Lista de todos tus contratos generados y su estado actual
+                Lista de todos tus leads generados y su estado actual
               </CardDescription>
             </div>
             <div className="flex items-center space-x-2">
@@ -507,22 +507,22 @@ export default function ContratistaVentasPage() {
         )}
 
         <CardContent>
-          {contratosFiltrados.length === 0 ? (
+          {leadsFiltrados.length === 0 ? (
             <div className="text-center py-12">
               <Calculator className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
               <h3 className="text-lg font-medium text-foreground mb-2">
-                {filtroEstado === 'todos' ? 'No tienes contratos' : 'No hay contratos con este estado'}
+                {filtroEstado === 'todos' ? 'No tienes leads' : 'No hay leads con este estado'}
               </h3>
               <p className="text-muted-foreground mb-4">
                 {filtroEstado === 'todos'
-                  ? 'Comienza generando tu primer contrato'
-                  : 'Cambia el filtro para ver otros contratos'
+                  ? 'Comienza generando tu primer lead'
+                  : 'Cambia el filtro para ver otros leads'
                 }
               </p>
               {filtroEstado === 'todos' && (
-                <Button onClick={() => router.push('/contratista/generar-contrato')}>
+                <Button onClick={() => router.push('/broker/generar-lead')}>
                   <Plus className="w-4 h-4 mr-2" />
-                  Generar Primer Contrato
+                  Generar Primer Lead
                 </Button>
               )}
             </div>
@@ -531,7 +531,7 @@ export default function ContratistaVentasPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Contrato</TableHead>
+                    <TableHead>Lead</TableHead>
                     <TableHead>Cliente</TableHead>
                     <TableHead>Unidad / Edificio</TableHead>
                     <TableHead>Estado</TableHead>
@@ -542,55 +542,55 @@ export default function ContratistaVentasPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {contratosFiltrados.map((contrato) => {
-                    const estado = formatearEstado(contrato.estado)
+                  {leadsFiltrados.map((lead) => {
+                    const estado = formatearEstado(lead.estado)
                     const IconoEstado = estado.icon
 
                     return (
-                      <TableRow key={contrato.id}>
+                      <TableRow key={lead.id}>
                         <TableCell>
-                          <div className="font-medium">#{contrato.id.slice(-8)}</div>
+                          <div className="font-medium">#{lead.id.slice(-8)}</div>
                           <div className="text-sm text-muted-foreground">
-                            {contrato.codigoUnidad ? `Código: ${contrato.codigoUnidad}` : 'Sistema'}
+                            {lead.codigoUnidad ? `Código: ${lead.codigoUnidad}` : 'Sistema'}
                           </div>
                         </TableCell>
                         <TableCell>
                           <div>
-                            <div className="font-medium">{contrato.cliente?.nombre || 'Cliente no disponible'}</div>
-                            <div className="text-sm text-muted-foreground">{contrato.cliente?.rut || 'Sin RUT'}</div>
+                            <div className="font-medium">{lead.cliente?.nombre || 'Cliente no disponible'}</div>
+                            <div className="text-sm text-muted-foreground">{lead.cliente?.rut || 'Sin RUT'}</div>
                           </div>
                         </TableCell>
                         <TableCell>
                           <div>
-                            {contrato.unidad ? (
+                            {lead.unidad ? (
                               <>
                                 <div className="font-medium">
-                                  {contrato.unidad.edificio.nombre} - Unidad {contrato.unidad.numero}
+                                  {lead.unidad.edificio.nombre} - Unidad {lead.unidad.numero}
                                 </div>
                                 <div className="text-sm text-muted-foreground flex items-center">
                                   <MapPin className="w-3 h-3 mr-1" />
-                                  {contrato.unidad.edificio.direccion}
+                                  {lead.unidad.edificio.direccion}
                                 </div>
                                 <div className="text-xs text-muted-foreground">
-                                  {contrato.unidad.tipoUnidad.nombre}
+                                  {lead.unidad.tipoUnidad.nombre}
                                 </div>
                               </>
-                            ) : contrato.edificio ? (
+                            ) : lead.edificio ? (
                               <>
-                                <div className="font-medium">{contrato.edificio.nombre}</div>
+                                <div className="font-medium">{lead.edificio.nombre}</div>
                                 <div className="text-sm text-muted-foreground flex items-center">
                                   <MapPin className="w-3 h-3 mr-1" />
-                                  {contrato.edificio.direccion}
+                                  {lead.edificio.direccion}
                                 </div>
                                 <div className="text-xs text-muted-foreground">
-                                  {contrato.codigoUnidad ? `Código manual: ${contrato.codigoUnidad}` : 'Contrato general'}
+                                  {lead.codigoUnidad ? `Código manual: ${lead.codigoUnidad}` : 'Lead general'}
                                 </div>
                               </>
                             ) : (
                               <>
                                 <div className="font-medium">Sin edificio especificado</div>
                                 <div className="text-sm text-muted-foreground">
-                                  {contrato.codigoUnidad || 'Contrato manual'}
+                                  {lead.codigoUnidad || 'Lead manual'}
                                 </div>
                               </>
                             )}
@@ -604,26 +604,26 @@ export default function ContratistaVentasPage() {
                         </TableCell>
                         <TableCell>
                           <div>
-                            <div className="font-mono font-medium">{formatCurrency(contrato.totalContrato)}</div>
-                            <div className="text-sm text-muted-foreground">{contrato.montoUf} UF</div>
+                            <div className="font-mono font-medium">{formatCurrency(lead.totalLead)}</div>
+                            <div className="text-sm text-muted-foreground">{lead.montoUf} UF</div>
                           </div>
                         </TableCell>
                         <TableCell>
                           <div className="font-mono font-medium text-green-600">
-                            {formatCurrency(contrato.comision)}
+                            {formatCurrency(lead.comision)}
                           </div>
                           <div className="text-xs text-muted-foreground">
-                            {contrato.unidad?.tipoUnidad.comision ? contrato.unidad.tipoUnidad.comision.nombre : 'Base'}
+                            {lead.unidad?.tipoUnidad.comision ? lead.unidad.tipoUnidad.comision.nombre : 'Base'}
                           </div>
                         </TableCell>
                         <TableCell className="text-muted-foreground">
-                          {new Date(contrato.createdAt).toLocaleDateString('es-ES')}
+                          {new Date(lead.createdAt).toLocaleDateString('es-ES')}
                         </TableCell>
                         <TableCell className="text-right">
                           <Button
                             size="sm"
                             variant="outline"
-                            onClick={() => abrirEdicionContrato(contrato)}
+                            onClick={() => abrirEdicionLead(lead)}
                           >
                             <Edit className="w-4 h-4 mr-2" />
                             Editar
@@ -639,19 +639,19 @@ export default function ContratistaVentasPage() {
         </CardContent>
       </Card>
 
-      {/* Modal de Edición de Contrato */}
-      <Dialog open={editandoContrato} onOpenChange={setEditandoContrato}>
+      {/* Modal de Edición de Lead */}
+      <Dialog open={editandoLead} onOpenChange={setEditandoLead}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Editar Contrato</DialogTitle>
+            <DialogTitle>Editar Lead</DialogTitle>
             <DialogDescription>
-              Modifica el estado y fechas del contrato #{contratoEditando?.id.slice(-8)}
+              Modifica el estado y fechas del lead #{leadEditando?.id.slice(-8)}
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="estadoEdicion">Estado del Contrato</Label>
+              <Label htmlFor="estadoEdicion">Estado del Lead</Label>
               <Select value={datosEdicion.estado} onValueChange={(value) => setDatosEdicion({ ...datosEdicion, estado: value })}>
                 <SelectTrigger>
                   <SelectValue />
@@ -678,12 +678,12 @@ export default function ContratistaVentasPage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="fechaPagoContratoEdicion">Fecha Pago de Contrato</Label>
+                <Label htmlFor="fechaPagoLeadEdicion">Fecha Pago de Lead</Label>
                 <Input
-                  id="fechaPagoContratoEdicion"
+                  id="fechaPagoLeadEdicion"
                   type="date"
-                  value={datosEdicion.fechaPagoContrato}
-                  onChange={(e) => setDatosEdicion({ ...datosEdicion, fechaPagoContrato: e.target.value })}
+                  value={datosEdicion.fechaPagoLead}
+                  onChange={(e) => setDatosEdicion({ ...datosEdicion, fechaPagoLead: e.target.value })}
                 />
               </div>
 
@@ -710,10 +710,10 @@ export default function ContratistaVentasPage() {
           </div>
 
           <div className="flex justify-end space-x-2 mt-6">
-            <Button variant="outline" onClick={() => setEditandoContrato(false)}>
+            <Button variant="outline" onClick={() => setEditandoLead(false)}>
               Cancelar
             </Button>
-            <Button onClick={guardarEdicionContrato}>
+            <Button onClick={guardarEdicionLead}>
               Guardar Cambios
             </Button>
           </div>

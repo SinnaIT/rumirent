@@ -21,7 +21,7 @@ import {
   Clock
 } from 'lucide-react'
 
-interface ContratistaPerformance {
+interface BrokerPerformance {
   id: string
   nombre: string
   email: string
@@ -39,11 +39,11 @@ interface ContratistaPerformance {
 }
 
 interface PerformanceStats {
-  totalContratistas: number
+  totalBrokers: number
   totalVentasDelMes: number
   totalComisionesDelMes: number
   mejorVendedor: { nombre: string; ventas: number }
-  promedioVentasPorContratista: number
+  promedioVentasPorBroker: number
 }
 
 export default function AdminReportesPage() {
@@ -51,7 +51,7 @@ export default function AdminReportesPage() {
   const [selectedMonth, setSelectedMonth] = useState<string>(new Date().getMonth().toString())
   const [selectedYear, setSelectedYear] = useState<string>(new Date().getFullYear().toString())
 
-  const [contratistasPerformance, setContratistasPerformance] = useState<ContratistaPerformance[]>([])
+  const [brokersPerformance, setBrokersPerformance] = useState<BrokerPerformance[]>([])
   const [performanceStats, setPerformanceStats] = useState<PerformanceStats | null>(null)
   const [loading, setLoading] = useState(false)
 
@@ -78,7 +78,7 @@ export default function AdminReportesPage() {
   const fetchPerformanceData = async () => {
     setLoading(true)
     try {
-      let url = `/api/admin/reportes/performance-contratistas?period=${selectedPeriod}`
+      let url = `/api/admin/reportes/performance-brokers?period=${selectedPeriod}`
 
       if (selectedPeriod === 'mes') {
         url += `&mes=${selectedMonth}&year=${selectedYear}`
@@ -89,7 +89,7 @@ export default function AdminReportesPage() {
       const response = await fetch(url)
       if (response.ok) {
         const data = await response.json()
-        setContratistasPerformance(data.contratistas)
+        setBrokersPerformance(data.brokers)
         setPerformanceStats(data.stats)
       }
     } catch (error) {
@@ -209,7 +209,7 @@ export default function AdminReportesPage() {
                 <Users className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{performanceStats.totalContratistas}</div>
+                <div className="text-2xl font-bold">{performanceStats.totalBrokers}</div>
                 <p className="text-xs text-muted-foreground">
                   Con ventas en el período
                 </p>
@@ -224,7 +224,7 @@ export default function AdminReportesPage() {
               <CardContent>
                 <div className="text-2xl font-bold">{performanceStats.totalVentasDelMes}</div>
                 <p className="text-xs text-muted-foreground">
-                  Contratos cerrados
+                  Leads cerrados
                 </p>
               </CardContent>
             </Card>
@@ -272,7 +272,7 @@ export default function AdminReportesPage() {
                 <div className="flex items-center justify-center py-8">
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
                 </div>
-              ) : contratistasPerformance.length > 0 ? (
+              ) : brokersPerformance.length > 0 ? (
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -286,40 +286,40 @@ export default function AdminReportesPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {contratistasPerformance.map((contratista, index) => (
-                      <TableRow key={contratista.id}>
+                    {brokersPerformance.map((broker, index) => (
+                      <TableRow key={broker.id}>
                         <TableCell>
                           {getRankingBadge(index + 1)}
                         </TableCell>
                         <TableCell>
                           <div>
-                            <div className="font-medium">{contratista.nombre}</div>
-                            <div className="text-sm text-muted-foreground">{contratista.email}</div>
+                            <div className="font-medium">{broker.nombre}</div>
+                            <div className="text-sm text-muted-foreground">{broker.email}</div>
                           </div>
                         </TableCell>
                         <TableCell>
-                          <div className="font-semibold">{contratista.totalVentas}</div>
+                          <div className="font-semibold">{broker.totalVentas}</div>
                           <div className="text-sm text-muted-foreground">
-                            {contratista.ventasEsteMes} este período
+                            {broker.ventasEsteMes} este período
                           </div>
                         </TableCell>
                         <TableCell>
                           <div className="font-semibold">
-                            {formatCurrency(contratista.totalComisiones)}
+                            {formatCurrency(broker.totalComisiones)}
                           </div>
                           <div className="text-sm text-muted-foreground">
-                            {formatCurrency(contratista.comisionesEsteMes)} este período
+                            {formatCurrency(broker.comisionesEsteMes)} este período
                           </div>
                         </TableCell>
                         <TableCell>
-                          <div className={`font-semibold ${getPerformanceColor(contratista.promedioVentaMes, performanceStats?.promedioVentasPorContratista || 0)}`}>
-                            {contratista.promedioVentaMes.toFixed(1)}
+                          <div className={`font-semibold ${getPerformanceColor(broker.promedioVentaMes, performanceStats?.promedioVentasPorBroker || 0)}`}>
+                            {broker.promedioVentaMes.toFixed(1)}
                           </div>
                         </TableCell>
                         <TableCell>
-                          {contratista.ultimaVenta ? (
+                          {broker.ultimaVenta ? (
                             <div className="text-sm">
-                              {new Date(contratista.ultimaVenta).toLocaleDateString('es-CL')}
+                              {new Date(broker.ultimaVenta).toLocaleDateString('es-CL')}
                             </div>
                           ) : (
                             <span className="text-muted-foreground">Sin ventas</span>
@@ -327,12 +327,12 @@ export default function AdminReportesPage() {
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center space-x-2">
-                            {contratista.tasaConversion > 0 ? (
+                            {broker.tasaConversion > 0 ? (
                               <TrendingUp className="h-4 w-4 text-green-600" />
                             ) : (
                               <TrendingDown className="h-4 w-4 text-red-600" />
                             )}
-                            <span className="text-sm">{contratista.tasaConversion}%</span>
+                            <span className="text-sm">{broker.tasaConversion}%</span>
                           </div>
                         </TableCell>
                       </TableRow>
@@ -355,13 +355,13 @@ export default function AdminReportesPage() {
                 <CardTitle>Análisis de Ventas</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                {contratistasPerformance.slice(0, 5).map((contratista) => {
-                  const percentage = performanceStats ? (contratista.totalVentas / performanceStats.totalVentasDelMes) * 100 : 0
+                {brokersPerformance.slice(0, 5).map((broker) => {
+                  const percentage = performanceStats ? (broker.totalVentas / performanceStats.totalVentasDelMes) * 100 : 0
                   return (
-                    <div key={contratista.id} className="space-y-2">
+                    <div key={broker.id} className="space-y-2">
                       <div className="flex justify-between text-sm">
-                        <span className="font-medium">{contratista.nombre}</span>
-                        <span>{contratista.totalVentas} ventas ({percentage.toFixed(1)}%)</span>
+                        <span className="font-medium">{broker.nombre}</span>
+                        <span>{broker.totalVentas} ventas ({percentage.toFixed(1)}%)</span>
                       </div>
                       <Progress value={percentage} className="h-2" />
                     </div>
@@ -375,13 +375,13 @@ export default function AdminReportesPage() {
                 <CardTitle>Análisis de Comisiones</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                {contratistasPerformance.slice(0, 5).map((contratista) => {
-                  const percentage = performanceStats ? (contratista.totalComisiones / performanceStats.totalComisionesDelMes) * 100 : 0
+                {brokersPerformance.slice(0, 5).map((broker) => {
+                  const percentage = performanceStats ? (broker.totalComisiones / performanceStats.totalComisionesDelMes) * 100 : 0
                   return (
-                    <div key={contratista.id} className="space-y-2">
+                    <div key={broker.id} className="space-y-2">
                       <div className="flex justify-between text-sm">
-                        <span className="font-medium">{contratista.nombre}</span>
-                        <span>{formatCurrency(contratista.totalComisiones)} ({percentage.toFixed(1)}%)</span>
+                        <span className="font-medium">{broker.nombre}</span>
+                        <span>{formatCurrency(broker.totalComisiones)} ({percentage.toFixed(1)}%)</span>
                       </div>
                       <Progress value={percentage} className="h-2" />
                     </div>
@@ -412,29 +412,29 @@ export default function AdminReportesPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {contratistasPerformance.map((contratista) => (
-                    <TableRow key={contratista.id}>
-                      <TableCell className="font-medium">{contratista.nombre}</TableCell>
+                  {brokersPerformance.map((broker) => (
+                    <TableRow key={broker.id}>
+                      <TableCell className="font-medium">{broker.nombre}</TableCell>
                       <TableCell>
                         <div className="flex items-center space-x-2">
                           <Clock className="h-4 w-4 text-muted-foreground" />
-                          <span>{contratista.tiempoPromedioVenta} días</span>
+                          <span>{broker.tiempoPromedioVenta} días</span>
                         </div>
                       </TableCell>
                       <TableCell>
-                        <Badge variant={contratista.tasaConversion > 30 ? "default" : "secondary"}>
-                          {contratista.tasaConversion}%
+                        <Badge variant={broker.tasaConversion > 30 ? "default" : "secondary"}>
+                          {broker.tasaConversion}%
                         </Badge>
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center space-x-1">
-                          {contratista.ventasEsteMes > contratista.promedioVentaMes ? (
+                          {broker.ventasEsteMes > broker.promedioVentaMes ? (
                             <TrendingUp className="h-4 w-4 text-green-600" />
                           ) : (
                             <TrendingDown className="h-4 w-4 text-red-600" />
                           )}
                           <span className="text-sm">
-                            {((contratista.ventasEsteMes / contratista.promedioVentaMes - 1) * 100).toFixed(1)}%
+                            {((broker.ventasEsteMes / broker.promedioVentaMes - 1) * 100).toFixed(1)}%
                           </span>
                         </div>
                       </TableCell>
@@ -442,7 +442,7 @@ export default function AdminReportesPage() {
                         <div className="flex items-center space-x-2">
                           <Target className="h-4 w-4 text-muted-foreground" />
                           <Progress
-                            value={Math.min((contratista.ventasEsteMes / (contratista.promedioVentaMes * 1.2)) * 100, 100)}
+                            value={Math.min((broker.ventasEsteMes / (broker.promedioVentaMes * 1.2)) * 100, 100)}
                             className="w-16 h-2"
                           />
                         </div>

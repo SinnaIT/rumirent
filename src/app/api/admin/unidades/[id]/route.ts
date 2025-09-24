@@ -43,9 +43,9 @@ export async function GET(
             }
           }
         },
-        contratos: {
+        leads: {
           include: {
-            contratista: {
+            broker: {
               select: {
                 id: true,
                 nombre: true,
@@ -74,7 +74,7 @@ export async function GET(
       edificioId: unidad.edificioId,
       edificio: unidad.edificio,
       tipoUnidadEdificio: unidad.tipoUnidadEdificio,
-      contratos: unidad.contratos,
+      leads: unidad.leads,
       createdAt: unidad.createdAt.toISOString(),
       updatedAt: unidad.updatedAt.toISOString()
     }
@@ -266,7 +266,7 @@ export async function DELETE(
       include: {
         _count: {
           select: {
-            contratos: true
+            leads: true
           }
         }
       }
@@ -279,10 +279,10 @@ export async function DELETE(
       )
     }
 
-    // Verificar si la unidad tiene contratos asociados
-    if (existingUnidad._count.contratos > 0) {
+    // Verificar si la unidad tiene leads asociados
+    if (existingUnidad._count.leads > 0) {
       return NextResponse.json(
-        { error: 'No se puede eliminar una unidad que tiene contratos asociados' },
+        { error: 'No se puede eliminar una unidad que tiene leads asociados' },
         { status: 400 }
       )
     }

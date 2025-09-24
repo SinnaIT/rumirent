@@ -7,9 +7,9 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    // Verificar autenticación y rol de contratista
+    // Verificar autenticación y rol de broker
     const authResult = await verifyAuth(request)
-    if (!authResult.success || authResult.user?.role !== 'CONTRATISTA') {
+    if (!authResult.success || authResult.user?.role !== 'BROKER') {
       return NextResponse.json(
         { error: 'No autorizado' },
         { status: 401 }
@@ -21,35 +21,35 @@ export async function PUT(
     const {
       estado,
       fechaPagoReserva,
-      fechaPagoContrato,
+      fechaPagoLead,
       fechaCheckin,
       observaciones
     } = body
 
-    // Verificar que el contrato existe y pertenece al contratista
-    const contratoExistente = await prisma.contrato.findFirst({
+    // Verificar que el lead existe y pertenece al broker
+    const leadExistente = await prisma.lead.findFirst({
       where: {
         id,
-        contratistaId: authResult.user.id
+        brokerId: authResult.user.id
       }
     })
 
-    if (!contratoExistente) {
+    if (!leadExistente) {
       return NextResponse.json(
-        { error: 'Contrato no encontrado o no tienes permisos para editarlo' },
+        { error: 'Lead no encontrado o no tienes permisos para editarlo' },
         { status: 404 }
       )
     }
 
-    // Actualizar el contrato
-    const contratoActualizado = await prisma.contrato.update({
+    // Actualizar el lead
+    const leadActualizado = await prisma.lead.update({
       where: { id },
       data: {
-        estado: estado || contratoExistente.estado,
-        fechaPagoReserva: fechaPagoReserva ? new Date(fechaPagoReserva) : contratoExistente.fechaPagoReserva,
-        fechaPagoContrato: fechaPagoContrato ? new Date(fechaPagoContrato) : contratoExistente.fechaPagoContrato,
-        fechaCheckin: fechaCheckin ? new Date(fechaCheckin) : contratoExistente.fechaCheckin,
-        observaciones: observaciones !== undefined ? observaciones : contratoExistente.observaciones
+        estado: estado || leadExistente.estado,
+        fechaPagoReserva: fechaPagoReserva ? new Date(fechaPagoReserva) : leadExistente.fechaPagoReserva,
+        fechaPagoLead: fechaPagoLead ? new Date(fechaPagoLead) : leadExistente.fechaPagoLead,
+        fechaCheckin: fechaCheckin ? new Date(fechaCheckin) : leadExistente.fechaCheckin,
+        observaciones: observaciones !== undefined ? observaciones : leadExistente.observaciones
       },
       include: {
         cliente: true,
@@ -81,28 +81,28 @@ export async function PUT(
 
     return NextResponse.json({
       success: true,
-      message: 'Contrato actualizado exitosamente',
-      contrato: {
-        id: contratoActualizado.id,
-        codigoUnidad: contratoActualizado.codigoUnidad,
-        totalContrato: contratoActualizado.totalContrato,
-        montoUf: contratoActualizado.montoUf,
-        comision: contratoActualizado.comision,
-        estado: contratoActualizado.estado,
-        fechaPagoReserva: contratoActualizado.fechaPagoReserva?.toISOString(),
-        fechaPagoContrato: contratoActualizado.fechaPagoContrato?.toISOString(),
-        fechaCheckin: contratoActualizado.fechaCheckin?.toISOString(),
-        observaciones: contratoActualizado.observaciones,
-        cliente: contratoActualizado.cliente,
-        unidad: contratoActualizado.unidad,
-        edificio: contratoActualizado.edificio,
-        createdAt: contratoActualizado.createdAt.toISOString(),
-        updatedAt: contratoActualizado.updatedAt.toISOString()
+      message: 'Lead actualizado exitosamente',
+      lead: {
+        id: leadActualizado.id,
+        codigoUnidad: leadActualizado.codigoUnidad,
+        totalLead: leadActualizado.totalLead,
+        montoUf: leadActualizado.montoUf,
+        comision: leadActualizado.comision,
+        estado: leadActualizado.estado,
+        fechaPagoReserva: leadActualizado.fechaPagoReserva?.toISOString(),
+        fechaPagoLead: leadActualizado.fechaPagoLead?.toISOString(),
+        fechaCheckin: leadActualizado.fechaCheckin?.toISOString(),
+        observaciones: leadActualizado.observaciones,
+        cliente: leadActualizado.cliente,
+        unidad: leadActualizado.unidad,
+        edificio: leadActualizado.edificio,
+        createdAt: leadActualizado.createdAt.toISOString(),
+        updatedAt: leadActualizado.updatedAt.toISOString()
       }
     })
 
   } catch (error) {
-    console.error('Error al actualizar contrato:', error)
+    console.error('Error al actualizar lead:', error)
     return NextResponse.json(
       { error: 'Error interno del servidor' },
       { status: 500 }

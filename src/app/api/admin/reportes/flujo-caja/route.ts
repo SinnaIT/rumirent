@@ -25,11 +25,11 @@ export async function GET(request: NextRequest) {
       'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
     ]
 
-    // Obtener todos los contratos del año
+    // Obtener todos los leads del año
     const fechaInicioAño = new Date(yearNum, 0, 1)
     const fechaFinAño = new Date(yearNum, 11, 31, 23, 59, 59, 999)
 
-    const contratosDelAño = await prisma.contrato.findMany({
+    const leadsDelAño = await prisma.lead.findMany({
       where: {
         createdAt: {
           gte: fechaInicioAño,
@@ -38,7 +38,7 @@ export async function GET(request: NextRequest) {
       },
       include: {
         cliente: true,
-        contratista: true,
+        broker: true,
         unidad: {
           include: {
             edificio: true,
@@ -50,7 +50,7 @@ export async function GET(request: NextRequest) {
       },
     })
 
-    console.log(`Found ${contratosDelAño.length} contracts for year ${yearNum}`)
+    console.log(`Found ${leadsDelAño.length} contracts for year ${yearNum}`)
 
     // Generar datos mensuales
     const flujoCajaData = meses.map((nombreMes, index) => {
@@ -58,33 +58,33 @@ export async function GET(request: NextRequest) {
       const fechaInicio = new Date(yearNum, index, 1)
       const fechaFin = new Date(yearNum, index + 1, 0, 23, 59, 59, 999)
 
-      // Filtrar contratos del mes
-      const contratosDelMes = contratosDelAño.filter(
-        (contrato) => contrato.createdAt >= fechaInicio && contrato.createdAt <= fechaFin
+      // Filtrar leads del mes
+      const leadsDelMes = leadsDelAño.filter(
+        (lead) => lead.createdAt >= fechaInicio && lead.createdAt <= fechaFin
       )
 
       // Calcular métricas del mes
-      const reservas = contratosDelMes
+      const reservas = leadsDelMes
         .filter(c => c.estado === 'ENTREGADO' || c.estado === 'RESERVA_PAGADA')
-        .reduce((sum, contrato) => {
+        .reduce((sum, lead) => {
           // Simular valor de reserva (10% del total)
-          return sum + (contrato.totalContrato * 0.1)
+          return sum + (lead.totalLead * 0.1)
         }, 0)
 
-      const checkin = contratosDelMes
+      const checkin = leadsDelMes
         .filter(c => c.estado === 'APROBADO')
-        .reduce((sum, contrato) => {
+        .reduce((sum, lead) => {
           // Simular valor de checkin (20% del total)
-          return sum + (contrato.totalContrato * 0.2)
+          return sum + (lead.totalLead * 0.2)
         }, 0)
 
-      const cobro = contratosDelMes
-        .reduce((sum, contrato) => sum + contrato.totalContrato, 0)
+      const cobro = leadsDelMes
+        .reduce((sum, lead) => sum + lead.totalLead, 0)
 
-      const bruto = contratosDelMes
-        .reduce((sum, contrato) => {
-          // Ingresos brutos incluyen total del contrato más comisiones
-          return sum + contrato.totalContrato + (contrato.comision || 0)
+      const bruto = leadsDelMes
+        .reduce((sum, lead) => {
+          // Ingresos brutos incluyen total del lead más comisiones
+          return sum + lead.totalLead + (lead.comision || 0)
         }, 0)
 
       // Líquido = Bruto - gastos (simulamos 15% de gastos operativos)

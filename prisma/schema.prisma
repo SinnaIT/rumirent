@@ -14,12 +14,12 @@ model User {
   nombre    String
   rut       String     @unique
   telefono  String?
-  role      Role       @default(CONTRATISTA)
+  role      Role       @default(BROKER)
   activo    Boolean    @default(true)
   createdAt DateTime   @default(now())
   updatedAt DateTime   @updatedAt
-  contratos Contrato[]
-  clientes  Cliente[]  @relation("ClienteContratista")
+  leads Lead[]
+  clientes  Cliente[]  @relation("ClienteBroker")
 
   @@map("users")
 }
@@ -36,7 +36,7 @@ model Edificio {
   cambiosProgramados CambioComisionProgramado[]
   unidades           Unidad[]
   tiposUnidad        TipoUnidadEdificio[]
-  contratos          Contrato[]                 @relation("ContratoEdificio")
+  leads          Lead[]                 @relation("LeadEdificio")
 
   @@map("edificios")
 }
@@ -68,7 +68,7 @@ model Unidad {
   updatedAt            DateTime           @updatedAt
   edificioId           String
   tipoUnidadEdificioId String
-  contratos            Contrato?
+  leads            Lead?
   edificio             Edificio           @relation(fields: [edificioId], references: [id], onDelete: Cascade)
   tipoUnidadEdificio   TipoUnidadEdificio @relation(fields: [tipoUnidadEdificioId], references: [id])
 
@@ -82,41 +82,43 @@ model Cliente {
   rut           String     @unique
   email         String?
   telefono      String?
-  contratistaId String
+  brokerId String
   createdAt     DateTime   @default(now())
   updatedAt     DateTime   @updatedAt
-  contratista   User       @relation("ClienteContratista", fields: [contratistaId], references: [id])
-  contratos     Contrato[]
+  broker   User       @relation("ClienteBroker", fields: [brokerId], references: [id])
+  leads     Lead[]
 
   @@map("clientes")
 }
 
-model Contrato {
+model Lead {
   id                    String         @id @default(cuid())
   codigoUnidad          String?
-  totalContrato         Float
+  totalLead         Float
   montoUf               Float
   comision              Float
-  estado                EstadoContrato @default(ENTREGADO)
+  estado                EstadoLead @default(ENTREGADO)
   fechaPagoReserva      DateTime?
-  fechaPagoContrato     DateTime?
+  fechaPagoLead     DateTime?
   fechaCheckin          DateTime?
   postulacion           String?
   observaciones         String?
   conciliado            Boolean        @default(false)
   fechaConciliacion     DateTime?
+  reglaComisionId       String?
   createdAt             DateTime       @default(now())
   updatedAt             DateTime       @updatedAt
-  contratistaId         String
+  brokerId         String
   clienteId             String
   unidadId              String?        @unique
   edificioId            String
-  contratista           User           @relation(fields: [contratistaId], references: [id])
+  broker           User           @relation(fields: [brokerId], references: [id])
   cliente               Cliente        @relation(fields: [clienteId], references: [id])
   unidad                Unidad?        @relation(fields: [unidadId], references: [id])
-  edificio              Edificio       @relation("ContratoEdificio", fields: [edificioId], references: [id])
+  edificio              Edificio       @relation("LeadEdificio", fields: [edificioId], references: [id])
+  reglaComision         ReglaComision? @relation(fields: [reglaComisionId], references: [id])
 
-  @@map("contratos")
+  @@map("leads")
 }
 
 model Comision {
@@ -130,8 +132,23 @@ model Comision {
   edificios          Edificio[]
   tiposUnidad        TipoUnidadEdificio[]       @relation("TipoUnidadComision")
   cambiosProgramados CambioComisionProgramado[]
+  reglasComision     ReglaComision[]
 
   @@map("comisiones")
+}
+
+model ReglaComision {
+  id             String     @id @default(cuid())
+  cantidadMinima Float
+  cantidadMaxima Float?
+  porcentaje     Float
+  comisionId     String
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+  comision       Comision   @relation(fields: [comisionId], references: [id], onDelete: Cascade)
+  leads      Lead[]
+
+  @@map("reglas_comision")
 }
 
 model CambioComisionProgramado {
@@ -152,7 +169,7 @@ model CambioComisionProgramado {
 
 enum Role {
   ADMIN
-  CONTRATISTA
+  BROKER
 }
 
 enum EstadoUnidad {
@@ -161,7 +178,7 @@ enum EstadoUnidad {
   VENDIDA
 }
 
-enum EstadoContrato {
+enum EstadoLead {
   ENTREGADO
   RESERVA_PAGADA
   APROBADO

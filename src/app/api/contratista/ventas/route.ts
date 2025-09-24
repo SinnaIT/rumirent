@@ -4,19 +4,19 @@ import { verifyAuth } from '@/lib/auth'
 
 export async function GET(request: NextRequest) {
   try {
-    // Verificar autenticación y rol de contratista
+    // Verificar autenticación y rol de broker
     const authResult = await verifyAuth(request)
-    if (!authResult.success || authResult.user?.role !== 'CONTRATISTA') {
+    if (!authResult.success || authResult.user?.role !== 'BROKER') {
       return NextResponse.json(
         { error: 'No autorizado' },
         { status: 401 }
       )
     }
 
-    // Obtener contratos del contratista
-    const contratos = await prisma.contrato.findMany({
+    // Obtener leads del broker
+    const leads = await prisma.lead.findMany({
       where: {
-        contratistaId: authResult.user.id
+        brokerId: authResult.user.id
       },
       include: {
         cliente: true,
@@ -49,75 +49,75 @@ export async function GET(request: NextRequest) {
       }
     })
 
-    const contratosFormatted = contratos.map(contrato => ({
-      id: contrato.id,
-      codigoUnidad: contrato.codigoUnidad,
-      totalContrato: contrato.totalContrato,
-      montoUf: contrato.montoUf,
-      comision: contrato.comision,
-      estado: contrato.estado,
-      fechaPagoReserva: contrato.fechaPagoReserva?.toISOString(),
-      fechaPagoContrato: contrato.fechaPagoContrato?.toISOString(),
-      fechaCheckin: contrato.fechaCheckin?.toISOString(),
-      observaciones: contrato.observaciones,
-      cliente: contrato.cliente ? {
-        id: contrato.cliente.id,
-        nombre: contrato.cliente.nombre,
-        rut: contrato.cliente.rut,
-        email: contrato.cliente.email,
-        telefono: contrato.cliente.telefono
+    const leadsFormatted = leads.map(lead => ({
+      id: lead.id,
+      codigoUnidad: lead.codigoUnidad,
+      totalLead: lead.totalLead,
+      montoUf: lead.montoUf,
+      comision: lead.comision,
+      estado: lead.estado,
+      fechaPagoReserva: lead.fechaPagoReserva?.toISOString(),
+      fechaPagoLead: lead.fechaPagoLead?.toISOString(),
+      fechaCheckin: lead.fechaCheckin?.toISOString(),
+      observaciones: lead.observaciones,
+      cliente: lead.cliente ? {
+        id: lead.cliente.id,
+        nombre: lead.cliente.nombre,
+        rut: lead.cliente.rut,
+        email: lead.cliente.email,
+        telefono: lead.cliente.telefono
       } : null,
-      unidad: contrato.unidad ? {
-        id: contrato.unidad.id,
-        numero: contrato.unidad.numero,
-        descripcion: contrato.unidad.descripcion,
-        metros2: contrato.unidad.metros2,
-        edificio: contrato.unidad.edificio,
+      unidad: lead.unidad ? {
+        id: lead.unidad.id,
+        numero: lead.unidad.numero,
+        descripcion: lead.unidad.descripcion,
+        metros2: lead.unidad.metros2,
+        edificio: lead.unidad.edificio,
         tipoUnidad: {
-          id: contrato.unidad.tipoUnidadEdificio.id,
-          nombre: contrato.unidad.tipoUnidadEdificio.nombre,
-          codigo: contrato.unidad.tipoUnidadEdificio.codigo,
-          comision: contrato.unidad.tipoUnidadEdificio.comision ? {
-            id: contrato.unidad.tipoUnidadEdificio.comision.id,
-            nombre: contrato.unidad.tipoUnidadEdificio.comision.nombre,
-            codigo: contrato.unidad.tipoUnidadEdificio.comision.codigo,
-            porcentaje: contrato.unidad.tipoUnidadEdificio.comision.porcentaje,
-            activa: contrato.unidad.tipoUnidadEdificio.comision.activa
+          id: lead.unidad.tipoUnidadEdificio.id,
+          nombre: lead.unidad.tipoUnidadEdificio.nombre,
+          codigo: lead.unidad.tipoUnidadEdificio.codigo,
+          comision: lead.unidad.tipoUnidadEdificio.comision ? {
+            id: lead.unidad.tipoUnidadEdificio.comision.id,
+            nombre: lead.unidad.tipoUnidadEdificio.comision.nombre,
+            codigo: lead.unidad.tipoUnidadEdificio.comision.codigo,
+            porcentaje: lead.unidad.tipoUnidadEdificio.comision.porcentaje,
+            activa: lead.unidad.tipoUnidadEdificio.comision.activa
           } : null
         }
       } : null,
-      edificio: contrato.edificio ? {
-        id: contrato.edificio.id,
-        nombre: contrato.edificio.nombre,
-        direccion: contrato.edificio.direccion
+      edificio: lead.edificio ? {
+        id: lead.edificio.id,
+        nombre: lead.edificio.nombre,
+        direccion: lead.edificio.direccion
       } : null,
-      createdAt: contrato.createdAt.toISOString(),
-      updatedAt: contrato.updatedAt.toISOString()
+      createdAt: lead.createdAt.toISOString(),
+      updatedAt: lead.updatedAt.toISOString()
     }))
 
     // Calcular estadísticas
     const stats = {
-      totalContratos: contratos.length,
-      entregados: contratos.filter(c => c.estado === 'ENTREGADO').length,
-      reservaPagada: contratos.filter(c => c.estado === 'RESERVA_PAGADA').length,
-      aprobados: contratos.filter(c => c.estado === 'APROBADO').length,
-      rechazados: contratos.filter(c => c.estado === 'RECHAZADO').length,
-      totalComisionesEsperadas: contratos
+      totalLeads: leads.length,
+      entregados: leads.filter(c => c.estado === 'ENTREGADO').length,
+      reservaPagada: leads.filter(c => c.estado === 'RESERVA_PAGADA').length,
+      aprobados: leads.filter(c => c.estado === 'APROBADO').length,
+      rechazados: leads.filter(c => c.estado === 'RECHAZADO').length,
+      totalComisionesEsperadas: leads
         .filter(c => c.estado !== 'RECHAZADO')
         .reduce((sum, c) => sum + (c.comision || 0), 0),
-      totalComisionesAprobadas: contratos
+      totalComisionesAprobadas: leads
         .filter(c => c.estado === 'APROBADO')
         .reduce((sum, c) => sum + (c.comision || 0), 0)
     }
 
     return NextResponse.json({
       success: true,
-      contratos: contratosFormatted,
+      leads: leadsFormatted,
       estadisticas: stats
     })
 
   } catch (error) {
-    console.error('Error al obtener contratos:', error)
+    console.error('Error al obtener leads:', error)
     return NextResponse.json(
       { error: 'Error interno del servidor' },
       { status: 500 }

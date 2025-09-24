@@ -18,10 +18,10 @@ export async function GET(
       )
     }
 
-    const contrato = await prisma.contrato.findUnique({
+    const lead = await prisma.lead.findUnique({
       where: { id },
       include: {
-        contratista: {
+        broker: {
           select: {
             id: true,
             nombre: true,
@@ -48,52 +48,52 @@ export async function GET(
       }
     })
 
-    if (!contrato) {
+    if (!lead) {
       return NextResponse.json(
-        { error: 'Contrato no encontrado' },
+        { error: 'Lead no encontrado' },
         { status: 404 }
       )
     }
 
-    const contratoFormatted = {
-      id: contrato.id,
-      numero: contrato.numero,
-      prioridad: contrato.prioridad,
-      rutCliente: contrato.rutCliente,
-      nombreCliente: contrato.nombreCliente,
-      precioPesos: contrato.precioPesos,
-      precioUF: contrato.precioUF,
-      comisionAsesor: contrato.comisionAsesor,
-      estado: contrato.estado,
-      fechaPagoReserva: contrato.fechaPagoReserva?.toISOString(),
-      fechaPagoContrato: contrato.fechaPagoContrato?.toISOString(),
-      fechaCheckin: contrato.fechaCheckin?.toISOString(),
-      observaciones: contrato.observaciones,
-      contratista: contrato.contratista,
+    const leadFormatted = {
+      id: lead.id,
+      numero: lead.numero,
+      prioridad: lead.prioridad,
+      rutCliente: lead.rutCliente,
+      nombreCliente: lead.nombreCliente,
+      precioPesos: lead.precioPesos,
+      precioUF: lead.precioUF,
+      comisionAsesor: lead.comisionAsesor,
+      estado: lead.estado,
+      fechaPagoReserva: lead.fechaPagoReserva?.toISOString(),
+      fechaPagoLead: lead.fechaPagoLead?.toISOString(),
+      fechaCheckin: lead.fechaCheckin?.toISOString(),
+      observaciones: lead.observaciones,
+      broker: lead.broker,
       unidad: {
-        id: contrato.unidad.id,
-        numero: contrato.unidad.numero,
-        precio: contrato.unidad.precio,
-        estado: contrato.unidad.estado,
-        edificio: contrato.unidad.edificio,
+        id: lead.unidad.id,
+        numero: lead.unidad.numero,
+        precio: lead.unidad.precio,
+        estado: lead.unidad.estado,
+        edificio: lead.unidad.edificio,
         tipoUnidad: {
-          id: contrato.unidad.tipoUnidad.id,
-          nombre: contrato.unidad.tipoUnidad.nombre,
-          codigo: contrato.unidad.tipoUnidad.codigo,
-          comision: contrato.unidad.tipoUnidad.comision
+          id: lead.unidad.tipoUnidad.id,
+          nombre: lead.unidad.tipoUnidad.nombre,
+          codigo: lead.unidad.tipoUnidad.codigo,
+          comision: lead.unidad.tipoUnidad.comision
         }
       },
-      createdAt: contrato.createdAt.toISOString(),
-      updatedAt: contrato.updatedAt.toISOString()
+      createdAt: lead.createdAt.toISOString(),
+      updatedAt: lead.updatedAt.toISOString()
     }
 
     return NextResponse.json({
       success: true,
-      contrato: contratoFormatted
+      lead: leadFormatted
     })
 
   } catch (error) {
-    console.error('Error al obtener contrato:', error)
+    console.error('Error al obtener lead:', error)
     return NextResponse.json(
       { error: 'Error interno del servidor' },
       { status: 500 }
@@ -128,22 +128,22 @@ export async function PUT(
       comisionAsesor,
       estado,
       fechaPagoReserva,
-      fechaPagoContrato,
+      fechaPagoLead,
       fechaCheckin,
       observaciones
     } = body
 
-    // Verificar que el contrato existe
-    const existingContrato = await prisma.contrato.findUnique({
+    // Verificar que el lead existe
+    const existingLead = await prisma.lead.findUnique({
       where: { id },
       include: {
         unidad: true
       }
     })
 
-    if (!existingContrato) {
+    if (!existingLead) {
       return NextResponse.json(
-        { error: 'Contrato no encontrado' },
+        { error: 'Lead no encontrado' },
         { status: 404 }
       )
     }
@@ -156,23 +156,23 @@ export async function PUT(
       )
     }
 
-    // Verificar que no existe otro contrato con el mismo número (excepto el actual)
-    const conflictingContrato = await prisma.contrato.findFirst({
+    // Verificar que no existe otro lead con el mismo número (excepto el actual)
+    const conflictingLead = await prisma.lead.findFirst({
       where: {
         numero: parseInt(numero),
         id: { not: id }
       }
     })
 
-    if (conflictingContrato) {
+    if (conflictingLead) {
       return NextResponse.json(
-        { error: 'Ya existe otro contrato con este número' },
+        { error: 'Ya existe otro lead con este número' },
         { status: 400 }
       )
     }
 
-    // Actualizar estado de la unidad si el estado del contrato cambió
-    const estadoActual = existingContrato.estado
+    // Actualizar estado de la unidad si el estado del lead cambió
+    const estadoActual = existingLead.estado
     const nuevoEstado = estado || estadoActual
 
     if (estadoActual !== nuevoEstado) {
@@ -187,30 +187,30 @@ export async function PUT(
       }
 
       await prisma.unidad.update({
-        where: { id: existingContrato.unidadId },
+        where: { id: existingLead.unidadId },
         data: { estado: nuevoEstadoUnidad as any }
       })
     }
 
-    // Actualizar contrato
-    const updatedContrato = await prisma.contrato.update({
+    // Actualizar lead
+    const updatedLead = await prisma.lead.update({
       where: { id },
       data: {
         numero: parseInt(numero),
-        prioridad: prioridad || existingContrato.prioridad,
+        prioridad: prioridad || existingLead.prioridad,
         rutCliente,
         nombreCliente,
         precioPesos: parseFloat(precioPesos),
         precioUF: parseFloat(precioUF),
         comisionAsesor: parseFloat(comisionAsesor),
         estado: nuevoEstado,
-        fechaPagoReserva: fechaPagoReserva ? new Date(fechaPagoReserva) : existingContrato.fechaPagoReserva,
-        fechaPagoContrato: fechaPagoContrato ? new Date(fechaPagoContrato) : existingContrato.fechaPagoContrato,
-        fechaCheckin: fechaCheckin ? new Date(fechaCheckin) : existingContrato.fechaCheckin,
-        observaciones: observaciones !== undefined ? observaciones : existingContrato.observaciones
+        fechaPagoReserva: fechaPagoReserva ? new Date(fechaPagoReserva) : existingLead.fechaPagoReserva,
+        fechaPagoLead: fechaPagoLead ? new Date(fechaPagoLead) : existingLead.fechaPagoLead,
+        fechaCheckin: fechaCheckin ? new Date(fechaCheckin) : existingLead.fechaCheckin,
+        observaciones: observaciones !== undefined ? observaciones : existingLead.observaciones
       },
       include: {
-        contratista: {
+        broker: {
           select: {
             id: true,
             nombre: true,
@@ -232,12 +232,12 @@ export async function PUT(
 
     return NextResponse.json({
       success: true,
-      message: 'Contrato actualizado exitosamente',
-      contrato: updatedContrato
+      message: 'Lead actualizado exitosamente',
+      lead: updatedLead
     })
 
   } catch (error) {
-    console.error('Error al actualizar contrato:', error)
+    console.error('Error al actualizar lead:', error)
     return NextResponse.json(
       { error: 'Error interno del servidor' },
       { status: 500 }
@@ -261,39 +261,39 @@ export async function DELETE(
       )
     }
 
-    // Verificar que el contrato existe
-    const existingContrato = await prisma.contrato.findUnique({
+    // Verificar que el lead existe
+    const existingLead = await prisma.lead.findUnique({
       where: { id },
       include: {
         unidad: true
       }
     })
 
-    if (!existingContrato) {
+    if (!existingLead) {
       return NextResponse.json(
-        { error: 'Contrato no encontrado' },
+        { error: 'Lead no encontrado' },
         { status: 404 }
       )
     }
 
     // Liberar la unidad (volver a DISPONIBLE)
     await prisma.unidad.update({
-      where: { id: existingContrato.unidadId },
+      where: { id: existingLead.unidadId },
       data: { estado: 'DISPONIBLE' }
     })
 
-    // Eliminar contrato
-    await prisma.contrato.delete({
+    // Eliminar lead
+    await prisma.lead.delete({
       where: { id }
     })
 
     return NextResponse.json({
       success: true,
-      message: 'Contrato eliminado exitosamente'
+      message: 'Lead eliminado exitosamente'
     })
 
   } catch (error) {
-    console.error('Error al eliminar contrato:', error)
+    console.error('Error al eliminar lead:', error)
     return NextResponse.json(
       { error: 'Error interno del servidor' },
       { status: 500 }

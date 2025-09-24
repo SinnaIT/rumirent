@@ -4,7 +4,7 @@ import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 
 interface AuthRedirectProps {
-  role: 'ADMIN' | 'CONTRATISTA'
+  role: 'ADMIN' | 'BROKER'
   token: string
 }
 
@@ -19,7 +19,7 @@ export function AuthRedirect({ role, token }: AuthRedirectProps) {
     document.cookie = `auth-token=${token}; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Lax`
 
     // Navigate directly to the target URL
-    const targetUrl = role === 'ADMIN' ? '/admin' : '/contratista'
+    const targetUrl = role === 'ADMIN' ? '/admin' : '/broker'
     console.log('Navigating to:', targetUrl)
 
     // Small delay to ensure storage is set

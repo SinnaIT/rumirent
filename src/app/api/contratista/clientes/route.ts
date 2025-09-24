@@ -4,19 +4,19 @@ import { verifyAuth } from '@/lib/auth'
 
 export async function GET(request: NextRequest) {
   try {
-    // Verificar autenticación y rol de contratista
+    // Verificar autenticación y rol de broker
     const authResult = await verifyAuth(request)
-    if (!authResult.success || authResult.user?.role !== 'CONTRATISTA') {
+    if (!authResult.success || authResult.user?.role !== 'BROKER') {
       return NextResponse.json(
         { error: 'No autorizado' },
         { status: 401 }
       )
     }
 
-    // Obtener clientes del contratista actual
+    // Obtener clientes del broker actual
     const clientes = await prisma.cliente.findMany({
       where: {
-        contratistaId: authResult.user.id
+        brokerId: authResult.user.id
       },
       orderBy: {
         nombre: 'asc'
@@ -39,9 +39,9 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    // Verificar autenticación y rol de contratista
+    // Verificar autenticación y rol de broker
     const authResult = await verifyAuth(request)
-    if (!authResult.success || authResult.user?.role !== 'CONTRATISTA') {
+    if (!authResult.success || authResult.user?.role !== 'BROKER') {
       return NextResponse.json(
         { error: 'No autorizado' },
         { status: 401 }
@@ -78,7 +78,7 @@ export async function POST(request: NextRequest) {
         rut,
         email: email || undefined,
         telefono: telefono || undefined,
-        contratistaId: authResult.user.id
+        brokerId: authResult.user.id
       }
     })
 

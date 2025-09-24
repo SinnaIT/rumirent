@@ -24,21 +24,21 @@ export async function GET(request: NextRequest) {
     const fechaInicio = new Date(yearNum, mesNum, 1)
     const fechaFin = new Date(yearNum, mesNum + 1, 0, 23, 59, 59, 999)
 
-    console.log('Buscando contratos pendientes:', {
+    console.log('Buscando leads pendientes:', {
       fechaInicio,
       fechaFin,
       mes: mesNum,
       year: yearNum
     })
 
-    // Buscar contratos del período que NO estén conciliados
-    const contratos = await prisma.contrato.findMany({
+    // Buscar leads del período que NO estén conciliados
+    const leads = await prisma.lead.findMany({
       where: {
         createdAt: {
           gte: fechaInicio,
           lte: fechaFin,
         },
-        conciliado: false, // Solo contratos no conciliados
+        conciliado: false, // Solo leads no conciliados
       },
       include: {
         cliente: {
@@ -46,7 +46,7 @@ export async function GET(request: NextRequest) {
             nombre: true,
           },
         },
-        contratista: {
+        broker: {
           select: {
             nombre: true,
           },
@@ -67,24 +67,24 @@ export async function GET(request: NextRequest) {
       },
     })
 
-    console.log(`Encontrados ${contratos.length} contratos pendientes`)
+    console.log(`Encontrados ${leads.length} leads pendientes`)
 
     // Formatear datos para el frontend
-    const contratosPendientes = contratos.map((contrato) => ({
-      id: contrato.id,
-      fechaContrato: contrato.createdAt.toISOString(),
-      totalContrato: contrato.totalContrato,
-      edificioNombre: contrato.edificio.nombre,
-      unidadCodigo: contrato.unidad?.numero || contrato.codigoUnidad || 'Sin código',
-      clienteNombre: contrato.cliente.nombre,
-      contratistaNombre: contrato.contratista.nombre,
-      comision: contrato.comision || 0,
-      conciliado: contrato.conciliado,
+    const leadsPendientes = leads.map((lead) => ({
+      id: lead.id,
+      fechaLead: lead.createdAt.toISOString(),
+      totalLead: lead.totalLead,
+      edificioNombre: lead.edificio.nombre,
+      unidadCodigo: lead.unidad?.numero || lead.codigoUnidad || 'Sin código',
+      clienteNombre: lead.cliente.nombre,
+      brokerNombre: lead.broker.nombre,
+      comision: lead.comision || 0,
+      conciliado: lead.conciliado,
     }))
 
     return NextResponse.json({
-      contratos: contratosPendientes,
-      count: contratosPendientes.length,
+      leads: leadsPendientes,
+      count: leadsPendientes.length,
       period: {
         mes: mesNum,
         year: yearNum,
@@ -93,7 +93,7 @@ export async function GET(request: NextRequest) {
       },
     })
   } catch (error) {
-    console.error('Error fetching contratos pendientes:', error)
+    console.error('Error fetching leads pendientes:', error)
     return NextResponse.json(
       { error: 'Error interno del servidor' },
       { status: 500 }

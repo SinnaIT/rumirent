@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
     const token = await generateToken({
       userId: user.id,
       email: user.email,
-      role: user.role as 'ADMIN' | 'CONTRATISTA'
+      role: user.role as 'ADMIN' | 'BROKER'
     })
 
     console.log('Generated token:', token.substring(0, 50) + '...')

@@ -5,7 +5,7 @@ import { prisma } from '@/lib/db'
 export async function GET(request: NextRequest) {
   try {
     const authResult = await verifyAuth(request)
-    if (!authResult.success || authResult.user?.role !== 'CONTRATISTA') {
+    if (!authResult.success || authResult.user?.role !== 'BROKER') {
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
     }
 
@@ -22,10 +22,10 @@ export async function GET(request: NextRequest) {
     const fechaInicio = new Date(yearNum, 0, 1)
     const fechaFin = new Date(yearNum, 11, 31, 23, 59, 59, 999)
 
-    // Buscar todos los contratos del contratista en el año
-    const contratos = await prisma.contrato.findMany({
+    // Buscar todos los leads del broker en el año
+    const leads = await prisma.lead.findMany({
       where: {
-        contratistaId: authResult.user.id,
+        brokerId: authResult.user.id,
         createdAt: {
           gte: fechaInicio,
           lte: fechaFin,
@@ -54,19 +54,19 @@ export async function GET(request: NextRequest) {
     ]
 
     const resumenPorMes = meses.map((nombreMes, index) => {
-      // Filtrar contratos del mes actual
-      const contratosMes = contratos.filter(contrato => {
-        const mesContrato = contrato.createdAt.getMonth()
-        return mesContrato === index
+      // Filtrar leads del mes actual
+      const leadsMes = leads.filter(lead => {
+        const mesLead = lead.createdAt.getMonth()
+        return mesLead === index
       })
 
       // Calcular totales para el mes
       let totalComisiones = 0
-      let cantidadVentas = contratosMes.length
+      let cantidadVentas = leadsMes.length
 
-      contratosMes.forEach(contrato => {
+      leadsMes.forEach(lead => {
         // Usar el campo comision que ya está calculado en la BD
-        const montoComision = contrato.comision || 0
+        const montoComision = lead.comision || 0
         totalComisiones += montoComision
       })
 
