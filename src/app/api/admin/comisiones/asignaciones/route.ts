@@ -28,8 +28,7 @@ export async function GET(request: NextRequest) {
       edificio: {
         id: edificio.id,
         nombre: edificio.nombre,
-        direccion: edificio.direccion,
-        estado: edificio.estado
+        direccion: edificio.direccion
       },
       comision: edificio.comision ? {
         id: edificio.comision.id,

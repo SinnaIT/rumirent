@@ -57,10 +57,6 @@ interface Proyecto {
   updatedAt: string
 }
 
-const ESTADOS_EDIFICIO = [
-  { value: 'ENTREGA_INMEDIATA', label: 'Entrega Inmediata', color: 'bg-green-100 text-green-800' },
-  { value: 'ENTREGA_FUTURA', label: 'Entrega Futura', color: 'bg-blue-100 text-blue-800' }
-]
 
 export default function ContratistaProyectosPage() {
   const router = useRouter()
@@ -101,10 +97,6 @@ export default function ContratistaProyectosPage() {
     setExpandedProjects(newExpanded)
   }
 
-  const formatearEstado = (estado: string) => {
-    const estadoObj = ESTADOS_EDIFICIO.find(e => e.value === estado)
-    return estadoObj || { label: estado, color: 'bg-gray-100 text-gray-800' }
-  }
 
   const handleGenerarContrato = (unidadId: string) => {
     router.push(`/contratista/generar-contrato?unidadId=${unidadId}`)
@@ -210,7 +202,6 @@ export default function ContratistaProyectosPage() {
           </Card>
         ) : (
           proyectos.map((proyecto) => {
-            const estado = formatearEstado(proyecto.estado)
             const isExpanded = expandedProjects.has(proyecto.id)
 
             return (
@@ -234,9 +225,6 @@ export default function ContratistaProyectosPage() {
                           </div>
                         </div>
                         <div className="flex items-center space-x-4">
-                          <Badge className={estado.color}>
-                            {estado.label}
-                          </Badge>
                           <div className="text-right">
                             <div className="text-sm font-medium">
                               {proyecto.unidadesDisponibles} de {proyecto.totalUnidades}
