@@ -757,8 +757,8 @@ async function main() {
       (unidad.metros2! * 1500000) + Math.random() * 50000000 : // Precio por m2 + variación
       50000000 + Math.random() * 150000000 // Precio manual
 
-    const totallead = Math.round(precioBase / 1000000) * 1000000 // Redondear a millones
-    const montoUf = Math.round(totallead / 35000) // Aprox UF a 35.000 CLP
+    const totalLead = Math.round(precioBase / 1000000) * 1000000 // Redondear a millones
+    const montoUf = Math.round(totalLead / 35000) // Aprox UF a 35.000 CLP
 
     // Calcular comisión según tipo de unidad
     let porcentajeComision = 0.05 // Default 5%
@@ -768,7 +768,7 @@ async function main() {
       porcentajeComision = comisionTipo ? comisionTipo.porcentaje : comisionEdificio.porcentaje
     }
 
-    const comision = Math.round(totallead * porcentajeComision)
+    const comision = Math.round(totalLead * porcentajeComision)
     const estado = estados[Math.floor(Math.random() * estados.length)]
 
     // Fechas progresivas a lo largo del año
@@ -787,12 +787,12 @@ async function main() {
 
     const leadData = {
       codigoUnidad,
-      totallead,
+      totalLead: totalLead,
       montoUf,
       comision,
       estado,
       fechaPagoReserva: fechaReserva,
-      fechaPagolead: fechalead,
+      fechaPagoLead: fechalead,
       fechaCheckin: fechaCheckin,
       postulacion: postulaciones[Math.floor(Math.random() * postulaciones.length)],
       observaciones: [
@@ -838,8 +838,8 @@ async function main() {
       (unidad.metros2! * 1600000) + Math.random() * 60000000 : // Precios 2025 más altos
       60000000 + Math.random() * 180000000 // Precio manual 2025
 
-    const totallead = Math.round(precioBase / 1000000) * 1000000 // Redondear a millones
-    const montoUf = Math.round(totallead / 36000) // UF estimada a 36.000 CLP en 2025
+    const totalLead = Math.round(precioBase / 1000000) * 1000000 // Redondear a millones
+    const montoUf = Math.round(totalLead / 36000) // UF estimada a 36.000 CLP en 2025
 
     // Calcular comisión según tipo de unidad
     let porcentajeComision = 0.05 // Default 5%
@@ -849,7 +849,7 @@ async function main() {
       porcentajeComision = comisionTipo ? comisionTipo.porcentaje : comisionEdificio.porcentaje
     }
 
-    const comision = Math.round(totallead * porcentajeComision)
+    const comision = Math.round(totalLead * porcentajeComision)
     const estado = estados[Math.floor(Math.random() * estados.length)]
 
     // Distribuir fechas a lo largo de 2025 (cada lead en diferente mes)
@@ -871,12 +871,12 @@ async function main() {
 
     const leadData2025 = {
       codigoUnidad,
-      totallead,
+      totalLead,
       montoUf,
       comision,
       estado,
       fechaPagoReserva: fechaReserva,
-      fechaPagolead: fechalead,
+      fechaPagoLead: fechalead,
       fechaCheckin: fechaCheckin,
       postulacion: postulaciones[Math.floor(Math.random() * postulaciones.length)],
       observaciones: [
