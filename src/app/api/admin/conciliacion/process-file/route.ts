@@ -229,7 +229,7 @@ export async function POST(request: NextRequest) {
 
     const leads = await prisma.lead.findMany({
       where: {
-        createdAt: {
+        fechaCheckin: {
           gte: fechaInicio,
           lte: fechaFin,
         },
@@ -241,12 +241,12 @@ export async function POST(request: NextRequest) {
         edificio: { select: { nombre: true } },
         unidad: { select: { numero: true } },
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { fechaCheckin: 'desc' },
     })
 
     const leadsSistema: LeadSistema[] = leads.map((lead) => ({
       id: lead.id,
-      fechaLead: lead.createdAt.toISOString(),
+      fechaLead: lead.fechaCheckin?.toISOString() || lead.createdAt.toISOString(),
       totalLead: lead.totalLead,
       edificioNombre: lead.edificio.nombre,
       unidadCodigo: lead.unidad?.numero || lead.codigoUnidad || 'Sin código',

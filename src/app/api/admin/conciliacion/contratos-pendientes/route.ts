@@ -31,10 +31,10 @@ export async function GET(request: NextRequest) {
       year: yearNum
     })
 
-    // Buscar leads del período que NO estén conciliados
+    // Buscar leads del período que NO estén conciliados (filtrados por fecha de checkin)
     const leads = await prisma.lead.findMany({
       where: {
-        createdAt: {
+        fechaCheckin: {
           gte: fechaInicio,
           lte: fechaFin,
         },
@@ -72,7 +72,7 @@ export async function GET(request: NextRequest) {
     // Formatear datos para el frontend
     const leadsPendientes = leads.map((lead) => ({
       id: lead.id,
-      fechaLead: lead.createdAt.toISOString(),
+      fechaLead: lead.fechaCheckin?.toISOString() || lead.createdAt.toISOString(),
       totalLead: lead.totalLead,
       edificioNombre: lead.edificio.nombre,
       unidadCodigo: lead.unidad?.numero || lead.codigoUnidad || 'Sin código',

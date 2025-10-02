@@ -34,7 +34,7 @@ import {
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import {
-  Users,
+  Shield,
   Plus,
   Search,
   Edit,
@@ -43,23 +43,24 @@ import {
   Phone,
   Calendar,
   UserCheck,
-  UserX
+  UserX,
+  ShieldCheck,
+  ShieldX
 } from 'lucide-react'
 import { toast } from 'sonner'
 
-interface Broker {
+interface Usuario {
   id: string
   email: string
   nombre: string
   rut: string
   telefono: string | null
   activo: boolean
-  ventasRealizadas: number
-  comisionesTotales: number
   createdAt: string
+  updatedAt: string
 }
 
-interface BrokerFormData {
+interface UsuarioFormData {
   email: string
   nombre: string
   rut: string
@@ -68,14 +69,14 @@ interface BrokerFormData {
   confirmPassword: string
 }
 
-export default function BrokersPage() {
-  const [brokers, setBrokers] = useState<Broker[]>([])
+export default function UsuariosPage() {
+  const [usuarios, setUsuarios] = useState<Usuario[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
-  const [editingBroker, setEditingBroker] = useState<Broker | null>(null)
-  const [formData, setFormData] = useState<BrokerFormData>({
+  const [editingUsuario, setEditingUsuario] = useState<Usuario | null>(null)
+  const [formData, setFormData] = useState<UsuarioFormData>({
     email: '',
     nombre: '',
     rut: '',
@@ -84,16 +85,16 @@ export default function BrokersPage() {
     confirmPassword: ''
   })
 
-  // Cargar brokers
-  const fetchBrokers = async () => {
+  // Cargar usuarios
+  const fetchUsuarios = async () => {
     try {
       setLoading(true)
-      const response = await fetch('/api/admin/brokers')
-      if (!response.ok) throw new Error('Error al cargar brokers')
+      const response = await fetch('/api/admin/usuarios')
+      if (!response.ok) throw new Error('Error al cargar usuarios')
       const data = await response.json()
-      setBrokers(data.brokers)
+      setUsuarios(data.usuarios)
     } catch (error) {
-      toast.error('Error al cargar los brokers')
+      toast.error('Error al cargar los usuarios admin')
       console.error(error)
     } finally {
       setLoading(false)
@@ -101,11 +102,11 @@ export default function BrokersPage() {
   }
 
   useEffect(() => {
-    fetchBrokers()
+    fetchUsuarios()
   }, [])
 
-  // Crear broker
-  const handleCreateBroker = async (e: React.FormEvent) => {
+  // Crear usuario
+  const handleCreateUsuario = async (e: React.FormEvent) => {
     e.preventDefault()
 
     if (formData.password !== formData.confirmPassword) {
@@ -114,7 +115,7 @@ export default function BrokersPage() {
     }
 
     try {
-      const response = await fetch('/api/admin/brokers', {
+      const response = await fetch('/api/admin/usuarios', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -128,22 +129,28 @@ export default function BrokersPage() {
 
       if (!response.ok) {
         const error = await response.json()
-        throw new Error(error.error || error.message || 'Error al crear broker')
+        throw new Error(error.error || error.message || 'Error al crear usuario')
       }
 
-      toast.success('Broker creado exitosamente')
+      toast.success('Usuario admin creado exitosamente')
       setIsCreateModalOpen(false)
       resetForm()
-      fetchBrokers()
+      fetchUsuarios()
     } catch (error: any) {
       toast.error(error.message)
     }
   }
 
-  // Editar broker
-  const handleEditBroker = async (e: React.FormEvent) => {
+  // Editar usuario
+  const handleEditUsuario = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!editingBroker) return
+    if (!editingUsuario) return
+
+    // Solo validar contraseñas si se ingresó una
+    if (formData.password && formData.password !== formData.confirmPassword) {
+      toast.error('Las contraseñas no coinciden')
+      return
+    }
 
     try {
       const updateData: any = {
@@ -152,11 +159,11 @@ export default function BrokersPage() {
         telefono: formData.telefono || undefined
       }
 
-      if (formData.password && formData.password === formData.confirmPassword) {
+      if (formData.password && formData.password.length >= 6) {
         updateData.password = formData.password
       }
 
-      const response = await fetch(`/api/admin/brokers/${editingBroker.id}`, {
+      const response = await fetch(`/api/admin/usuarios/${editingUsuario.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(updateData)
@@ -164,33 +171,33 @@ export default function BrokersPage() {
 
       if (!response.ok) {
         const error = await response.json()
-        throw new Error(error.error || error.message || 'Error al actualizar broker')
+        throw new Error(error.error || error.message || 'Error al actualizar usuario')
       }
 
-      toast.success('Broker actualizado exitosamente')
+      toast.success('Usuario actualizado exitosamente')
       setIsEditModalOpen(false)
-      setEditingBroker(null)
+      setEditingUsuario(null)
       resetForm()
-      fetchBrokers()
+      fetchUsuarios()
     } catch (error: any) {
       toast.error(error.message)
     }
   }
 
-  // Eliminar broker
-  const handleDeleteBroker = async (id: string) => {
+  // Eliminar usuario
+  const handleDeleteUsuario = async (id: string) => {
     try {
-      const response = await fetch(`/api/admin/brokers/${id}`, {
+      const response = await fetch(`/api/admin/usuarios/${id}`, {
         method: 'DELETE'
       })
 
       if (!response.ok) {
         const error = await response.json()
-        throw new Error(error.error || error.message || 'Error al eliminar broker')
+        throw new Error(error.error || error.message || 'Error al eliminar usuario')
       }
 
-      toast.success('Broker eliminado exitosamente')
-      fetchBrokers()
+      toast.success('Usuario eliminado exitosamente')
+      fetchUsuarios()
     } catch (error: any) {
       toast.error(error.message)
     }
@@ -199,7 +206,7 @@ export default function BrokersPage() {
   // Toggle activo/inactivo
   const handleToggleStatus = async (id: string, currentStatus: boolean) => {
     try {
-      const response = await fetch(`/api/admin/brokers/${id}/toggle-status`, {
+      const response = await fetch(`/api/admin/usuarios/${id}/toggle-status`, {
         method: 'PATCH'
       })
 
@@ -208,8 +215,8 @@ export default function BrokersPage() {
         throw new Error(error.error || error.message || 'Error al cambiar estado')
       }
 
-      toast.success(`Broker ${currentStatus ? 'desactivado' : 'activado'} exitosamente`)
-      fetchBrokers()
+      toast.success(`Usuario ${currentStatus ? 'desactivado' : 'activado'} exitosamente`)
+      fetchUsuarios()
     } catch (error: any) {
       toast.error(error.message)
     }
@@ -226,32 +233,31 @@ export default function BrokersPage() {
     })
   }
 
-  const openEditModal = (broker: Broker) => {
-    setEditingBroker(broker)
+  const openEditModal = (usuario: Usuario) => {
+    setEditingUsuario(usuario)
     setFormData({
-      email: broker.email,
-      nombre: broker.nombre,
-      rut: broker.rut,
-      telefono: broker.telefono || '',
+      email: usuario.email,
+      nombre: usuario.nombre,
+      rut: usuario.rut,
+      telefono: usuario.telefono || '',
       password: '',
       confirmPassword: ''
     })
     setIsEditModalOpen(true)
   }
 
-  // Filtrar brokers
-  const filteredBrokers = brokers.filter(broker =>
-    broker.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    broker.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    broker.rut.toLowerCase().includes(searchTerm.toLowerCase())
+  // Filtrar usuarios
+  const filteredUsuarios = usuarios.filter(usuario =>
+    usuario.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    usuario.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    usuario.rut.toLowerCase().includes(searchTerm.toLowerCase())
   )
 
   // Estadísticas
   const stats = {
-    total: brokers.length,
-    activos: brokers.filter(c => c.activo).length,
-    inactivos: brokers.filter(c => !c.activo).length,
-    ventasTotales: brokers.reduce((sum, c) => sum + c.ventasRealizadas, 0)
+    total: usuarios.length,
+    activos: usuarios.filter(u => u.activo).length,
+    inactivos: usuarios.filter(u => !u.activo).length
   }
 
   return (
@@ -259,21 +265,21 @@ export default function BrokersPage() {
       {/* Header */}
       <div className="flex items-start justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">Gestión de Brokers</h1>
-          <p className="text-muted-foreground mt-1">Administra los brokers del sistema</p>
+          <h1 className="text-3xl font-bold text-foreground">Gestión de Usuarios Admin</h1>
+          <p className="text-muted-foreground mt-1">Administra los usuarios administradores del sistema</p>
         </div>
         <Button onClick={() => setIsCreateModalOpen(true)} className="gap-2">
           <Plus className="h-4 w-4" />
-          Nuevo Broker
+          Nuevo Usuario Admin
         </Button>
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Brokers</CardTitle>
-            <Users className="h-4 w-4 text-primary" />
+            <CardTitle className="text-sm font-medium">Total Usuarios</CardTitle>
+            <Shield className="h-4 w-4 text-primary" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{stats.total}</div>
@@ -282,7 +288,7 @@ export default function BrokersPage() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Activos</CardTitle>
-            <UserCheck className="h-4 w-4 text-success" />
+            <ShieldCheck className="h-4 w-4 text-success" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-success">{stats.activos}</div>
@@ -291,19 +297,10 @@ export default function BrokersPage() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Inactivos</CardTitle>
-            <UserX className="h-4 w-4 text-muted-foreground" />
+            <ShieldX className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-muted-foreground">{stats.inactivos}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Ventas Totales</CardTitle>
-            <Calendar className="h-4 w-4 text-accent" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-accent">{stats.ventasTotales}</div>
           </CardContent>
         </Card>
       </div>
@@ -312,7 +309,7 @@ export default function BrokersPage() {
       <div className="relative max-w-md">
         <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
         <Input
-          placeholder="Buscar brokers..."
+          placeholder="Buscar usuarios admin..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
           className="pl-10"
@@ -322,7 +319,7 @@ export default function BrokersPage() {
       {/* Table */}
       <Card>
         <CardHeader>
-          <CardTitle>Lista de Brokers</CardTitle>
+          <CardTitle>Lista de Usuarios Administradores</CardTitle>
         </CardHeader>
         <CardContent>
           {loading ? (
@@ -338,35 +335,33 @@ export default function BrokersPage() {
                   <TableHead>Email</TableHead>
                   <TableHead>Teléfono</TableHead>
                   <TableHead>Estado</TableHead>
-                  <TableHead>Ventas</TableHead>
-                  <TableHead>Comisiones</TableHead>
-                  <TableHead>Registro</TableHead>
+                  <TableHead>Creado</TableHead>
                   <TableHead>Acciones</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredBrokers.length === 0 ? (
+                {filteredUsuarios.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
-                      No se encontraron brokers
+                    <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                      No se encontraron usuarios admin
                     </TableCell>
                   </TableRow>
                 ) : (
-                  filteredBrokers.map((broker) => (
-                    <TableRow key={broker.id}>
-                      <TableCell className="font-medium">{broker.nombre}</TableCell>
-                      <TableCell className="font-mono text-sm">{broker.rut}</TableCell>
+                  filteredUsuarios.map((usuario) => (
+                    <TableRow key={usuario.id}>
+                      <TableCell className="font-medium">{usuario.nombre}</TableCell>
+                      <TableCell className="font-mono text-sm">{usuario.rut}</TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
                           <Mail className="h-4 w-4 text-muted-foreground" />
-                          {broker.email}
+                          {usuario.email}
                         </div>
                       </TableCell>
                       <TableCell>
-                        {broker.telefono && broker.telefono.trim() !== '' ? (
+                        {usuario.telefono && usuario.telefono.trim() !== '' ? (
                           <div className="flex items-center gap-2">
                             <Phone className="h-4 w-4 text-muted-foreground" />
-                            {broker.telefono}
+                            {usuario.telefono}
                           </div>
                         ) : (
                           <span className="text-muted-foreground">-</span>
@@ -376,26 +371,22 @@ export default function BrokersPage() {
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => handleToggleStatus(broker.id, broker.activo)}
+                          onClick={() => handleToggleStatus(usuario.id, usuario.activo)}
                         >
-                          <Badge variant={broker.activo ? "default" : "secondary"}>
-                            {broker.activo ? "Activo" : "Inactivo"}
+                          <Badge variant={usuario.activo ? "default" : "secondary"}>
+                            {usuario.activo ? "Activo" : "Inactivo"}
                           </Badge>
                         </Button>
                       </TableCell>
-                      <TableCell>{broker.ventasRealizadas}</TableCell>
-                      <TableCell className="font-mono">
-                        ${broker.comisionesTotales.toLocaleString()}
-                      </TableCell>
                       <TableCell className="text-sm text-muted-foreground">
-                        {new Date(broker.createdAt).toLocaleDateString()}
+                        {new Date(usuario.createdAt).toLocaleDateString()}
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => openEditModal(broker)}
+                            onClick={() => openEditModal(usuario)}
                           >
                             <Edit className="h-4 w-4" />
                           </Button>
@@ -407,16 +398,16 @@ export default function BrokersPage() {
                             </AlertDialogTrigger>
                             <AlertDialogContent>
                               <AlertDialogHeader>
-                                <AlertDialogTitle>¿Eliminar broker?</AlertDialogTitle>
+                                <AlertDialogTitle>¿Eliminar usuario admin?</AlertDialogTitle>
                                 <AlertDialogDescription>
-                                  Esta acción no se puede deshacer. Se eliminará permanentemente el broker
-                                  <strong> {broker.nombre}</strong> y toda su información asociada.
+                                  Esta acción no se puede deshacer. Se eliminará permanentemente el usuario
+                                  <strong> {usuario.nombre}</strong> y perderá acceso al sistema.
                                 </AlertDialogDescription>
                               </AlertDialogHeader>
                               <AlertDialogFooter>
                                 <AlertDialogCancel>Cancelar</AlertDialogCancel>
                                 <AlertDialogAction
-                                  onClick={() => handleDeleteBroker(broker.id)}
+                                  onClick={() => handleDeleteUsuario(usuario.id)}
                                   className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                                 >
                                   Eliminar
@@ -439,12 +430,12 @@ export default function BrokersPage() {
       <Dialog open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Crear Nuevo Broker</DialogTitle>
+            <DialogTitle>Crear Nuevo Usuario Admin</DialogTitle>
             <DialogDescription>
-              Complete los datos para crear un nuevo broker en el sistema.
+              Complete los datos para crear un nuevo usuario administrador en el sistema.
             </DialogDescription>
           </DialogHeader>
-          <form onSubmit={handleCreateBroker} className="space-y-4">
+          <form onSubmit={handleCreateUsuario} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="create-nombre">Nombre completo</Label>
               <Input
@@ -508,7 +499,7 @@ export default function BrokersPage() {
               <Button type="button" variant="outline" onClick={() => setIsCreateModalOpen(false)}>
                 Cancelar
               </Button>
-              <Button type="submit">Crear Broker</Button>
+              <Button type="submit">Crear Usuario</Button>
             </div>
           </form>
         </DialogContent>
@@ -518,12 +509,12 @@ export default function BrokersPage() {
       <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Editar Broker</DialogTitle>
+            <DialogTitle>Editar Usuario Admin</DialogTitle>
             <DialogDescription>
-              Modifique los datos del broker. Deje la contraseña vacía si no desea cambiarla.
+              Modifique los datos del usuario. Deje la contraseña vacía si no desea cambiarla.
             </DialogDescription>
           </DialogHeader>
-          <form onSubmit={handleEditBroker} className="space-y-4">
+          <form onSubmit={handleEditUsuario} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="edit-nombre">Nombre completo</Label>
               <Input

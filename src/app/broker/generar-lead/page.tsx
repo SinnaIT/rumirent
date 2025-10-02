@@ -22,7 +22,8 @@ import {
   User,
   DollarSign,
   Calendar,
-  Search
+  Search,
+  X
 } from 'lucide-react'
 
 interface Comision {
@@ -62,6 +63,13 @@ interface Cliente {
   rut: string
   email?: string
   telefono?: string
+  isOwnClient?: boolean
+  isHandledByAnotherBroker?: boolean
+  broker?: {
+    id: string
+    nombre: string
+    email: string
+  }
 }
 
 const ESTADOS_CONTRATO = [
@@ -91,6 +99,8 @@ export default function GenerarLeadPage() {
     telefono: ''
   })
   const [clientExists, setClientExists] = useState<boolean | null>(null)
+  const [clientHandledByAnotherBroker, setClientHandledByAnotherBroker] = useState<Cliente | null>(null)
+  const [clientCreatedInCurrentSession, setClientCreatedInCurrentSession] = useState(false)
   const [showClientModal, setShowClientModal] = useState(false)
   const [clientSearchTerm, setClientSearchTerm] = useState('')
 
@@ -175,6 +185,8 @@ export default function GenerarLeadPage() {
   const searchClientByRut = async (rut: string) => {
     if (!rut.trim()) {
       setClientExists(null)
+      setClientHandledByAnotherBroker(null)
+      setClientCreatedInCurrentSession(false)
       setClientData({ rut: '', nombre: '', email: '', telefono: '' })
       setFormData({ ...formData, clienteId: '' })
       return
@@ -187,17 +199,36 @@ export default function GenerarLeadPage() {
 
       if (data.success && data.cliente) {
         // Cliente encontrado
-        setClientExists(true)
-        setClientData({
-          rut: data.cliente.rut,
-          nombre: data.cliente.nombre,
-          email: data.cliente.email || '',
-          telefono: data.cliente.telefono || ''
-        })
-        setFormData({ ...formData, clienteId: data.cliente.id })
+        if (data.cliente.isHandledByAnotherBroker) {
+          // Cliente manejado por otro broker
+          setClientExists(false)
+          setClientHandledByAnotherBroker(data.cliente)
+          setClientCreatedInCurrentSession(false)
+          setClientData({
+            rut: data.cliente.rut,
+            nombre: data.cliente.nombre,
+            email: data.cliente.email || '',
+            telefono: data.cliente.telefono || ''
+          })
+          setFormData({ ...formData, clienteId: '' }) // No permitir uso del cliente
+        } else {
+          // Cliente propio
+          setClientExists(true)
+          setClientHandledByAnotherBroker(null)
+          setClientCreatedInCurrentSession(false)
+          setClientData({
+            rut: data.cliente.rut,
+            nombre: data.cliente.nombre,
+            email: data.cliente.email || '',
+            telefono: data.cliente.telefono || ''
+          })
+          setFormData({ ...formData, clienteId: data.cliente.id })
+        }
       } else {
         // Cliente no encontrado
         setClientExists(false)
+        setClientHandledByAnotherBroker(null)
+        setClientCreatedInCurrentSession(false)
         setClientData({ rut, nombre: '', email: '', telefono: '' })
         setFormData({ ...formData, clienteId: '' })
       }
@@ -205,9 +236,19 @@ export default function GenerarLeadPage() {
       console.error('Error:', error)
       toast.error('Error al buscar cliente')
       setClientExists(null)
+      setClientHandledByAnotherBroker(null)
+      setClientCreatedInCurrentSession(false)
     } finally {
       setSearchingClient(false)
     }
+  }
+
+  const clearClientData = () => {
+    setClientExists(null)
+    setClientHandledByAnotherBroker(null)
+    setClientCreatedInCurrentSession(false)
+    setClientData({ rut: '', nombre: '', email: '', telefono: '' })
+    setFormData({ ...formData, clienteId: '' })
   }
 
   const handleRutChange = (rut: string) => {
@@ -300,6 +341,11 @@ export default function GenerarLeadPage() {
       return
     }
 
+    if (clientHandledByAnotherBroker) {
+      toast.error('No puedes crear un lead para un cliente que está siendo manejado por otro vendedor')
+      return
+    }
+
     if (!formData.edificioId) {
       toast.error('Debe seleccionar un edificio')
       return
@@ -328,8 +374,8 @@ export default function GenerarLeadPage() {
 
       let clienteId = formData.clienteId
 
-      // Si el cliente no existe, crearlo primero
-      if (!clientExists && clientData.rut.trim() && clientData.nombre.trim()) {
+      // Si el cliente no existe y no fue creado en esta sesión, crearlo primero
+      if (!clientExists && !clientCreatedInCurrentSession && clientData.rut.trim() && clientData.nombre.trim()) {
         const clientResponse = await fetch('/api/broker/clientes', {
           method: 'POST',
           headers: {
@@ -347,11 +393,20 @@ export default function GenerarLeadPage() {
 
         if (clientData_response.success) {
           clienteId = clientData_response.cliente.id
+          setClientCreatedInCurrentSession(true)
+          setClientExists(true)
+          setFormData(prev => ({ ...prev, clienteId: clientData_response.cliente.id }))
           toast.success('Cliente creado exitosamente')
         } else {
           toast.error(clientData_response.error || 'Error al crear cliente')
           return
         }
+      }
+
+      // Verificar que tenemos un clienteId válido antes de proceder
+      if (!clienteId) {
+        toast.error('Error: No se pudo obtener el ID del cliente')
+        return
       }
 
       const comisionData = calculateComision()
@@ -569,16 +624,28 @@ export default function GenerarLeadPage() {
                         onBlur={(e) => handleRutChange(e.target.value)}
                         onKeyDown={(e) => {if (e.key === 'Enter') {handleRutChange(clientData.rut)}}}
                         placeholder="ej: 12.345.678-9"
+                        disabled={clientHandledByAnotherBroker !== null}
                         className={`${
-                          clientExists === true ? 'border-green-500 bg-green-50' :
+                          (clientExists === true && !clientHandledByAnotherBroker) || clientCreatedInCurrentSession ? 'border-green-500 bg-green-50' :
+                          clientHandledByAnotherBroker ? 'border-red-500 bg-red-50' :
                           clientExists === false ? 'border-yellow-500 bg-yellow-50' :
                           ''
-                        }`}
+                        } ${clientData.rut ? 'pr-10' : ''}`}
                       />
                       {searchingClient && (
                         <div className="absolute right-3 top-3">
                           <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
                         </div>
+                      )}
+                      {clientData.rut && !searchingClient && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={clearClientData}
+                          className="absolute right-1 top-1 h-8 w-8 p-0 hover:bg-gray-100"
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
                       )}
                     </div>
                   </div>
@@ -677,12 +744,53 @@ export default function GenerarLeadPage() {
                 </div>
               </div>
 
-              {clientExists === true && (
+              {clientExists === true && !clientCreatedInCurrentSession && (
                 <p className="text-sm text-green-600 flex items-center">
                   ✓ Cliente encontrado en el sistema
                 </p>
               )}
-              {clientExists === false && (
+              {clientCreatedInCurrentSession && (
+                <p className="text-sm text-blue-600 flex items-center">
+                  ✓ Cliente creado exitosamente en esta sesión
+                </p>
+              )}
+              {clientHandledByAnotherBroker && (
+                <div className="p-3 bg-red-50 rounded-lg border border-red-200">
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <p className="text-sm text-red-800 font-medium flex items-center">
+                        ⚠ Este cliente ya está siendo manejado por otro vendedor
+                      </p>
+                      <p className="text-xs text-red-600 mt-1">
+                        Vendedor: {clientHandledByAnotherBroker.broker?.nombre} ({clientHandledByAnotherBroker.broker?.email})
+                      </p>
+                      <p className="text-xs text-red-600">
+                        No puedes crear un lead para este cliente. Contacta al administrador si necesitas transferir el cliente.
+                      </p>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={clearClientData}
+                      className="ml-2 h-auto p-1 text-red-600 hover:text-red-800 hover:bg-red-100"
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  <div className="mt-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={clearClientData}
+                      className="text-red-700 border-red-300 hover:bg-red-100"
+                    >
+                      <X className="h-4 w-4 mr-1" />
+                      Buscar otro cliente
+                    </Button>
+                  </div>
+                </div>
+              )}
+              {clientExists === false && !clientHandledByAnotherBroker && (
                 <p className="text-sm text-yellow-600 flex items-center">
                   ⚠ Cliente no encontrado - se creará uno nuevo
                 </p>
@@ -696,6 +804,7 @@ export default function GenerarLeadPage() {
                     value={clientData.nombre}
                     onChange={(e) => setClientData({ ...clientData, nombre: e.target.value })}
                     placeholder="Nombre del cliente"
+                    disabled={clientHandledByAnotherBroker !== null}
                   />
                 </div>
 
@@ -707,6 +816,7 @@ export default function GenerarLeadPage() {
                     value={clientData.email}
                     onChange={(e) => setClientData({ ...clientData, email: e.target.value })}
                     placeholder="email@ejemplo.com"
+                    disabled={clientHandledByAnotherBroker !== null}
                   />
                 </div>
               </div>
@@ -718,10 +828,11 @@ export default function GenerarLeadPage() {
                   value={clientData.telefono}
                   onChange={(e) => setClientData({ ...clientData, telefono: e.target.value })}
                   placeholder="+56 9 1234 5678"
+                  disabled={clientHandledByAnotherBroker !== null}
                 />
               </div>
 
-              {clientExists === true && (
+              {clientExists === true && !clientHandledByAnotherBroker && !clientCreatedInCurrentSession && (
                 <div className="p-3 bg-green-50 rounded-lg border border-green-200">
                   <h4 className="font-medium text-sm text-green-800">Cliente Existente</h4>
                   <p className="text-sm text-green-700">
@@ -730,7 +841,16 @@ export default function GenerarLeadPage() {
                 </div>
               )}
 
-              {clientExists === false && (
+              {clientCreatedInCurrentSession && (
+                <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
+                  <h4 className="font-medium text-sm text-blue-800">Cliente Creado</h4>
+                  <p className="text-sm text-blue-700">
+                    El cliente ha sido creado exitosamente en esta sesión. Puede generar el lead ahora.
+                  </p>
+                </div>
+              )}
+
+              {clientExists === false && !clientHandledByAnotherBroker && !clientCreatedInCurrentSession && (
                 <div className="p-3 bg-yellow-50 rounded-lg border border-yellow-200">
                   <h4 className="font-medium text-sm text-yellow-800">Nuevo Cliente</h4>
                   <p className="text-sm text-yellow-700">
@@ -1054,9 +1174,11 @@ export default function GenerarLeadPage() {
           <Button
             className="w-full"
             onClick={handleSubmit}
-            disabled={saving || !clientData.rut.trim() || !clientData.nombre.trim() || !formData.edificioId || !formData.totalLead}
+            disabled={saving || !clientData.rut.trim() || !clientData.nombre.trim() || !formData.edificioId || !formData.totalLead || clientHandledByAnotherBroker !== null}
           >
-            {saving ? 'Generando...' : 'Generar Lead'}
+            {saving ? 'Generando...' :
+             clientHandledByAnotherBroker ? 'Cliente no disponible' :
+             'Generar Lead'}
           </Button>
         </div>
       </div>

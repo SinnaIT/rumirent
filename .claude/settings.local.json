@@ -23,7 +23,8 @@
       "Bash(set PRISMA_USER_CONSENT_FOR_DANGEROUS_AI_ACTION=si)",
       "Bash(node:*)",
       "Bash(find:*)",
-      "Bash(npx prisma:*)"
+      "Bash(npx prisma:*)",
+      "Bash(pnpm lint:*)"
     ],
     "deny": [],
     "ask": []

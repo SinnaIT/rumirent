@@ -62,6 +62,25 @@ interface Cliente {
   telefono?: string
 }
 
+interface ReglaComision {
+  id: string
+  cantidadMinima: number
+  cantidadMaxima: number | null
+  porcentaje: number
+  comision: {
+    id: string
+    nombre: string
+    codigo: string
+  }
+}
+
+interface ComisionBase {
+  id: string
+  nombre: string
+  codigo: string
+  porcentaje: number
+}
+
 interface Lead {
   id: string
   codigoUnidad?: string
@@ -80,6 +99,8 @@ interface Lead {
     nombre: string
     direccion: string
   } | null
+  reglaComision?: ReglaComision
+  comisionBase?: ComisionBase
   createdAt: string
   updatedAt: string
 }
@@ -531,14 +552,13 @@ export default function BrokerVentasPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Lead</TableHead>
+                    <TableHead>Acciones</TableHead>
                     <TableHead>Cliente</TableHead>
                     <TableHead>Unidad / Edificio</TableHead>
                     <TableHead>Estado</TableHead>
                     <TableHead>Precio</TableHead>
                     <TableHead>Comisión</TableHead>
                     <TableHead>Fecha Creación</TableHead>
-                    <TableHead className="text-right">Acciones</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -549,10 +569,14 @@ export default function BrokerVentasPage() {
                     return (
                       <TableRow key={lead.id}>
                         <TableCell>
-                          <div className="font-medium">#{lead.id.slice(-8)}</div>
-                          <div className="text-sm text-muted-foreground">
-                            {lead.codigoUnidad ? `Código: ${lead.codigoUnidad}` : 'Sistema'}
-                          </div>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => abrirEdicionLead(lead)}
+                          >
+                            <Edit className="w-4 h-4 mr-2" />
+                            Editar
+                          </Button>
                         </TableCell>
                         <TableCell>
                           <div>
@@ -612,22 +636,45 @@ export default function BrokerVentasPage() {
                           <div className="font-mono font-medium text-green-600">
                             {formatCurrency(lead.comision)}
                           </div>
-                          <div className="text-xs text-muted-foreground">
-                            {lead.unidad?.tipoUnidad.comision ? lead.unidad.tipoUnidad.comision.nombre : 'Base'}
-                          </div>
+                          {lead.reglaComision ? (
+                            <div className="text-xs space-y-1 mt-1 p-2 bg-green-50 rounded border">
+                              <div className="flex items-center justify-between">
+                                <span className="font-medium text-green-800">Regla Aplicada:</span>
+                                <span className="text-green-700 font-medium">{(lead.reglaComision.porcentaje * 100).toFixed(1)}%</span>
+                              </div>
+                              <div className="text-green-700">
+                                {lead.reglaComision.comision.nombre}
+                              </div>
+                              <div className="text-green-600 text-[10px]">
+                                Cálculo: {formatCurrency(lead.totalLead)} × {(lead.reglaComision.porcentaje * 100).toFixed(1)}%
+                              </div>
+                              <div className="text-green-600 text-[10px]">
+                                Rango: {lead.reglaComision.cantidadMinima}+
+                                {lead.reglaComision.cantidadMaxima && ` - ${lead.reglaComision.cantidadMaxima}`} leads
+                              </div>
+                            </div>
+                          ) : lead.comisionBase ? (
+                            <div className="text-xs mt-1 p-2 bg-blue-50 rounded border">
+                              <div className="text-blue-700 font-medium">
+                                {lead.comisionBase.nombre}
+                              </div>
+                              <div className="text-blue-600 text-[10px]">
+                                Base: {(lead.comisionBase.porcentaje * 100).toFixed(1)}%
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="text-xs mt-1 p-2 bg-gray-50 rounded border">
+                              <div className="text-gray-600 font-medium">
+                                {lead.unidad?.tipoUnidad.comision ? lead.unidad.tipoUnidad.comision.nombre : 'Comisión Base'}
+                              </div>
+                              <div className="text-gray-500 text-[10px]">
+                                Sin reglas aplicadas
+                              </div>
+                            </div>
+                          )}
                         </TableCell>
                         <TableCell className="text-muted-foreground">
                           {new Date(lead.createdAt).toLocaleDateString('es-ES')}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => abrirEdicionLead(lead)}
-                          >
-                            <Edit className="w-4 h-4 mr-2" />
-                            Editar
-                          </Button>
                         </TableCell>
                       </TableRow>
                     )
@@ -668,32 +715,59 @@ export default function BrokerVentasPage() {
 
             <div className="grid grid-cols-1 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="fechaPagoReservaEdicion">Fecha Pago de Reserva</Label>
+                <Label htmlFor="fechaPagoReservaEdicion">
+                  Fecha Pago de Reserva
+                  {leadEditando?.fechaPagoReserva && (
+                    <span className="text-xs text-muted-foreground ml-2">
+                      (No se puede modificar después de guardada)
+                    </span>
+                  )}
+                </Label>
                 <Input
                   id="fechaPagoReservaEdicion"
                   type="date"
                   value={datosEdicion.fechaPagoReserva}
                   onChange={(e) => setDatosEdicion({ ...datosEdicion, fechaPagoReserva: e.target.value })}
+                  disabled={leadEditando?.fechaPagoReserva !== null && leadEditando?.fechaPagoReserva !== undefined}
+                  className={leadEditando?.fechaPagoReserva ? "bg-muted cursor-not-allowed opacity-60" : ""}
                 />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="fechaPagoLeadEdicion">Fecha Pago de Lead</Label>
+                <Label htmlFor="fechaPagoLeadEdicion">
+                  Fecha Pago de Lead
+                  {leadEditando?.fechaPagoLead && (
+                    <span className="text-xs text-muted-foreground ml-2">
+                      (No se puede modificar después de guardada)
+                    </span>
+                  )}
+                </Label>
                 <Input
                   id="fechaPagoLeadEdicion"
                   type="date"
                   value={datosEdicion.fechaPagoLead}
                   onChange={(e) => setDatosEdicion({ ...datosEdicion, fechaPagoLead: e.target.value })}
+                  disabled={leadEditando?.fechaPagoLead !== null && leadEditando?.fechaPagoLead !== undefined}
+                  className={leadEditando?.fechaPagoLead ? "bg-muted cursor-not-allowed opacity-60" : ""}
                 />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="fechaCheckinEdicion">Fecha Check-in</Label>
+                <Label htmlFor="fechaCheckinEdicion">
+                  Fecha Check-in
+                  {leadEditando?.fechaCheckin && (
+                    <span className="text-xs text-muted-foreground ml-2">
+                      (No se puede modificar después de guardada)
+                    </span>
+                  )}
+                </Label>
                 <Input
                   id="fechaCheckinEdicion"
                   type="date"
                   value={datosEdicion.fechaCheckin}
                   onChange={(e) => setDatosEdicion({ ...datosEdicion, fechaCheckin: e.target.value })}
+                  disabled={leadEditando?.fechaCheckin !== null && leadEditando?.fechaCheckin !== undefined}
+                  className={leadEditando?.fechaCheckin ? "bg-muted cursor-not-allowed opacity-60" : ""}
                 />
               </div>
             </div>

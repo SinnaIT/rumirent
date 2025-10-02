@@ -106,6 +106,7 @@ model Lead {
   conciliado            Boolean        @default(false)
   fechaConciliacion     DateTime?
   reglaComisionId       String?
+  comisionId            String?
   createdAt             DateTime       @default(now())
   updatedAt             DateTime       @updatedAt
   brokerId         String
@@ -117,6 +118,7 @@ model Lead {
   unidad                Unidad?        @relation(fields: [unidadId], references: [id])
   edificio              Edificio       @relation("LeadEdificio", fields: [edificioId], references: [id])
   reglaComision         ReglaComision? @relation(fields: [reglaComisionId], references: [id])
+  comisionBase          Comision?      @relation("LeadComisionBase", fields: [comisionId], references: [id])
 
   @@map("leads")
 }
@@ -133,6 +135,7 @@ model Comision {
   tiposUnidad        TipoUnidadEdificio[]       @relation("TipoUnidadComision")
   cambiosProgramados CambioComisionProgramado[]
   reglasComision     ReglaComision[]
+  leadsComisionBase  Lead[]                     @relation("LeadComisionBase")
 
   @@map("comisiones")
 }

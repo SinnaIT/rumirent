@@ -42,6 +42,25 @@ export async function GET(request: NextRequest) {
             nombre: true,
             direccion: true
           }
+        },
+        reglaComision: {
+          include: {
+            comision: {
+              select: {
+                id: true,
+                nombre: true,
+                codigo: true
+              }
+            }
+          }
+        },
+        comisionBase: {
+          select: {
+            id: true,
+            nombre: true,
+            codigo: true,
+            porcentaje: true
+          }
         }
       },
       orderBy: {
@@ -90,6 +109,23 @@ export async function GET(request: NextRequest) {
         id: lead.edificio.id,
         nombre: lead.edificio.nombre,
         direccion: lead.edificio.direccion
+      } : null,
+      reglaComision: lead.reglaComision ? {
+        id: lead.reglaComision.id,
+        cantidadMinima: lead.reglaComision.cantidadMinima,
+        cantidadMaxima: lead.reglaComision.cantidadMaxima,
+        porcentaje: lead.reglaComision.porcentaje,
+        comision: {
+          id: lead.reglaComision.comision.id,
+          nombre: lead.reglaComision.comision.nombre,
+          codigo: lead.reglaComision.comision.codigo
+        }
+      } : null,
+      comisionBase: lead.comisionBase ? {
+        id: lead.comisionBase.id,
+        nombre: lead.comisionBase.nombre,
+        codigo: lead.comisionBase.codigo,
+        porcentaje: lead.comisionBase.porcentaje
       } : null,
       createdAt: lead.createdAt.toISOString(),
       updatedAt: lead.updatedAt.toISOString()

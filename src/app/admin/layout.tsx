@@ -19,7 +19,8 @@ import {
   ChevronRight,
   FileCheck,
   UserCheck,
-  FileText
+  FileText,
+  Shield
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/lib/hooks/use-auth'
@@ -28,6 +29,7 @@ const menuItems = [
   { icon: Home, label: 'Dashboard', href: '/admin' },
   { icon: Building2, label: 'Proyectos', href: '/admin/proyectos' },
   { icon: Users, label: 'Brokers', href: '/admin/brokers' },
+  { icon: Shield, label: 'Usuarios Admin', href: '/admin/usuarios' },
   { icon: UserCheck, label: 'Clientes', href: '/admin/clientes' },
   { icon: FileText, label: 'Leads', href: '/admin/leads' },
   { icon: Calculator, label: 'Comisiones', href: '/admin/comisiones' },

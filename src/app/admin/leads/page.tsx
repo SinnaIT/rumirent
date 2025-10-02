@@ -20,7 +20,8 @@ import {
   DollarSign,
   TrendingUp,
   Users,
-  CheckCircle
+  CheckCircle,
+  Calculator
 } from 'lucide-react'
 
 interface Broker {
@@ -73,6 +74,13 @@ interface ReglaComision {
   }
 }
 
+interface ComisionBase {
+  id: string
+  nombre: string
+  codigo: string
+  porcentaje: number
+}
+
 interface Lead {
   id: string
   codigoUnidad?: string
@@ -92,6 +100,7 @@ interface Lead {
   unidad?: Unidad
   edificio: Edificio
   reglaComision?: ReglaComision
+  comisionBase?: ComisionBase
   createdAt: string
   updatedAt: string
 }
@@ -109,8 +118,13 @@ export default function AdminLeadsPage() {
   const [brokers, setBrokers] = useState<Broker[]>([])
   const [clientes, setClientes] = useState<Cliente[]>([])
   const [reglasComision, setReglasComision] = useState<ReglaComision[]>([])
+  const [comisiones, setComisiones] = useState<ComisionBase[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [recalculando, setRecalculando] = useState(false)
+  const [showRecalculationDialog, setShowRecalculationDialog] = useState(false)
+  const [selectedMonth, setSelectedMonth] = useState<string>(() => (new Date().getMonth() + 1).toString())
+  const [selectedYear, setSelectedYear] = useState<string>(() => new Date().getFullYear().toString())
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedBroker, setSelectedBroker] = useState('todos')
   const [selectedCliente, setSelectedCliente] = useState('todos')
@@ -133,7 +147,8 @@ export default function AdminLeadsPage() {
     conciliado: false,
     brokerId: '',
     clienteId: '',
-    reglaComisionId: ''
+    reglaComisionId: '',
+    comisionId: ''
   })
 
   useEffect(() => {
@@ -141,6 +156,7 @@ export default function AdminLeadsPage() {
     fetchBrokers()
     fetchClientes()
     fetchReglasComision()
+    fetchComisiones()
   }, [])
 
   useEffect(() => {
@@ -201,6 +217,43 @@ export default function AdminLeadsPage() {
     }
   }
 
+  const recalcularComisiones = async () => {
+    try {
+      setRecalculando(true)
+      setShowRecalculationDialog(false)
+
+      const response = await fetch('/api/admin/leads/recalcular-comisiones', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          mes: selectedMonth,
+          año: selectedYear
+        })
+      })
+
+      const data = await response.json()
+
+      if (data.success) {
+        toast.success(data.message)
+        // Recargar los leads para mostrar las comisiones actualizadas
+        await fetchLeads()
+
+        // Mostrar estadísticas del proceso
+        const stats = data.estadisticas
+        toast.success(`Proceso completado: ${stats.leadsActualizados} de ${stats.leadsEncontrados} leads procesados`)
+      } else {
+        toast.error(data.error || 'Error al recalcular comisiones')
+      }
+    } catch (error) {
+      console.error('Error:', error)
+      toast.error('Error de conexión al recalcular comisiones')
+    } finally {
+      setRecalculando(false)
+    }
+  }
+
   const fetchBrokers = async () => {
     try {
       const response = await fetch('/api/admin/brokers')
@@ -246,6 +299,21 @@ export default function AdminLeadsPage() {
     }
   }
 
+  const fetchComisiones = async () => {
+    try {
+      const response = await fetch('/api/admin/comisiones')
+      const data = await response.json()
+
+      if (data.success) {
+        setComisiones(data.comisiones)
+      } else {
+        console.error('Error al cargar comisiones:', data.error)
+      }
+    } catch (error) {
+      console.error('Error:', error)
+    }
+  }
+
   const resetForm = () => {
     setFormData({
       codigoUnidad: '',
@@ -261,7 +329,8 @@ export default function AdminLeadsPage() {
       conciliado: false,
       brokerId: '',
       clienteId: '',
-      reglaComisionId: 'none'
+      reglaComisionId: 'none',
+      comisionId: 'none'
     })
     setEditingLead(null)
   }
@@ -281,7 +350,8 @@ export default function AdminLeadsPage() {
       conciliado: lead.conciliado,
       brokerId: lead.broker.id,
       clienteId: lead.cliente.id,
-      reglaComisionId: lead.reglaComision?.id || 'none'
+      reglaComisionId: lead.reglaComision?.id || 'none',
+      comisionId: lead.comisionBase?.id || 'none'
     })
     setEditingLead(lead)
     setIsEditDialogOpen(true)
@@ -307,7 +377,8 @@ export default function AdminLeadsPage() {
         },
         body: JSON.stringify({
           ...formData,
-          reglaComisionId: formData.reglaComisionId === 'none' ? null : formData.reglaComisionId
+          reglaComisionId: formData.reglaComisionId === 'none' ? null : formData.reglaComisionId,
+          comisionId: formData.comisionId === 'none' ? null : formData.comisionId
         })
       })
 
@@ -366,14 +437,24 @@ export default function AdminLeadsPage() {
             Administra todos los leads del sistema con filtros avanzados
           </p>
         </div>
-        <Button
-          variant="outline"
-          onClick={fetchLeads}
-          disabled={loading}
-        >
-          <RefreshCw className="w-4 h-4 mr-2" />
-          Actualizar
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            onClick={fetchLeads}
+            disabled={loading}
+          >
+            <RefreshCw className="w-4 h-4 mr-2" />
+            Actualizar
+          </Button>
+          <Button
+            variant="default"
+            onClick={() => setShowRecalculationDialog(true)}
+            disabled={loading || recalculando}
+          >
+            <Calculator className="w-4 h-4 mr-2" />
+            {recalculando ? 'Recalculando...' : 'Recalcular Comisiones'}
+          </Button>
+        </div>
       </div>
 
       {/* Stats Cards */}
@@ -590,12 +671,41 @@ export default function AdminLeadsPage() {
                         </TableCell>
                         <TableCell>
                           <div>
-                            <div className="font-medium">
+                            <div className="font-medium text-green-600">
                               {formatCurrency(lead.comision)}
                             </div>
-                            {lead.reglaComision && (
-                              <div className="text-xs text-muted-foreground">
-                                Regla: {lead.reglaComision.comision.codigo} ({(lead.reglaComision.porcentaje * 100).toFixed(1)}%)
+                            {lead.reglaComision ? (
+                              <div className="text-xs space-y-1 mt-1 p-2 bg-blue-50 rounded border">
+                                <div className="flex items-center justify-between">
+                                  <span className="font-medium text-blue-800">Regla Aplicada:</span>
+                                  <span className="text-blue-700 font-medium">{(lead.reglaComision.porcentaje * 100).toFixed(1)}%</span>
+                                </div>
+                                <div className="text-blue-700">
+                                  {lead.reglaComision.comision.nombre}
+                                </div>
+                                <div className="text-blue-600 text-[10px]">
+                                  Cálculo: {formatCurrency(lead.totalLead)} × {(lead.reglaComision.porcentaje * 100).toFixed(1)}%
+                                </div>
+                                <div className="text-blue-600 text-[10px]">
+                                  Rango: {lead.reglaComision.cantidadMinima}+
+                                  {lead.reglaComision.cantidadMaxima && ` - ${lead.reglaComision.cantidadMaxima}`} leads
+                                </div>
+                              </div>
+                            ) : lead.comisionBase ? (
+                              <div className="text-xs mt-1 p-2 bg-blue-50 rounded border">
+                                <div className="text-blue-700 font-medium">
+                                  {lead.comisionBase.nombre}
+                                </div>
+                                <div className="text-blue-600 text-[10px]">
+                                  Base: {(lead.comisionBase.porcentaje * 100).toFixed(1)}%
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="text-xs mt-1 p-2 bg-gray-50 rounded border">
+                                <div className="text-gray-600 font-medium">Comisión Base</div>
+                                <div className="text-gray-500 text-[10px]">
+                                  Sin reglas aplicadas
+                                </div>
                               </div>
                             )}
                           </div>
@@ -732,6 +842,28 @@ export default function AdminLeadsPage() {
                                 </div>
 
                                 <div className="grid grid-cols-1 gap-2">
+                                  <Label htmlFor="comisionBase">Comisión Base (Opcional)</Label>
+                                  <Select
+                                    value={formData.comisionId}
+                                    onValueChange={(value: string) => setFormData({ ...formData, comisionId: value })}
+                                  >
+                                    <SelectTrigger>
+                                      <SelectValue placeholder="Seleccionar comisión base" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      <SelectItem value="none">Sin comisión base específica</SelectItem>
+                                      {comisiones
+                                        .sort((a, b) => a.nombre.localeCompare(b.nombre))
+                                        .map((comision) => (
+                                          <SelectItem key={comision.id} value={comision.id}>
+                                            {comision.nombre} ({comision.codigo}) - {(comision.porcentaje * 100).toFixed(1)}%
+                                          </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+
+                                <div className="grid grid-cols-1 gap-2">
                                   <Label htmlFor="reglaComision">Regla de Comisión (Opcional)</Label>
                                   <Select
                                     value={formData.reglaComisionId}
@@ -849,6 +981,88 @@ export default function AdminLeadsPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Dialog para recalculo de comisiones */}
+      <Dialog open={showRecalculationDialog} onOpenChange={setShowRecalculationDialog}>
+        <DialogContent className="sm:max-w-[400px]">
+          <DialogHeader>
+            <DialogTitle>Recalcular Comisiones</DialogTitle>
+            <DialogDescription>
+              Selecciona el mes y año para recalcular las comisiones basadas en las reglas configuradas.
+              Solo se procesarán leads con fecha de pago de reserva en el período seleccionado.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="month">Mes</Label>
+                <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Seleccionar mes" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="1">Enero</SelectItem>
+                    <SelectItem value="2">Febrero</SelectItem>
+                    <SelectItem value="3">Marzo</SelectItem>
+                    <SelectItem value="4">Abril</SelectItem>
+                    <SelectItem value="5">Mayo</SelectItem>
+                    <SelectItem value="6">Junio</SelectItem>
+                    <SelectItem value="7">Julio</SelectItem>
+                    <SelectItem value="8">Agosto</SelectItem>
+                    <SelectItem value="9">Septiembre</SelectItem>
+                    <SelectItem value="10">Octubre</SelectItem>
+                    <SelectItem value="11">Noviembre</SelectItem>
+                    <SelectItem value="12">Diciembre</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="year">Año</Label>
+                <Select value={selectedYear} onValueChange={setSelectedYear}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Seleccionar año" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="2024">2024</SelectItem>
+                    <SelectItem value="2025">2025</SelectItem>
+                    <SelectItem value="2026">2026</SelectItem>
+                    <SelectItem value="2027">2027</SelectItem>
+                    <SelectItem value="2028">2028</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
+              <p className="text-sm text-blue-800">
+                <strong>Período seleccionado:</strong> {selectedMonth && selectedYear ?
+                  new Date(parseInt(selectedYear), parseInt(selectedMonth) - 1, 1).toLocaleDateString('es-ES', { month: 'long', year: 'numeric' }) :
+                  'Selecciona mes y año'
+                }
+              </p>
+            </div>
+
+            <div className="flex justify-end gap-2">
+              <Button
+                variant="outline"
+                onClick={() => setShowRecalculationDialog(false)}
+                disabled={recalculando}
+              >
+                Cancelar
+              </Button>
+              <Button
+                onClick={recalcularComisiones}
+                disabled={recalculando || !selectedMonth || !selectedYear}
+              >
+                <Calculator className="w-4 h-4 mr-2" />
+                {recalculando ? 'Recalculando...' : 'Recalcular'}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

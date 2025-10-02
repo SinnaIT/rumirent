@@ -23,18 +23,33 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    // Buscar cliente por RUT (solo clientes del broker actual)
+    // Buscar cliente por RUT en toda la base de datos
     const cliente = await prisma.cliente.findFirst({
       where: {
-        rut: rut.trim(),
-        brokerId: authResult.user.id
+        rut: rut.trim()
+      },
+      include: {
+        broker: {
+          select: {
+            id: true,
+            nombre: true,
+            email: true
+          }
+        }
       }
     })
 
     if (cliente) {
+      // Verificar si el cliente pertenece al broker actual
+      const isOwnClient = cliente.brokerId === authResult.user.id
+
       return NextResponse.json({
         success: true,
-        cliente
+        cliente: {
+          ...cliente,
+          isOwnClient,
+          isHandledByAnotherBroker: !isOwnClient
+        }
       })
     } else {
       return NextResponse.json({

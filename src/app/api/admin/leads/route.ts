@@ -104,6 +104,14 @@ export async function GET(request: NextRequest) {
             }
           }
         },
+        comisionBase: {
+          select: {
+            id: true,
+            nombre: true,
+            codigo: true,
+            porcentaje: true
+          }
+        },
         edificio: {
           select: {
             id: true,
@@ -144,6 +152,7 @@ export async function GET(request: NextRequest) {
       unidad: lead.unidad,
       edificio: lead.edificio,
       reglaComision: lead.reglaComision,
+      comisionBase: lead.comisionBase,
       createdAt: lead.createdAt.toISOString(),
       updatedAt: lead.updatedAt.toISOString()
     }))

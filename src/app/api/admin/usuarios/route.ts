@@ -14,10 +14,10 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    // Obtener todos los brokers con estadísticas
-    const brokers = await prisma.user.findMany({
+    // Obtener todos los usuarios admin
+    const admins = await prisma.user.findMany({
       where: {
-        role: 'BROKER'
+        role: 'ADMIN'
       },
       select: {
         id: true,
@@ -27,42 +27,20 @@ export async function GET(request: NextRequest) {
         telefono: true,
         activo: true,
         createdAt: true,
-        _count: {
-          select: {
-            leads: true
-          }
-        },
-        leads: {
-          select: {
-            comision: true
-          }
-        }
+        updatedAt: true
       },
       orderBy: {
         createdAt: 'desc'
       }
     })
 
-    // Formatear datos con estadísticas calculadas
-    const brokersFormatted = brokers.map(broker => ({
-      id: broker.id,
-      email: broker.email,
-      nombre: broker.nombre,
-      rut: broker.rut,
-      telefono: broker.telefono,
-      activo: broker.activo,
-      ventasRealizadas: broker._count.leads,
-      comisionesTotales: broker.leads.reduce((total, lead) => total + (lead.comision || 0), 0),
-      createdAt: broker.createdAt.toISOString()
-    }))
-
     return NextResponse.json({
       success: true,
-      brokers: brokersFormatted
+      usuarios: admins
     })
 
   } catch (error) {
-    console.error('Error al obtener brokers:', error)
+    console.error('Error al obtener usuarios admin:', error)
     return NextResponse.json(
       { error: 'Error interno del servidor' },
       { status: 500 }
@@ -126,15 +104,15 @@ export async function POST(request: NextRequest) {
     // Crear contraseña hasheada
     const hashedPassword = await bcrypt.hash(password, 12)
 
-    // Crear broker
-    const newbroker = await prisma.user.create({
+    // Crear usuario admin
+    const newAdmin = await prisma.user.create({
       data: {
         email,
         nombre,
         rut,
         telefono: telefono || undefined,
         password: hashedPassword,
-        role: 'BROKER',
+        role: 'ADMIN',
         activo: true
       },
       select: {
@@ -144,18 +122,19 @@ export async function POST(request: NextRequest) {
         rut: true,
         telefono: true,
         activo: true,
-        createdAt: true
+        createdAt: true,
+        updatedAt: true
       }
     })
 
     return NextResponse.json({
       success: true,
-      message: 'broker creado exitosamente',
-      broker: newbroker
+      message: 'Usuario admin creado exitosamente',
+      usuario: newAdmin
     }, { status: 201 })
 
   } catch (error) {
-    console.error('Error al crear broker:', error)
+    console.error('Error al crear usuario admin:', error)
 
     // Manejar errores específicos de Prisma
     if (error instanceof Error) {

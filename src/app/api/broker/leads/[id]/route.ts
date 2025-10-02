@@ -41,16 +41,53 @@ export async function PUT(
       )
     }
 
+    // Validar inmutabilidad de fechas - una vez guardadas, no se pueden modificar
+    const datosActualizacion: {
+      estado: string
+      observaciones: string | null
+      fechaPagoReserva?: Date
+      fechaPagoLead?: Date
+      fechaCheckin?: Date
+    } = {
+      estado: estado || leadExistente.estado,
+      observaciones: observaciones !== undefined ? observaciones : leadExistente.observaciones
+    }
+
+    // Solo permitir actualizar fechas si no han sido previamente guardadas (son null)
+    if (fechaPagoReserva) {
+      if (leadExistente.fechaPagoReserva !== null) {
+        return NextResponse.json(
+          { error: 'La fecha de pago de reserva no se puede modificar después de haber sido guardada' },
+          { status: 400 }
+        )
+      }
+      datosActualizacion.fechaPagoReserva = new Date(fechaPagoReserva)
+    }
+
+    if (fechaPagoLead) {
+      if (leadExistente.fechaPagoLead !== null) {
+        return NextResponse.json(
+          { error: 'La fecha de pago de lead no se puede modificar después de haber sido guardada' },
+          { status: 400 }
+        )
+      }
+      datosActualizacion.fechaPagoLead = new Date(fechaPagoLead)
+    }
+
+    if (fechaCheckin) {
+      if (leadExistente.fechaCheckin !== null) {
+        return NextResponse.json(
+          { error: 'La fecha de check-in no se puede modificar después de haber sido guardada' },
+          { status: 400 }
+        )
+      }
+      datosActualizacion.fechaCheckin = new Date(fechaCheckin)
+    }
+
     // Actualizar el lead
     const leadActualizado = await prisma.lead.update({
       where: { id },
-      data: {
-        estado: estado || leadExistente.estado,
-        fechaPagoReserva: fechaPagoReserva ? new Date(fechaPagoReserva) : leadExistente.fechaPagoReserva,
-        fechaPagoLead: fechaPagoLead ? new Date(fechaPagoLead) : leadExistente.fechaPagoLead,
-        fechaCheckin: fechaCheckin ? new Date(fechaCheckin) : leadExistente.fechaCheckin,
-        observaciones: observaciones !== undefined ? observaciones : leadExistente.observaciones
-      },
+      data: datosActualizacion,
       include: {
         cliente: true,
         unidad: {
