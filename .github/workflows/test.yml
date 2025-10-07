@@ -1,0 +1,90 @@
+name: Tests
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        node-version: [20.x]
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: test_db
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup pnpm
+      uses: pnpm/action-setup@v3
+      with:
+        version: 10
+
+    - name: Setup Node.js ${{ matrix.node-version }}
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ matrix.node-version }}
+        cache: 'pnpm'
+
+    - name: Install dependencies
+      run: pnpm install --frozen-lockfile
+
+    - name: Generate Prisma Client
+      run: pnpm db:generate
+      env:
+        DATABASE_URL: postgresql://test:test@localhost:5432/test_db
+
+    - name: Run Prisma Migrations
+      run: pnpm db:migrate:prod
+      env:
+        DATABASE_URL: postgresql://test:test@localhost:5432/test_db
+
+    - name: Run linting
+      run: pnpm lint
+
+    - name: Run unit tests
+      run: pnpm test:unit
+      env:
+        DATABASE_URL: postgresql://test:test@localhost:5432/test_db
+        JWT_SECRET: test-jwt-secret-key-for-ci-testing
+        JWT_EXPIRES_IN: 7d
+
+    - name: Run integration tests
+      run: pnpm test:integration
+      env:
+        DATABASE_URL: postgresql://test:test@localhost:5432/test_db
+        JWT_SECRET: test-jwt-secret-key-for-ci-testing
+        JWT_EXPIRES_IN: 7d
+
+    - name: Run coverage
+      run: pnpm test:coverage
+      env:
+        DATABASE_URL: postgresql://test:test@localhost:5432/test_db
+        JWT_SECRET: test-jwt-secret-key-for-ci-testing
+        JWT_EXPIRES_IN: 7d
+
+    - name: Upload coverage reports
+      uses: codecov/codecov-action@v4
+      if: success()
+      with:
+        files: ./coverage/coverage-final.json
+        flags: unittests
+        name: codecov-umbrella
