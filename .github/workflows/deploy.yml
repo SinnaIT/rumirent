@@ -8,23 +8,53 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: test_db
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
     steps:
       - uses: actions/checkout@v4
-      
-      - uses: pnpm/action-setup@v2
+
+      - uses: pnpm/action-setup@v3
         with:
-          version: 8
-      
+          version: 10
+
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'pnpm'
-      
+
       - name: Install dependencies
-        run: pnpm install
-      
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate Prisma Client
+        run: pnpm db:generate
+        env:
+          DATABASE_URL: postgresql://test:test@localhost:5432/test_db
+
+      - name: Run Prisma Migrations
+        run: pnpm db:migrate:prod
+        env:
+          DATABASE_URL: postgresql://test:test@localhost:5432/test_db
+
       - name: Run tests
         run: pnpm test:run
+        env:
+          DATABASE_URL: postgresql://test:test@localhost:5432/test_db
+          JWT_SECRET: test-jwt-secret-key-for-ci
+          JWT_EXPIRES_IN: 7d
 
   build-and-push:
     needs: test

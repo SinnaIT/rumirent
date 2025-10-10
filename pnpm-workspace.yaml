@@ -1,4 +1,7 @@
-minimunReleaseAge: 3600
+packages:
+  - '.'
 
-minimunReleaseAgeExclude:
+minimumReleaseAge: 3600
+
+minimumReleaseAgeExclude:
   - react
