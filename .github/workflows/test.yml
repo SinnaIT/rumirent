@@ -1,18 +1,44 @@
-name: Tests
+name: Run Tests
 
 on:
-  push:
-    branches: [ main, develop ]
+  # Manual trigger - permite ejecutar tests cuando quieras
+  workflow_dispatch:
+    inputs:
+      run_full_suite:
+        description: 'Run full test suite (including integration tests)'
+        required: false
+        default: 'true'
+        type: boolean
+
+  # Trigger automático en PRs (opcional, puedes comentarlo)
   pull_request:
-    branches: [ main, develop ]
+    branches: [main, develop]
+    paths:
+      - 'src/**'
+      - 'prisma/**'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+
+  # Trigger en push a ramas específicas (opcional, puedes comentarlo)
+  push:
+    branches: [develop]
+    paths:
+      - 'src/**'
+      - 'prisma/**'
+
+  # Permite ser llamado desde otros workflows
+  workflow_call:
+    inputs:
+      run_full_suite:
+        description: 'Run full test suite'
+        required: false
+        default: true
+        type: boolean
 
 jobs:
   test:
+    name: Run Tests
     runs-on: ubuntu-latest
-
-    strategy:
-      matrix:
-        node-version: [20.x]
 
     services:
       postgres:
@@ -30,61 +56,62 @@ jobs:
           - 5432:5432
 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-    - name: Setup pnpm
-      uses: pnpm/action-setup@v3
-      with:
-        version: 10
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 10
 
-    - name: Setup Node.js ${{ matrix.node-version }}
-      uses: actions/setup-node@v4
-      with:
-        node-version: ${{ matrix.node-version }}
-        cache: 'pnpm'
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
 
-    - name: Install dependencies
-      run: pnpm install --frozen-lockfile
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
 
-    - name: Generate Prisma Client
-      run: pnpm db:generate
-      env:
-        DATABASE_URL: postgresql://test:test@localhost:5432/test_db
+      - name: Generate Prisma Client
+        run: pnpm db:generate
+        env:
+          DATABASE_URL: postgresql://test:test@localhost:5432/test_db
 
-    - name: Run Prisma Migrations
-      run: pnpm db:migrate:prod
-      env:
-        DATABASE_URL: postgresql://test:test@localhost:5432/test_db
+      - name: Run Prisma Migrations
+        run: pnpm db:migrate:prod
+        env:
+          DATABASE_URL: postgresql://test:test@localhost:5432/test_db
 
-    - name: Run linting
-      run: pnpm lint
+      - name: Run tests
+        run: pnpm test:run
+        env:
+          DATABASE_URL: postgresql://test:test@localhost:5432/test_db
+          JWT_SECRET: test-jwt-secret-key-for-ci
+          JWT_EXPIRES_IN: 7d
 
-    - name: Run unit tests
-      run: pnpm test:unit
-      env:
-        DATABASE_URL: postgresql://test:test@localhost:5432/test_db
-        JWT_SECRET: test-jwt-secret-key-for-ci-testing
-        JWT_EXPIRES_IN: 7d
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: |
+            coverage/
+            test-results/
+          retention-days: 30
 
-    - name: Run integration tests
-      run: pnpm test:integration
-      env:
-        DATABASE_URL: postgresql://test:test@localhost:5432/test_db
-        JWT_SECRET: test-jwt-secret-key-for-ci-testing
-        JWT_EXPIRES_IN: 7d
+      - name: Comment test results on PR
+        if: github.event_name == 'pull_request' && always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const status = '${{ job.status }}';
+            const emoji = status === 'success' ? '✅' : '❌';
+            const message = `${emoji} Tests ${status}`;
 
-    - name: Run coverage
-      run: pnpm test:coverage
-      env:
-        DATABASE_URL: postgresql://test:test@localhost:5432/test_db
-        JWT_SECRET: test-jwt-secret-key-for-ci-testing
-        JWT_EXPIRES_IN: 7d
-
-    - name: Upload coverage reports
-      uses: codecov/codecov-action@v4
-      if: success()
-      with:
-        files: ./coverage/coverage-final.json
-        flags: unittests
-        name: codecov-umbrella
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: message
+            });

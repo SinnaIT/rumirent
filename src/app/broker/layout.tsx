@@ -16,6 +16,7 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/lib/hooks/use-auth'
+import { ThemeToggle } from '@/components/theme-toggle'
 
 const menuItems = [
   { icon: Home, label: 'Dashboard', href: '/broker' },
@@ -155,6 +156,9 @@ export default function BrokerLayout({
             </div>
 
             <div className="flex items-center space-x-4">
+              {/* Theme Toggle */}
+              <ThemeToggle />
+
               {/* User Info */}
               <div className="hidden md:flex items-center space-x-3 text-sm">
                 <div className="flex flex-col text-right">

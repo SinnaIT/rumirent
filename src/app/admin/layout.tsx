@@ -24,6 +24,7 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/lib/hooks/use-auth'
+import { ThemeToggle } from '@/components/theme-toggle'
 
 const menuItems = [
   { icon: Home, label: 'Dashboard', href: '/admin' },
@@ -218,6 +219,9 @@ export default function AdminLayout({
             </div>
 
             <div className="flex items-center space-x-4">
+              {/* Theme Toggle */}
+              <ThemeToggle />
+
               {/* User Info */}
               <div className="flex items-center space-x-3 text-sm">
                 <div className="w-8 h-8 bg-secondary rounded-full flex items-center justify-center">

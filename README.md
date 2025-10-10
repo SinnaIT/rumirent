@@ -1,36 +1,271 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 🏢 Rumirent - Sistema de Gestión de Brokers y Comisiones
 
-## Getting Started
+Sistema de gestión para brokers inmobiliarios construido con Next.js 15, TypeScript y arquitectura hexagonal.
 
-First, run the development server:
+## 🚀 Quick Start
+
+### Desarrollo Local
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
+# Instalar dependencias
+pnpm install
+
+# Configurar variables de entorno
+cp .env.example .env
+# Editar .env con tus valores
+
+# Ejecutar migraciones
+pnpm db:migrate
+
+# Iniciar servidor de desarrollo
 pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Abre [http://localhost:3000](http://localhost:3000) en tu navegador.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### Testing
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+# Ejecutar todos los tests (70 tests)
+pnpm test:run
 
-## Learn More
+# Tests en modo watch
+pnpm test
 
-To learn more about Next.js, take a look at the following resources:
+# Tests con UI
+pnpm test:ui
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+# Tests con coverage
+pnpm test:coverage
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+# Solo unit tests
+pnpm test:unit
 
-## Deploy on Vercel
+# Solo integration tests
+pnpm test:integration
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Ver guía completa de testing: [TESTING.md](./TESTING.md)
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## 📚 Documentación
+
+### Guías de Deployment
+
+- **[QUICKSTART_DEPLOY.md](./QUICKSTART_DEPLOY.md)** - Setup rápido en 15 minutos
+- **[VPS_SETUP.md](./VPS_SETUP.md)** - Configuración detallada del VPS desde cero
+- **[NGINX_DOCKER_SETUP.md](./NGINX_DOCKER_SETUP.md)** - Nginx con Docker + SSL automático ⭐
+- **[NGINX_COMPARISON.md](./NGINX_COMPARISON.md)** - Docker vs Instalación directa
+- **[DEPLOYMENT.md](./DEPLOYMENT.md)** - Arquitectura y flujo de CI/CD completo
+- **[DEPLOYMENT_SUMMARY.md](./DEPLOYMENT_SUMMARY.md)** - Resumen ejecutivo del sistema
+
+### Arquitectura y Testing
+
+- **[CLAUDE.md](./CLAUDE.md)** - Arquitectura hexagonal y guía del proyecto
+- **[TESTING.md](./TESTING.md)** - Estrategia de testing y mejores prácticas
+
+## 🏗️ Stack Tecnológico
+
+- **Framework**: Next.js 15 con App Router
+- **Lenguaje**: TypeScript
+- **Base de datos**: PostgreSQL con Prisma ORM
+- **Autenticación**: JWT con bcryptjs
+- **Styling**: Tailwind CSS v4
+- **UI Components**: shadcn/ui
+- **Testing**: Vitest + Testing Library
+- **Deployment**: Docker + GitHub Actions + GHCR
+
+## 🎯 Arquitectura
+
+El proyecto sigue **arquitectura hexagonal** con separación clara de responsabilidades:
+
+```
+src/
+├── app/           # Next.js App Router (UI)
+├── core/          # Lógica de Negocio
+│   ├── domain/    # Entidades y reglas de negocio
+│   ├── application/  # Casos de uso
+│   └── infrastructure/  # Adaptadores (Prisma, etc.)
+├── components/    # Componentes UI
+└── lib/           # Utilidades
+```
+
+Ver detalles completos en [CLAUDE.md](./CLAUDE.md)
+
+## 🐳 Deployment
+
+### Opción 1: Deployment Automático (CI/CD)
+
+Cada push a `main` dispara automáticamente:
+1. ✅ Tests (70 tests unitarios e integración)
+2. 🐳 Build de imagen Docker
+3. 📦 Push a GitHub Container Registry
+4. 🚀 Deploy a VPS
+
+```bash
+git push origin main
+# ¡Y listo! En ~15 minutos tu app está actualizada
+```
+
+### Opción 2: Deployment Manual
+
+```bash
+# En el VPS
+cd /opt/rumirent-app
+./scripts/deploy-vps.sh
+```
+
+### Configurar Nginx con Docker (Recomendado)
+
+Para producción con SSL/HTTPS automático:
+
+```bash
+# Habilitar Nginx + Certbot
+docker compose --profile nginx -f docker-compose.deploy.yml up -d
+
+# Obtener certificado SSL
+docker compose --profile nginx -f docker-compose.deploy.yml run --rm certbot certonly \
+  --webroot -d tudominio.com
+```
+
+Ver guía completa: [NGINX_DOCKER_SETUP.md](./NGINX_DOCKER_SETUP.md)
+
+## 📊 Características
+
+### Para Administradores
+- ✅ Gestión de edificios y unidades
+- ✅ Configuración de comisiones dinámicas
+- ✅ Gestión de brokers y clientes
+- ✅ Dashboard con analytics
+- ✅ Reportes de ventas
+
+### Para Brokers
+- ✅ Ver unidades disponibles
+- ✅ Registrar clientes y ventas
+- ✅ Calcular comisiones en tiempo real
+- ✅ Historial de ventas personal
+
+### Sistema
+- ✅ Autenticación JWT con roles
+- ✅ Validación de RUT chileno
+- ✅ Comisiones por tipo de unidad
+- ✅ Estados de venta con workflow
+- ✅ 70 tests automatizados
+
+## 🛠️ Comandos Útiles
+
+### Desarrollo
+
+```bash
+pnpm dev          # Servidor desarrollo (Turbopack)
+pnpm build        # Build producción
+pnpm start        # Servidor producción
+pnpm lint         # Linter
+```
+
+### Base de Datos
+
+```bash
+pnpm db:generate      # Generar Prisma Client
+pnpm db:migrate       # Ejecutar migraciones (dev)
+pnpm db:migrate:prod  # Ejecutar migraciones (prod)
+pnpm db:studio        # Abrir Prisma Studio
+```
+
+### Docker
+
+```bash
+# Build local
+docker build -t rumirent-app .
+
+# Run con docker-compose
+docker compose -f docker-compose.prod.yml up
+
+# Con Nginx habilitado
+docker compose --profile nginx -f docker-compose.deploy.yml up -d
+```
+
+## 🔐 Variables de Entorno
+
+Ver `.env.example` para todas las variables requeridas.
+
+Variables esenciales:
+
+```env
+DATABASE_URL="postgresql://..."
+JWT_SECRET="tu-secret-muy-seguro"
+NEXTAUTH_URL="https://tudominio.com"
+```
+
+## 📦 Scripts de Deployment
+
+Ubicados en `scripts/`:
+
+- `deploy-vps.sh` - Deploy manual al VPS
+- `backup-db.sh` - Backup automático de PostgreSQL
+- `restore-db.sh` - Restaurar desde backup
+- `logs.sh` - Ver logs de servicios
+- `status.sh` - Dashboard del sistema
+
+## 🆘 Troubleshooting
+
+### Tests fallan localmente
+```bash
+# Verificar variables de entorno
+cat .env
+
+# Re-generar Prisma Client
+pnpm db:generate
+
+# Limpiar node_modules
+rm -rf node_modules pnpm-lock.yaml
+pnpm install
+```
+
+### Build de Docker falla
+```bash
+# Verificar que next.config.ts tiene output standalone
+grep standalone next.config.ts
+
+# Build con logs detallados
+docker build --progress=plain -t rumirent-app .
+```
+
+### Deployment falla
+Ver secciones de troubleshooting en:
+- [DEPLOYMENT.md](./DEPLOYMENT.md#troubleshooting)
+- [NGINX_DOCKER_SETUP.md](./NGINX_DOCKER_SETUP.md#troubleshooting)
+
+## 📖 Aprende Más
+
+### Next.js
+- [Next.js Documentation](https://nextjs.org/docs)
+- [Learn Next.js](https://nextjs.org/learn)
+
+### Prisma
+- [Prisma Documentation](https://www.prisma.io/docs)
+- [Prisma Studio](https://www.prisma.io/studio)
+
+### Docker
+- [Docker Documentation](https://docs.docker.com)
+- [Docker Compose](https://docs.docker.com/compose)
+
+## 🤝 Contribuir
+
+1. Fork el proyecto
+2. Crea tu feature branch (`git checkout -b feature/AmazingFeature`)
+3. Ejecuta los tests (`pnpm test:run`)
+4. Commit tus cambios (`git commit -m 'feat: Add amazing feature'`)
+5. Push a la branch (`git push origin feature/AmazingFeature`)
+6. Abre un Pull Request
+
+## 📄 Licencia
+
+Este proyecto es privado y propietario.
+
+---
+
+**¿Nuevo en el proyecto?** Empieza leyendo [CLAUDE.md](./CLAUDE.md) para entender la arquitectura.
+
+**¿Listo para deployar?** Sigue [QUICKSTART_DEPLOY.md](./QUICKSTART_DEPLOY.md).
+
+**¿Problemas?** Revisa la documentación de troubleshooting o abre un issue.

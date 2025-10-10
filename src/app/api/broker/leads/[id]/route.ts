@@ -54,34 +54,55 @@ export async function PUT(
     }
 
     // Solo permitir actualizar fechas si no han sido previamente guardadas (son null)
+    // O si el valor enviado es el mismo que el existente (para permitir actualizaciones parciales)
     if (fechaPagoReserva) {
-      if (leadExistente.fechaPagoReserva !== null) {
+      const fechaEnviada = new Date(fechaPagoReserva).toISOString().split('T')[0]
+      const fechaExistente = leadExistente.fechaPagoReserva?.toISOString().split('T')[0]
+
+      // Validar solo si la fecha existe Y es diferente a la enviada
+      if (leadExistente.fechaPagoReserva !== null && fechaEnviada !== fechaExistente) {
         return NextResponse.json(
           { error: 'La fecha de pago de reserva no se puede modificar después de haber sido guardada' },
           { status: 400 }
         )
       }
-      datosActualizacion.fechaPagoReserva = new Date(fechaPagoReserva)
+
+      // Solo actualizar si realmente cambió o es nueva
+      if (fechaEnviada !== fechaExistente) {
+        datosActualizacion.fechaPagoReserva = new Date(fechaPagoReserva)
+      }
     }
 
     if (fechaPagoLead) {
-      if (leadExistente.fechaPagoLead !== null) {
+      const fechaEnviada = new Date(fechaPagoLead).toISOString().split('T')[0]
+      const fechaExistente = leadExistente.fechaPagoLead?.toISOString().split('T')[0]
+
+      if (leadExistente.fechaPagoLead !== null && fechaEnviada !== fechaExistente) {
         return NextResponse.json(
           { error: 'La fecha de pago de lead no se puede modificar después de haber sido guardada' },
           { status: 400 }
         )
       }
-      datosActualizacion.fechaPagoLead = new Date(fechaPagoLead)
+
+      if (fechaEnviada !== fechaExistente) {
+        datosActualizacion.fechaPagoLead = new Date(fechaPagoLead)
+      }
     }
 
     if (fechaCheckin) {
-      if (leadExistente.fechaCheckin !== null) {
+      const fechaEnviada = new Date(fechaCheckin).toISOString().split('T')[0]
+      const fechaExistente = leadExistente.fechaCheckin?.toISOString().split('T')[0]
+
+      if (leadExistente.fechaCheckin !== null && fechaEnviada !== fechaExistente) {
         return NextResponse.json(
           { error: 'La fecha de check-in no se puede modificar después de haber sido guardada' },
           { status: 400 }
         )
       }
-      datosActualizacion.fechaCheckin = new Date(fechaCheckin)
+
+      if (fechaEnviada !== fechaExistente) {
+        datosActualizacion.fechaCheckin = new Date(fechaCheckin)
+      }
     }
 
     // Actualizar el lead
