@@ -1,10 +1,10 @@
 # Dockerfile para Next.js 15 con pnpm y soporte multi-stage
 FROM node:20-alpine AS base
 
+RUN corepack enable && corepack prepare pnpm@latest --activate
 # Instalar pnpm globalmente
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
-RUN corepack enable
 
 # Instalar dependencias solo cuando sea necesario
 FROM base AS deps
