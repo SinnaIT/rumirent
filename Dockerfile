@@ -10,17 +10,19 @@ WORKDIR /app
 
 COPY package.json pnpm-lock.yaml* ./
 COPY .npmrc* ./
+COPY prisma ./prisma
 
 RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --frozen-lockfile
+
+# Generar Prisma y verificar
+RUN pnpm exec prisma generate && \
+    ls -la node_modules/.prisma || echo "Prisma no generado"
 
 FROM base AS builder
 WORKDIR /app
 
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
-
-# Asegurarse de que el schema existe y generar el cliente
-RUN if [ -f prisma/schema.prisma ]; then pnpm exec prisma generate; fi
 
 ENV NEXT_TELEMETRY_DISABLED=1
 
@@ -32,16 +34,16 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 
+RUN apk add --no-cache openssl
+
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
 
 COPY --from=builder /app/public ./public
-
-# Copiar Prisma solo si fue generado
-RUN mkdir -p node_modules/.prisma node_modules/@prisma
-COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
-COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
 COPY --from=builder /app/prisma ./prisma
+
+# Copiar todo node_modules de deps (incluye Prisma generado)
+COPY --from=deps /app/node_modules ./node_modules
 
 RUN mkdir .next && chown nextjs:nodejs .next
 
