@@ -1,23 +1,60 @@
-# Dockerfile para desarrollo con hot reload
-FROM node:20-alpine
+FROM node:20-alpine AS base
 
-# Instalar dependencias para desarrollo
-RUN apk add --no-cache libc6-compat
+RUN corepack enable && corepack prepare pnpm@latest --activate
+ENV PNPM_HOME="/pnpm"
+ENV PATH="$PNPM_HOME:$PATH"
 
+FROM base AS deps
+RUN apk add --no-cache libc6-compat openssl
 WORKDIR /app
 
-# Copiar archivos de dependencias
-COPY package*.json ./
-RUN npm ci
+COPY package.json pnpm-lock.yaml* ./
+COPY .npmrc* ./
+COPY prisma ./prisma
 
-# Copiar código fuente
+RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --frozen-lockfile
+
+# Generar Prisma y verificar
+RUN pnpm exec prisma generate && \
+    ls -la node_modules/.prisma || echo "Prisma no generado"
+
+FROM base AS builder
+WORKDIR /app
+
+COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-# Generar Prisma client
-RUN npx prisma generate
+ENV NEXT_TELEMETRY_DISABLED=1
 
-# Exponer puerto
+RUN pnpm run build
+
+FROM base AS runner
+WORKDIR /app
+
+ENV NODE_ENV=production
+ENV NEXT_TELEMETRY_DISABLED=1
+
+RUN apk add --no-cache openssl
+
+RUN addgroup --system --gid 1001 nodejs
+RUN adduser --system --uid 1001 nextjs
+
+COPY --from=builder /app/public ./public
+COPY --from=builder /app/prisma ./prisma
+
+# Copiar todo node_modules de deps (incluye Prisma generado)
+COPY --from=deps /app/node_modules ./node_modules
+
+RUN mkdir .next && chown nextjs:nodejs .next
+
+COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+
+USER nextjs
+
 EXPOSE 3000
 
-# Comando por defecto (puede ser sobrescrito en docker-compose)
-CMD ["npm", "run", "dev"]
+ENV PORT=3000
+ENV HOSTNAME="0.0.0.0"
+
+CMD ["node", "server.js"]
