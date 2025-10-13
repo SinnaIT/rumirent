@@ -133,12 +133,28 @@ export default function AdminLeadsPage() {
   const [editingLead, setEditingLead] = useState<Lead | null>(null)
 
   // Form state
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<{
+    codigoUnidad: string
+    totalLead: string
+    montoUf: string
+    comision: string
+    estado: 'ENTREGADO' | 'RESERVA_PAGADA' | 'APROBADO' | 'RECHAZADO'
+    fechaPagoReserva: string
+    fechaPagoLead: string
+    fechaCheckin: string
+    postulacion: string
+    observaciones: string
+    conciliado: boolean
+    brokerId: string
+    clienteId: string
+    reglaComisionId: string
+    comisionId: string
+  }>({
     codigoUnidad: '',
     totalLead: '',
     montoUf: '',
     comision: '',
-    estado: 'ENTREGADO' as const,
+    estado: 'ENTREGADO',
     fechaPagoReserva: '',
     fechaPagoLead: '',
     fechaCheckin: '',

@@ -77,6 +77,7 @@ interface EdificioDetail {
   direccion: string
   descripcion?: string
   totalUnidades: number
+  totalTiposUnidad: number
   unidadesDisponibles: number
   unidadesVendidas: number
   unidadesReservadas: number
@@ -113,10 +114,16 @@ export default function ProyectoDetailPage() {
 
 
   // Form state for unidades
-  const [unidadFormData, setUnidadFormData] = useState({
+  const [unidadFormData, setUnidadFormData] = useState<{
+    numero: string
+    tipoUnidadEdificioId: string
+    estado: 'DISPONIBLE' | 'RESERVADA' | 'VENDIDA'
+    descripcion: string
+    metros2: string
+  }>({
     numero: '',
     tipoUnidadEdificioId: '',
-    estado: 'DISPONIBLE' as const,
+    estado: 'DISPONIBLE',
     descripcion: '',
     metros2: ''
   })

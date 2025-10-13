@@ -26,7 +26,10 @@
       "Bash(npx prisma:*)",
       "Bash(pnpm lint:*)",
       "Bash(pnpm add:*)",
-      "Bash(pnpm test:*)"
+      "Bash(pnpm test:*)",
+      "Bash(pnpm build:*)",
+      "Bash(npx tsc:*)",
+      "Bash(timeout 180 pnpm build)"
     ],
     "deny": [],
     "ask": []
