@@ -55,13 +55,14 @@ export async function POST(request: NextRequest) {
       token: token // Also return token for manual cookie setting
     })
 
-    // Set auth cookie with simpler options for development
-    console.log('Setting cookie with token')
+    // Set auth cookie with appropriate options for environment
+    console.log('Setting cookie with token in', process.env.NODE_ENV)
     response.cookies.set('auth-token', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
       path: '/',
       maxAge: 60 * 60 * 24 * 7, // 7 days
-      sameSite: 'lax'
-      // Remove httpOnly and secure for development testing
     })
 
     return response
