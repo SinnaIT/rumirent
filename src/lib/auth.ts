@@ -31,6 +31,23 @@ export async function generateToken(payload: JWTPayload): Promise<string> {
   return token
 }
 
+// Lightweight token verification for middleware (no DB access - Edge Runtime compatible)
+export async function verifyTokenLight(token: string): Promise<JWTPayload | null> {
+  try {
+    console.log('[AUTH] Verifying token (light):', token.substring(0, 50) + '...')
+    const secret = new TextEncoder().encode(JWT_SECRET)
+    const { payload } = await jwtVerify(token, secret)
+    const jwtPayload = payload as JWTPayload
+    console.log('[AUTH] Token payload:', jwtPayload)
+    console.log('[AUTH] Token verification successful')
+    return jwtPayload
+  } catch (error) {
+    console.log('[AUTH] Token verification failed:', error)
+    return null
+  }
+}
+
+// Full token verification with DB check (for API routes - Node.js runtime)
 export async function verifyToken(token: string): Promise<JWTPayload | null> {
   try {
     console.log('[AUTH] Verifying token:', token.substring(0, 50) + '...')

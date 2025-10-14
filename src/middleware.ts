@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
-import { verifyToken } from '@/lib/auth'
+import { verifyTokenLight } from '@/lib/auth'
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
@@ -42,7 +42,7 @@ export async function middleware(request: NextRequest) {
   if (finalToken) {
     console.log(`[MIDDLEWARE] Token recibido: ${finalToken.substring(0, 50)}...`)
     try {
-      const payload = await verifyToken(finalToken)
+      const payload = await verifyTokenLight(finalToken)
       console.log(`[MIDDLEWARE] Token válido: ${!!payload}, Role: ${payload?.role}`)
 
       // If token is invalid, redirect to login
