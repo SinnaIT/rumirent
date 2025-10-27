@@ -298,7 +298,7 @@ export default function ConciliacionPage() {
   return (
     <div className="space-y-6">
       <div className="flex flex-col space-y-2">
-        <h1 className="text-3xl font-bold tracking-tight">Conciliación de Leads</h1>
+        <h1 className="text-3xl font-bold tracking-tight">Conciliación de Colocaciones</h1>
         <p className="text-muted-foreground">
           Concilia los leads del sistema con los datos de archivos Excel/CSV para el pago de comisiones
         </p>
@@ -355,7 +355,7 @@ export default function ConciliacionPage() {
               ) : (
                 <>
                   <Filter className="mr-2 h-4 w-4" />
-                  Cargar Leads Pendientes
+                  Cargar Colocaciones Pendientes
                 </>
               )}
             </Button>
@@ -381,7 +381,7 @@ export default function ConciliacionPage() {
                 className="cursor-pointer"
               />
               <p className="text-sm text-muted-foreground mt-1">
-                Debe contener: fecha lead, monto, proyecto, unidad
+                Debe contener: fecha colocacion, monto, proyecto, unidad
               </p>
             </div>
             <Button
@@ -421,7 +421,7 @@ export default function ConciliacionPage() {
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Leads Sistema</CardTitle>
+              <CardTitle className="text-sm font-medium">Colocaciones del Sistema</CardTitle>
               <Clock className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
@@ -474,7 +474,7 @@ export default function ConciliacionPage() {
                   <span>Datos CSV/Excel ({excelData.length})</span>
                 </CardTitle>
                 <p className="text-sm text-muted-foreground">
-                  Arrastra un registro hacia la tabla de leads del sistema para conciliar
+                  Arrastra un registro hacia la tabla de colocaciones del sistema para conciliar
                 </p>
               </CardHeader>
               <CardContent>
@@ -519,7 +519,7 @@ export default function ConciliacionPage() {
               <CardHeader>
                 <CardTitle className="flex items-center space-x-2">
                   <Clock className="h-5 w-5" />
-                  <span>Leads Sistema ({leadsSistema.length})</span>
+                  <span>Colocaciones del Sistema ({leadsSistema.length})</span>
                 </CardTitle>
                 <p className="text-sm text-muted-foreground">
                   Suelta aquí los registros del CSV para crear una conciliación
@@ -558,7 +558,7 @@ export default function ConciliacionPage() {
                 ) : (
                   <div className="text-center py-8 text-muted-foreground border-2 border-dashed border-gray-300 rounded-lg">
                     <Clock className="h-8 w-8 mx-auto mb-2" />
-                    <p>No hay leads sin conciliar</p>
+                    <p>No hay colocaciones sin conciliar</p>
                     <p className="text-xs">Para el período seleccionado</p>
                   </div>
                 )}
@@ -646,7 +646,7 @@ export default function ConciliacionPage() {
                 <div className="text-center py-12 text-muted-foreground border-2 border-dashed border-gray-300 rounded-lg">
                   <CheckCircle className="h-12 w-12 mx-auto mb-4 opacity-50" />
                   <h3 className="text-lg font-medium mb-2">No hay registros conciliados</h3>
-                  <p className="text-sm">Arrastra registros del CSV hacia los leads del sistema para crear conciliaciones</p>
+                  <p className="text-sm">Arrastra registros del CSV hacia las colocaciones del sistema para crear conciliaciones</p>
                   <p className="text-xs mt-1">También puedes procesar un archivo para obtener coincidencias automáticas</p>
                 </div>
               )}

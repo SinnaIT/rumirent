@@ -29,7 +29,15 @@
       "Bash(pnpm test:*)",
       "Bash(pnpm build:*)",
       "Bash(npx tsc:*)",
-      "Bash(timeout 180 pnpm build)"
+      "Bash(timeout 180 pnpm build)",
+      "Bash(PRISMA_USER_CONSENT_FOR_DANGEROUS_AI_ACTION=si npx prisma migrate resolve --rolled-back 20250122_add_empresa)",
+      "Bash(PRISMA_USER_CONSENT_FOR_DANGEROUS_AI_ACTION=si npx prisma migrate reset:*)",
+      "Bash(pnpm tsc:*)",
+      "Bash(pnpm dev)",
+      "Bash(timeout 10 pnpm dev:*)",
+      "Bash(timeout 10 bash -c 'while ! curl -s http://localhost:3001 > /dev/null; do sleep 1; done; echo \"\"Server ready\"\"')",
+      "Bash(netstat:*)",
+      "Bash(taskkill:*)"
     ],
     "deny": [],
     "ask": []

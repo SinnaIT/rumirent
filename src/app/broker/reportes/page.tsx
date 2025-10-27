@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { CalendarDays, TrendingUp, DollarSign, FileText } from 'lucide-react'
+import { CalendarDays, TrendingUp, DollarSign, FileText, ChevronDown, ChevronUp } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 
 interface ComisionMensual {
@@ -28,12 +28,45 @@ interface ResumenAnual {
   promedioComision: number
 }
 
+interface CashFlowDay {
+  fecha: string
+  totalComisiones: number
+  cantidadLeads: number
+  leads: Array<{
+    id: string
+    clienteNombre: string
+    edificioNombre: string
+    unidadCodigo: string
+    montoComision: number
+    estado: string
+  }>
+}
+
+interface CashFlowResponse {
+  data: CashFlowDay[]
+  summary: {
+    totalComisiones: number
+    totalLeads: number
+    promedioComision: number
+  }
+}
+
 export default function ReportesPage() {
   const [selectedMonth, setSelectedMonth] = useState<string>(new Date().getMonth().toString())
   const [selectedYear, setSelectedYear] = useState<string>(new Date().getFullYear().toString())
   const [comisionesMensuales, setComisionesMensuales] = useState<ComisionMensual[]>([])
   const [resumenAnual, setResumenAnual] = useState<ResumenAnual[]>([])
   const [loading, setLoading] = useState(false)
+
+  // Cash Flow state
+  const [startDate, setStartDate] = useState<string>(
+    new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0]
+  )
+  const [endDate, setEndDate] = useState<string>(
+    new Date().toISOString().split('T')[0]
+  )
+  const [cashFlowData, setCashFlowData] = useState<CashFlowResponse | null>(null)
+  const [expandedDates, setExpandedDates] = useState<Set<string>>(new Set())
 
   const meses = [
     { value: '0', label: 'Enero' },
@@ -103,6 +136,42 @@ export default function ReportesPage() {
     }
   }
 
+  const fetchCashFlow = async () => {
+    setLoading(true)
+    try {
+      const url = `/api/broker/reportes/cash-flow?startDate=${startDate}&endDate=${endDate}`
+      console.log('Fetching URL:', url)
+
+      const response = await fetch(url)
+      console.log('Response status:', response.status)
+
+      if (response.ok) {
+        const data = await response.json()
+        console.log('Cash flow data received:', data)
+        setCashFlowData(data)
+      } else {
+        const errorData = await response.text()
+        console.error('Error response:', errorData)
+      }
+    } catch (error) {
+      console.error('Error fetching cash flow:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const toggleDateExpansion = (fecha: string) => {
+    setExpandedDates((prev) => {
+      const newSet = new Set(prev)
+      if (newSet.has(fecha)) {
+        newSet.delete(fecha)
+      } else {
+        newSet.add(fecha)
+      }
+      return newSet
+    })
+  }
+
   useEffect(() => {
     fetchComisionesMensuales()
   }, [selectedMonth, selectedYear])
@@ -147,9 +216,10 @@ export default function ReportesPage() {
       </div>
 
       <Tabs defaultValue="mensual" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-2">
+        <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="mensual">Detalle Mensual</TabsTrigger>
           <TabsTrigger value="anual">Resumen Anual</TabsTrigger>
+          <TabsTrigger value="cashflow">Flujo de Caja</TabsTrigger>
         </TabsList>
 
         <TabsContent value="mensual" className="space-y-6">
@@ -403,6 +473,178 @@ export default function ReportesPage() {
               ) : (
                 <div className="text-center py-8 text-muted-foreground">
                   No hay datos disponibles para este año
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="cashflow" className="space-y-6">
+          {/* Filtros para flujo de caja */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center space-x-2">
+                <CalendarDays className="h-5 w-5" />
+                <span>Rango de Fechas</span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex flex-col sm:flex-row gap-4">
+                <div className="flex-1">
+                  <label className="text-sm font-medium mb-2 block">Fecha Inicio</label>
+                  <input
+                    type="date"
+                    value={startDate}
+                    onChange={(e) => setStartDate(e.target.value)}
+                    className="w-full px-3 py-2 border border-input rounded-md bg-background"
+                  />
+                </div>
+                <div className="flex-1">
+                  <label className="text-sm font-medium mb-2 block">Fecha Fin</label>
+                  <input
+                    type="date"
+                    value={endDate}
+                    onChange={(e) => setEndDate(e.target.value)}
+                    className="w-full px-3 py-2 border border-input rounded-md bg-background"
+                  />
+                </div>
+                <div className="flex items-end">
+                  <Button onClick={fetchCashFlow} className="w-full sm:w-auto">
+                    Aplicar Filtro
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Resumen de flujo de caja */}
+          {cashFlowData && (
+            <div className="grid gap-4 md:grid-cols-3">
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Total Periodo</CardTitle>
+                  <DollarSign className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">
+                    {formatCurrency(cashFlowData.summary.totalComisiones)}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Del {new Date(startDate).toLocaleDateString('es-CL')} al{' '}
+                    {new Date(endDate).toLocaleDateString('es-CL')}
+                  </p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Total Leads</CardTitle>
+                  <TrendingUp className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{cashFlowData.summary.totalLeads}</div>
+                  <p className="text-xs text-muted-foreground">En el periodo seleccionado</p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Comisión Promedio</CardTitle>
+                  <FileText className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">
+                    {formatCurrency(cashFlowData.summary.promedioComision)}
+                  </div>
+                  <p className="text-xs text-muted-foreground">Por lead</p>
+                </CardContent>
+              </Card>
+            </div>
+          )}
+
+          {/* Tabla de flujo de caja por día */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Flujo de Caja por Fecha</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {loading ? (
+                <div className="flex items-center justify-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                </div>
+              ) : cashFlowData && cashFlowData.data.length > 0 ? (
+                <div className="space-y-2">
+                  {cashFlowData.data.map((day) => (
+                    <div key={day.fecha} className="border rounded-lg overflow-hidden">
+                      <div
+                        className="flex items-center justify-between p-4 bg-muted/50 cursor-pointer hover:bg-muted/70 transition-colors"
+                        onClick={() => toggleDateExpansion(day.fecha)}
+                      >
+                        <div className="flex items-center space-x-4 flex-1">
+                          <div className="font-medium">
+                            {new Date(day.fecha).toLocaleDateString('es-CL', {
+                              weekday: 'long',
+                              year: 'numeric',
+                              month: 'long',
+                              day: 'numeric',
+                            })}
+                          </div>
+                          <div className="text-sm text-muted-foreground">
+                            {day.cantidadLeads} lead{day.cantidadLeads !== 1 ? 's' : ''}
+                          </div>
+                        </div>
+                        <div className="flex items-center space-x-4">
+                          <div className="font-bold text-lg">
+                            {formatCurrency(day.totalComisiones)}
+                          </div>
+                          {expandedDates.has(day.fecha) ? (
+                            <ChevronUp className="h-5 w-5 text-muted-foreground" />
+                          ) : (
+                            <ChevronDown className="h-5 w-5 text-muted-foreground" />
+                          )}
+                        </div>
+                      </div>
+
+                      {expandedDates.has(day.fecha) && (
+                        <div className="p-4 bg-background">
+                          <Table>
+                            <TableHeader>
+                              <TableRow>
+                                <TableHead>Cliente</TableHead>
+                                <TableHead>Edificio</TableHead>
+                                <TableHead>Unidad</TableHead>
+                                <TableHead>Estado</TableHead>
+                                <TableHead className="text-right">Comisión</TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {day.leads.map((lead) => (
+                                <TableRow key={lead.id}>
+                                  <TableCell className="font-medium">
+                                    {lead.clienteNombre}
+                                  </TableCell>
+                                  <TableCell>{lead.edificioNombre}</TableCell>
+                                  <TableCell>{lead.unidadCodigo}</TableCell>
+                                  <TableCell>
+                                    <Badge className={getEstadoBadgeColor(lead.estado)}>
+                                      {lead.estado.replace('_', ' ')}
+                                    </Badge>
+                                  </TableCell>
+                                  <TableCell className="text-right font-semibold">
+                                    {formatCurrency(lead.montoComision)}
+                                  </TableCell>
+                                </TableRow>
+                              ))}
+                            </TableBody>
+                          </Table>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8 text-muted-foreground">
+                  {cashFlowData
+                    ? 'No hay datos disponibles para el rango de fechas seleccionado'
+                    : 'Selecciona un rango de fechas y haz clic en "Aplicar Filtro"'}
                 </div>
               )}
             </CardContent>

@@ -9,9 +9,9 @@ import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { Badge } from '@/components/ui/badge'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog'
+import { ScrollArea } from '@/components/ui/scroll-area'
 import { toast } from 'sonner'
 import {
   Building2,
@@ -33,12 +33,25 @@ interface Comision {
   activa: boolean
 }
 
+interface Empresa {
+  id: string
+  nombre: string
+  rut: string
+  razonSocial: string
+  activa: boolean
+}
+
 interface Edificio {
   id: string
   nombre: string
   direccion: string
+  comuna: string
+  ciudad: string
+  region: string
+  codigoPostal?: string
   descripcion?: string
   comision?: Comision | null
+  empresa?: Empresa | null
   totalUnidades: number
   unidadesDisponibles: number
   unidadesVendidas: number
@@ -52,6 +65,7 @@ export default function ProyectosPage() {
   const router = useRouter()
   const [edificios, setEdificios] = useState<Edificio[]>([])
   const [comisiones, setComisiones] = useState<Comision[]>([])
+  const [empresas, setEmpresas] = useState<Empresa[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
@@ -61,13 +75,19 @@ export default function ProyectosPage() {
   const [formData, setFormData] = useState({
     nombre: '',
     direccion: '',
+    comuna: '',
+    ciudad: '',
+    region: '',
+    codigoPostal: '',
     descripcion: '',
-    comisionId: 'none'
+    comisionId: 'none',
+    empresaId: ''
   })
 
   useEffect(() => {
     fetchEdificios()
     fetchComisiones()
+    fetchEmpresas()
   }, [])
 
   const fetchEdificios = async () => {
@@ -104,12 +124,33 @@ export default function ProyectosPage() {
     }
   }
 
+  const fetchEmpresas = async () => {
+    try {
+      const response = await fetch('/api/admin/empresas')
+      const data = await response.json()
+
+      if (data.success) {
+        // Filtrar solo empresas activas
+        setEmpresas(data.empresas.filter((e: Empresa) => e.activa))
+      } else {
+        console.error('Error al cargar empresas:', data.error)
+      }
+    } catch (error) {
+      console.error('Error:', error)
+    }
+  }
+
   const resetForm = () => {
     setFormData({
       nombre: '',
       direccion: '',
+      comuna: '',
+      ciudad: '',
+      region: '',
+      codigoPostal: '',
       descripcion: '',
-      comisionId: 'none'
+      comisionId: 'none',
+      empresaId: ''
     })
     setEditingEdificio(null)
   }
@@ -123,16 +164,26 @@ export default function ProyectosPage() {
     setFormData({
       nombre: edificio.nombre,
       direccion: edificio.direccion,
+      comuna: edificio.comuna,
+      ciudad: edificio.ciudad,
+      region: edificio.region,
+      codigoPostal: edificio.codigoPostal || '',
       descripcion: edificio.descripcion || '',
-      comisionId: edificio.comision?.id || 'none'
+      comisionId: edificio.comision?.id || 'none',
+      empresaId: edificio.empresa?.id || ''
     })
     setEditingEdificio(edificio)
     setIsCreateDialogOpen(true)
   }
 
   const handleSubmit = async () => {
-    if (!formData.nombre.trim() || !formData.direccion.trim()) {
-      toast.error('Nombre y dirección son requeridos')
+    if (!formData.nombre.trim() || !formData.direccion.trim() || !formData.comuna.trim() || !formData.ciudad.trim() || !formData.region.trim()) {
+      toast.error('Nombre, dirección, comuna, ciudad y región son requeridos')
+      return
+    }
+
+    if (!formData.empresaId) {
+      toast.error('Debe seleccionar una empresa')
       return
     }
 
@@ -151,7 +202,8 @@ export default function ProyectosPage() {
         },
         body: JSON.stringify({
           ...formData,
-          comisionId: formData.comisionId === 'none' ? undefined : formData.comisionId
+          comisionId: formData.comisionId === 'none' ? undefined : formData.comisionId,
+          empresaId: formData.empresaId
         })
       })
 
@@ -246,7 +298,8 @@ export default function ProyectosPage() {
                 </DialogDescription>
               </DialogHeader>
 
-              <div className="grid gap-4 py-4">
+              <ScrollArea className="max-h-[60vh] pr-4">
+                <div className="grid gap-4 py-4">
                 <div className="grid grid-cols-1 gap-2">
                   <Label htmlFor="nombre">Nombre del Proyecto *</Label>
                   <Input
@@ -258,15 +311,79 @@ export default function ProyectosPage() {
                 </div>
 
                 <div className="grid grid-cols-1 gap-2">
-                  <Label htmlFor="direccion">Dirección *</Label>
+                  <Label htmlFor="direccion">Dirección (calle y número) *</Label>
                   <Input
                     id="direccion"
                     value={formData.direccion}
                     onChange={(e) => setFormData({ ...formData, direccion: e.target.value })}
-                    placeholder="ej: Av. Principal 123, Madrid"
+                    placeholder="ej: Av. Providencia 1234"
                   />
                 </div>
 
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 gap-2">
+                    <Label htmlFor="comuna">Comuna *</Label>
+                    <Input
+                      id="comuna"
+                      value={formData.comuna}
+                      onChange={(e) => setFormData({ ...formData, comuna: e.target.value })}
+                      placeholder="ej: Providencia"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-2">
+                    <Label htmlFor="ciudad">Ciudad *</Label>
+                    <Input
+                      id="ciudad"
+                      value={formData.ciudad}
+                      onChange={(e) => setFormData({ ...formData, ciudad: e.target.value })}
+                      placeholder="ej: Santiago"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 gap-2">
+                    <Label htmlFor="region">Región *</Label>
+                    <Input
+                      id="region"
+                      value={formData.region}
+                      onChange={(e) => setFormData({ ...formData, region: e.target.value })}
+                      placeholder="ej: Región Metropolitana"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-2">
+                    <Label htmlFor="codigoPostal">Código Postal</Label>
+                    <Input
+                      id="codigoPostal"
+                      value={formData.codigoPostal}
+                      onChange={(e) => setFormData({ ...formData, codigoPostal: e.target.value })}
+                      placeholder="ej: 7500000"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 gap-2">
+                  <Label htmlFor="empresa">Empresa *</Label>
+                  <Select value={formData.empresaId} onValueChange={(value: string) => setFormData({ ...formData, empresaId: value })}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Seleccionar empresa" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {empresas.map((empresa) => (
+                        <SelectItem key={empresa.id} value={empresa.id}>
+                          {empresa.nombre} - {empresa.rut}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {empresas.length === 0 && (
+                    <p className="text-sm text-muted-foreground">
+                      No hay empresas activas. Crea una empresa primero.
+                    </p>
+                  )}
+                </div>
 
                 <div className="grid grid-cols-1 gap-2">
                   <Label htmlFor="comision">Comisión del Proyecto</Label>
@@ -295,7 +412,8 @@ export default function ProyectosPage() {
                     rows={3}
                   />
                 </div>
-              </div>
+                </div>
+              </ScrollArea>
 
               <div className="flex justify-end space-x-2">
                 <Button
@@ -400,6 +518,7 @@ export default function ProyectosPage() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Proyecto</TableHead>
+                    <TableHead>Empresa</TableHead>
                     <TableHead>Comisión</TableHead>
                     <TableHead>Unidades</TableHead>
                     <TableHead>Vendidas</TableHead>
@@ -416,9 +535,26 @@ export default function ProyectosPage() {
                             <div className="font-medium">{edificio.nombre}</div>
                             <div className="text-sm text-muted-foreground flex items-center">
                               <MapPin className="w-3 h-3 mr-1" />
-                              {edificio.direccion}
+                              {edificio.direccion}, {edificio.comuna}
+                            </div>
+                            <div className="text-xs text-muted-foreground">
+                              {edificio.ciudad}, {edificio.region}
                             </div>
                           </div>
+                        </TableCell>
+                        <TableCell>
+                          {edificio.empresa ? (
+                            <div>
+                              <div className="font-medium text-sm">{edificio.empresa.nombre}</div>
+                              <div className="text-xs text-muted-foreground">
+                                {edificio.empresa.rut}
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="text-muted-foreground text-sm">
+                              Sin empresa
+                            </div>
+                          )}
                         </TableCell>
                         <TableCell>
                           {edificio.comision ? (
@@ -486,7 +622,7 @@ export default function ProyectosPage() {
                                 <AlertDialogHeader>
                                   <AlertDialogTitle>¿Eliminar proyecto?</AlertDialogTitle>
                                   <AlertDialogDescription>
-                                    Esta acción eliminará permanentemente el proyecto "{edificio.nombre}".
+                                    Esta acción eliminará permanentemente el proyecto &quot;{edificio.nombre}&quot;.
                                     Esta acción no se puede deshacer.
                                   </AlertDialogDescription>
                                 </AlertDialogHeader>

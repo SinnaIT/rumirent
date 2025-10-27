@@ -32,6 +32,11 @@ export async function GET(request: NextRequest) {
             activa: true
           }
         },
+        tiposUnidad: {
+          include: {
+            comision: true
+          }
+        },
         unidades: {
           where: {
             estado: 'DISPONIBLE'
@@ -45,6 +50,19 @@ export async function GET(request: NextRequest) {
           },
           orderBy: {
             numero: 'asc'
+          }
+        },
+        imagenes: {
+          orderBy: {
+            orden: 'asc'
+          }
+        },
+        caracteristicas: {
+          include: {
+            tipoCaracteristica: true
+          },
+          orderBy: {
+            nombre: 'asc'
           }
         },
         _count: {
@@ -63,10 +81,45 @@ export async function GET(request: NextRequest) {
       nombre: proyecto.nombre,
       direccion: proyecto.direccion,
       descripcion: proyecto.descripcion,
-      estado: proyecto.estado,
+      urlGoogleMaps: proyecto.urlGoogleMaps,
+      telefono: proyecto.telefono,
+      email: proyecto.email,
       comision: proyecto.comision,
       totalUnidades: proyecto._count.unidades,
       unidadesDisponibles: proyecto.unidades.length,
+      imagenes: proyecto.imagenes.map(img => ({
+        id: img.id,
+        url: img.url,
+        descripcion: img.descripcion,
+        orden: img.orden
+      })),
+      caracteristicas: proyecto.caracteristicas.map(car => ({
+        id: car.id,
+        nombre: car.nombre,
+        valor: car.valor,
+        icono: car.icono,
+        tipoIcono: car.tipoIcono,
+        mostrarEnResumen: car.mostrarEnResumen,
+        tipoCaracteristica: {
+          id: car.tipoCaracteristica.id,
+          nombre: car.tipoCaracteristica.nombre,
+          descripcion: car.tipoCaracteristica.descripcion
+        }
+      })),
+      tiposUnidad: proyecto.tiposUnidad.map(tipo => ({
+        id: tipo.id,
+        nombre: tipo.nombre,
+        codigo: tipo.codigo,
+        bedrooms: tipo.bedrooms,
+        bathrooms: tipo.bathrooms,
+        comision: tipo.comision ? {
+          id: tipo.comision.id,
+          nombre: tipo.comision.nombre,
+          codigo: tipo.comision.codigo,
+          porcentaje: tipo.comision.porcentaje,
+          activa: tipo.comision.activa
+        } : null
+      })),
       unidades: proyecto.unidades.map(unidad => ({
         id: unidad.id,
         numero: unidad.numero,

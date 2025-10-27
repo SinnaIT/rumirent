@@ -6,6 +6,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 This is a **Sistema de Gestión de Brokers y Comisiones** - a Next.js 15 application built with TypeScript for managing real estate contractors and their commissions based on building projects and unit sales. The system features dynamic commission calculations based on sales priority/urgency.
 
+## Development rules
+- siempre que crees una nueva entidad, campo, archivo, metodo o variable usa la traducciona al ingles para llevar buenas practicas en el proyecto, solo usa español en las cosas que vera y leera el usuario final, todo lo del back y logica interna debe estar en ingles 
+
 ## Development Commands
 
 - **Development server**: `pnpm dev` (uses Turbopack for faster builds)

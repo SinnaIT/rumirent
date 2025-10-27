@@ -18,7 +18,6 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from '@/components/ui/dialog'
 import {
   AlertDialog,
@@ -33,6 +32,7 @@ import {
 } from '@/components/ui/alert-dialog'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { ScrollArea } from '@/components/ui/scroll-area'
 import {
   Shield,
   Plus,
@@ -55,6 +55,7 @@ interface Usuario {
   nombre: string
   rut: string
   telefono: string | null
+  birthDate?: string | null
   activo: boolean
   createdAt: string
   updatedAt: string
@@ -65,6 +66,7 @@ interface UsuarioFormData {
   nombre: string
   rut: string
   telefono: string
+  birthDate: string
   password: string
   confirmPassword: string
 }
@@ -81,6 +83,7 @@ export default function UsuariosPage() {
     nombre: '',
     rut: '',
     telefono: '',
+    birthDate: '',
     password: '',
     confirmPassword: ''
   })
@@ -123,6 +126,7 @@ export default function UsuariosPage() {
           nombre: formData.nombre,
           rut: formData.rut,
           telefono: formData.telefono || undefined,
+          birthDate: formData.birthDate || undefined,
           password: formData.password
         })
       })
@@ -136,8 +140,9 @@ export default function UsuariosPage() {
       setIsCreateModalOpen(false)
       resetForm()
       fetchUsuarios()
-    } catch (error: any) {
-      toast.error(error.message)
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Error desconocido'
+      toast.error(message)
     }
   }
 
@@ -153,10 +158,17 @@ export default function UsuariosPage() {
     }
 
     try {
-      const updateData: any = {
+      const updateData: {
+        nombre: string
+        rut: string
+        telefono?: string
+        birthDate?: string
+        password?: string
+      } = {
         nombre: formData.nombre,
         rut: formData.rut,
-        telefono: formData.telefono || undefined
+        telefono: formData.telefono || undefined,
+        birthDate: formData.birthDate || undefined
       }
 
       if (formData.password && formData.password.length >= 6) {
@@ -179,8 +191,9 @@ export default function UsuariosPage() {
       setEditingUsuario(null)
       resetForm()
       fetchUsuarios()
-    } catch (error: any) {
-      toast.error(error.message)
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Error desconocido'
+      toast.error(message)
     }
   }
 
@@ -198,8 +211,9 @@ export default function UsuariosPage() {
 
       toast.success('Usuario eliminado exitosamente')
       fetchUsuarios()
-    } catch (error: any) {
-      toast.error(error.message)
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Error desconocido'
+      toast.error(message)
     }
   }
 
@@ -217,8 +231,9 @@ export default function UsuariosPage() {
 
       toast.success(`Usuario ${currentStatus ? 'desactivado' : 'activado'} exitosamente`)
       fetchUsuarios()
-    } catch (error: any) {
-      toast.error(error.message)
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Error desconocido'
+      toast.error(message)
     }
   }
 
@@ -228,6 +243,7 @@ export default function UsuariosPage() {
       nombre: '',
       rut: '',
       telefono: '',
+      birthDate: '',
       password: '',
       confirmPassword: ''
     })
@@ -240,6 +256,7 @@ export default function UsuariosPage() {
       nombre: usuario.nombre,
       rut: usuario.rut,
       telefono: usuario.telefono || '',
+      birthDate: usuario.birthDate ? new Date(usuario.birthDate).toISOString().split('T')[0] : '',
       password: '',
       confirmPassword: ''
     })
@@ -436,6 +453,7 @@ export default function UsuariosPage() {
             </DialogDescription>
           </DialogHeader>
           <form onSubmit={handleCreateUsuario} className="space-y-4">
+            <ScrollArea className="max-h-[60vh] pr-4">
             <div className="space-y-2">
               <Label htmlFor="create-nombre">Nombre completo</Label>
               <Input
@@ -474,6 +492,15 @@ export default function UsuariosPage() {
               />
             </div>
             <div className="space-y-2">
+              <Label htmlFor="create-birthDate">Fecha de nacimiento (opcional)</Label>
+              <Input
+                id="create-birthDate"
+                type="date"
+                value={formData.birthDate}
+                onChange={(e) => setFormData(prev => ({ ...prev, birthDate: e.target.value }))}
+              />
+            </div>
+            <div className="space-y-2">
               <Label htmlFor="create-password">Contraseña</Label>
               <Input
                 id="create-password"
@@ -495,6 +522,7 @@ export default function UsuariosPage() {
                 minLength={6}
               />
             </div>
+            </ScrollArea>
             <div className="flex justify-end gap-3">
               <Button type="button" variant="outline" onClick={() => setIsCreateModalOpen(false)}>
                 Cancelar
@@ -515,6 +543,7 @@ export default function UsuariosPage() {
             </DialogDescription>
           </DialogHeader>
           <form onSubmit={handleEditUsuario} className="space-y-4">
+            <ScrollArea className="max-h-[60vh] pr-4">
             <div className="space-y-2">
               <Label htmlFor="edit-nombre">Nombre completo</Label>
               <Input
@@ -554,6 +583,15 @@ export default function UsuariosPage() {
               />
             </div>
             <div className="space-y-2">
+              <Label htmlFor="edit-birthDate">Fecha de nacimiento</Label>
+              <Input
+                id="edit-birthDate"
+                type="date"
+                value={formData.birthDate}
+                onChange={(e) => setFormData(prev => ({ ...prev, birthDate: e.target.value }))}
+              />
+            </div>
+            <div className="space-y-2">
               <Label htmlFor="edit-password">Nueva contraseña (opcional)</Label>
               <Input
                 id="edit-password"
@@ -575,6 +613,7 @@ export default function UsuariosPage() {
                 />
               </div>
             )}
+            </ScrollArea>
             <div className="flex justify-end gap-3">
               <Button type="button" variant="outline" onClick={() => setIsEditModalOpen(false)}>
                 Cancelar

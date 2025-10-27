@@ -1,22 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
-import { verifyAuth } from '@/lib/auth'
+import { getAuthenticatedUser } from '@/lib/auth'
 
+// El middleware ya validó que el usuario es BROKER
 export async function POST(request: NextRequest) {
   try {
-    // Verificar autenticación y rol de broker
-    const authResult = await verifyAuth(request)
-    if (!authResult.success || authResult.user?.role !== 'BROKER') {
+    // Obtener el usuario autenticado (el middleware ya validó que es BROKER)
+    const user = await getAuthenticatedUser()
+    if (!user) {
       return NextResponse.json(
         { error: 'No autorizado' },
-        { status: 401 }
-      )
-    }
-
-    // Verificar que tenemos el ID del usuario
-    if (!authResult.user?.id) {
-      return NextResponse.json(
-        { error: 'Error de autenticación: ID de usuario no encontrado' },
         { status: 401 }
       )
     }
@@ -25,6 +18,7 @@ export async function POST(request: NextRequest) {
     const {
       unidadId,
       codigoUnidad,
+      tipoUnidadEdificioId,
       totalLead,
       montoUf,
       comision,
@@ -38,14 +32,14 @@ export async function POST(request: NextRequest) {
     } = body
 
     // Validaciones básicas - la unidad ahora es completamente opcional
-    if (!clienteId || !totalLead || !montoUf || !edificioId) {
+    if (!clienteId || !totalLead || !edificioId) {
       return NextResponse.json(
         { error: 'Cliente, edificio y montos son requeridos' },
         { status: 400 }
       )
     }
 
-    if (totalLead <= 0 || montoUf <= 0) {
+    if (totalLead <= 0) {
       return NextResponse.json(
         { error: 'Los montos deben ser mayor a 0' },
         { status: 400 }
@@ -109,10 +103,11 @@ export async function POST(request: NextRequest) {
           fechaPagoLead: fechaPagoLead ? new Date(fechaPagoLead) : null,
           fechaCheckin: fechaCheckin ? new Date(fechaCheckin) : null,
           observaciones: observaciones || undefined,
-          brokerId: authResult.user.id,
+          brokerId: user.userId,
           clienteId,
           unidadId: unidadId || null,
-          edificioId
+          edificioId,
+          tipoUnidadEdificioId: tipoUnidadEdificioId || null
         },
         include: {
           unidad: unidadId ? {
@@ -129,6 +124,11 @@ export async function POST(request: NextRequest) {
                   comision: true
                 }
               }
+            }
+          } : false,
+          tipoUnidadEdificio: tipoUnidadEdificioId ? {
+            include: {
+              comision: true
             }
           } : false
         }

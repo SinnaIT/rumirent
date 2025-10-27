@@ -18,7 +18,6 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from '@/components/ui/dialog'
 import {
   AlertDialog,
@@ -53,6 +52,7 @@ interface Broker {
   nombre: string
   rut: string
   telefono: string | null
+  birthDate?: string | null
   activo: boolean
   ventasRealizadas: number
   comisionesTotales: number
@@ -64,6 +64,7 @@ interface BrokerFormData {
   nombre: string
   rut: string
   telefono: string
+  birthDate: string
   password: string
   confirmPassword: string
 }
@@ -80,6 +81,7 @@ export default function BrokersPage() {
     nombre: '',
     rut: '',
     telefono: '',
+    birthDate: '',
     password: '',
     confirmPassword: ''
   })
@@ -122,6 +124,7 @@ export default function BrokersPage() {
           nombre: formData.nombre,
           rut: formData.rut,
           telefono: formData.telefono || undefined,
+          birthDate: formData.birthDate || undefined,
           password: formData.password
         })
       })
@@ -135,8 +138,9 @@ export default function BrokersPage() {
       setIsCreateModalOpen(false)
       resetForm()
       fetchBrokers()
-    } catch (error: any) {
-      toast.error(error.message)
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Error desconocido'
+      toast.error(message)
     }
   }
 
@@ -146,10 +150,17 @@ export default function BrokersPage() {
     if (!editingBroker) return
 
     try {
-      const updateData: any = {
+      const updateData: {
+        nombre: string
+        rut: string
+        telefono?: string
+        birthDate?: string
+        password?: string
+      } = {
         nombre: formData.nombre,
         rut: formData.rut,
-        telefono: formData.telefono || undefined
+        telefono: formData.telefono || undefined,
+        birthDate: formData.birthDate || undefined
       }
 
       if (formData.password && formData.password === formData.confirmPassword) {
@@ -172,8 +183,9 @@ export default function BrokersPage() {
       setEditingBroker(null)
       resetForm()
       fetchBrokers()
-    } catch (error: any) {
-      toast.error(error.message)
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Error desconocido'
+      toast.error(message)
     }
   }
 
@@ -191,8 +203,9 @@ export default function BrokersPage() {
 
       toast.success('Broker eliminado exitosamente')
       fetchBrokers()
-    } catch (error: any) {
-      toast.error(error.message)
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Error desconocido'
+      toast.error(message)
     }
   }
 
@@ -210,8 +223,9 @@ export default function BrokersPage() {
 
       toast.success(`Broker ${currentStatus ? 'desactivado' : 'activado'} exitosamente`)
       fetchBrokers()
-    } catch (error: any) {
-      toast.error(error.message)
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Error desconocido'
+      toast.error(message)
     }
   }
 
@@ -221,6 +235,7 @@ export default function BrokersPage() {
       nombre: '',
       rut: '',
       telefono: '',
+      birthDate: '',
       password: '',
       confirmPassword: ''
     })
@@ -233,6 +248,7 @@ export default function BrokersPage() {
       nombre: broker.nombre,
       rut: broker.rut,
       telefono: broker.telefono || '',
+      birthDate: broker.birthDate ? new Date(broker.birthDate).toISOString().split('T')[0] : '',
       password: '',
       confirmPassword: ''
     })
@@ -483,6 +499,15 @@ export default function BrokersPage() {
               />
             </div>
             <div className="space-y-2">
+              <Label htmlFor="create-birthDate">Fecha de nacimiento (opcional)</Label>
+              <Input
+                id="create-birthDate"
+                type="date"
+                value={formData.birthDate}
+                onChange={(e) => setFormData(prev => ({ ...prev, birthDate: e.target.value }))}
+              />
+            </div>
+            <div className="space-y-2">
               <Label htmlFor="create-password">Contraseña</Label>
               <Input
                 id="create-password"
@@ -560,6 +585,15 @@ export default function BrokersPage() {
                 id="edit-telefono"
                 value={formData.telefono}
                 onChange={(e) => setFormData(prev => ({ ...prev, telefono: e.target.value }))}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-birthDate">Fecha de nacimiento</Label>
+              <Input
+                id="edit-birthDate"
+                type="date"
+                value={formData.birthDate}
+                onChange={(e) => setFormData(prev => ({ ...prev, birthDate: e.target.value }))}
               />
             </div>
             <div className="space-y-2">

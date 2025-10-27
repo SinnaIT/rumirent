@@ -4,14 +4,21 @@ import { verifyAuth } from '@/lib/auth'
 
 export async function GET(request: NextRequest) {
   try {
+    console.log('[API /broker/clientes] GET request received')
+
     // Verificar autenticación y rol de broker
     const authResult = await verifyAuth(request)
+    console.log('[API /broker/clientes] Auth result:', authResult)
+
     if (!authResult.success || authResult.user?.role !== 'BROKER') {
+      console.log('[API /broker/clientes] Unauthorized - success:', authResult.success, 'role:', authResult.user?.role)
       return NextResponse.json(
-        { error: 'No autorizado' },
+        { success: false, error: 'No autorizado' },
         { status: 401 }
       )
     }
+
+    console.log('[API /broker/clientes] Broker ID:', authResult.user.id)
 
     // Obtener clientes del broker actual
     const clientes = await prisma.cliente.findMany({
@@ -23,15 +30,17 @@ export async function GET(request: NextRequest) {
       }
     })
 
+    console.log('[API /broker/clientes] Clientes found:', clientes.length)
+
     return NextResponse.json({
       success: true,
       clientes
     })
 
   } catch (error) {
-    console.error('Error al obtener clientes:', error)
+    console.error('[API /broker/clientes] Error al obtener clientes:', error)
     return NextResponse.json(
-      { error: 'Error interno del servidor' },
+      { success: false, error: 'Error interno del servidor' },
       { status: 500 }
     )
   }

@@ -62,7 +62,7 @@ export async function GET(request: NextRequest) {
 
       // Calcular totales para el mes
       let totalComisiones = 0
-      let cantidadVentas = leadsMes.length
+      const cantidadVentas = leadsMes.length
 
       leadsMes.forEach(lead => {
         // Usar el campo comision que ya está calculado en la BD

@@ -34,18 +34,20 @@ interface Comision {
   activa: boolean
 }
 
+interface TipoUnidad {
+  id: string
+  nombre: string
+  codigo: string
+  comision: Comision | null
+}
+
 interface Unidad {
   id: string
   numero: string
   estado: 'DISPONIBLE' | 'RESERVADA' | 'VENDIDA'
   descripcion?: string
   metros2?: number
-  tipoUnidad: {
-    id: string
-    nombre: string
-    codigo: string
-    comision: Comision | null
-  }
+  tipoUnidad: TipoUnidad
   createdAt: string
   updatedAt: string
 }
@@ -54,6 +56,8 @@ interface Proyecto {
   id: string
   nombre: string
   direccion: string
+  comision?: Comision | null
+  tiposUnidad: TipoUnidad[]
   unidades: Unidad[]
 }
 
@@ -107,6 +111,7 @@ export default function GenerarLeadPage() {
   // Form state
   const [formData, setFormData] = useState({
     edificioId: '',
+    tipoUnidadEdificioId: '',
     unidadId: unidadIdFromParams ?? '',
     codigoUnidad: '',
     clienteId: '',
@@ -119,6 +124,10 @@ export default function GenerarLeadPage() {
     fechaCheckin: '',
     observaciones: ''
   })
+
+  // Estados para valores formateados visualmente
+  const [displayTotalLead, setDisplayTotalLead] = useState('')
+  const [displayMontoUf, setDisplayMontoUf] = useState('')
 
   useEffect(() => {
     fetchProyectos()
@@ -284,7 +293,12 @@ export default function GenerarLeadPage() {
   const handleProyectoChange = (edificioId: string) => {
     const proyecto = proyectos.find(p => p.id === edificioId)
     setSelectedProyecto(proyecto || null)
-    setFormData({ ...formData, edificioId, unidadId: '', codigoUnidad: '' })
+    setFormData({ ...formData, edificioId, tipoUnidadEdificioId: '', unidadId: '', codigoUnidad: '' })
+    setSelectedUnidad(null)
+  }
+
+  const handleTipologiaChange = (tipoUnidadEdificioId: string) => {
+    setFormData({ ...formData, tipoUnidadEdificioId, unidadId: '', codigoUnidad: '' })
     setSelectedUnidad(null)
   }
 
@@ -294,9 +308,45 @@ export default function GenerarLeadPage() {
       const unidad = proyecto.unidades.find(u => u.id === unidadId)
       if (unidad) {
         setSelectedUnidad(unidad)
+        // Block manual codigo when unit is selected
         setFormData({ ...formData, unidadId, codigoUnidad: '' })
       }
     }
+  }
+
+  // Get filtered units based on selected tipologia
+  const getFilteredUnidades = () => {
+    if (!formData.edificioId || !selectedProyecto) return []
+
+    const unidades = selectedProyecto.unidades
+
+    if (!formData.tipoUnidadEdificioId) {
+      return unidades
+    }
+
+    return unidades.filter(u => u.tipoUnidad.id === formData.tipoUnidadEdificioId)
+  }
+
+  // Handler para cambio en totalLead
+  const handleTotalLeadChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value
+    const formatted = formatNumberWithThousandsSeparator(value)
+    setDisplayTotalLead(formatted)
+
+    // Guardar el valor sin formato para cálculos
+    const numericValue = value.replace(/\D/g, '')
+    setFormData({ ...formData, totalLead: numericValue })
+  }
+
+  // Handler para cambio en montoUf
+  const handleMontoUfChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value
+    const formatted = formatDecimalWithChileanSeparator(value)
+    setDisplayMontoUf(formatted)
+
+    // Guardar el valor sin formato para cálculos (reemplazar coma por punto)
+    const numericValue = parseChileanNumber(formatted)
+    setFormData({ ...formData, montoUf: numericValue })
   }
 
   const calculateComision = () => {
@@ -420,6 +470,7 @@ export default function GenerarLeadPage() {
         body: JSON.stringify({
           unidadId: formData.unidadId || undefined,
           codigoUnidad: formData.codigoUnidad || undefined,
+          tipoUnidadEdificioId: formData.tipoUnidadEdificioId || undefined,
           clienteId: clienteId,
           edificioId: formData.edificioId,
           totalLead,
@@ -450,10 +501,45 @@ export default function GenerarLeadPage() {
   }
 
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('es-ES', {
+    return new Intl.NumberFormat('es-CL', {
       style: 'currency',
       currency: 'CLP'
     }).format(amount)
+  }
+
+  // Función para formatear números con separador de miles chileno (punto)
+  const formatNumberWithThousandsSeparator = (value: string): string => {
+    // Remover todo excepto números
+    const numbers = value.replace(/\D/g, '')
+    if (!numbers) return ''
+
+    // Agregar separador de miles (punto)
+    return numbers.replace(/\B(?=(\d{3})+(?!\d))/g, '.')
+  }
+
+  // Función para formatear decimales con separador chileno (coma)
+  const formatDecimalWithChileanSeparator = (value: string): string => {
+    // Remover todo excepto números y coma
+    const cleaned = value.replace(/[^\d,]/g, '')
+
+    // Separar parte entera y decimal
+    const parts = cleaned.split(',')
+    const integerPart = parts[0]
+    const decimalPart = parts[1]
+
+    if (!integerPart) return ''
+
+    // Formatear parte entera con puntos
+    const formattedInteger = integerPart.replace(/\B(?=(\d{3})+(?!\d))/g, '.')
+
+    // Retornar con parte decimal si existe
+    return decimalPart !== undefined ? `${formattedInteger},${decimalPart}` : formattedInteger
+  }
+
+  // Función para obtener valor numérico desde formato chileno
+  const parseChileanNumber = (value: string): string => {
+    // Remover puntos (separador de miles) y reemplazar coma por punto (decimal)
+    return value.replace(/\./g, '').replace(',', '.')
   }
 
   const comisionData = calculateComision()
@@ -505,7 +591,7 @@ export default function GenerarLeadPage() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="proyecto">Proyecto *</Label>
                   <Select value={formData.edificioId} onValueChange={handleProyectoChange}>
@@ -523,6 +609,27 @@ export default function GenerarLeadPage() {
                 </div>
 
                 <div className="space-y-2">
+                  <Label htmlFor="tipologia">Tipología (Opcional)</Label>
+                  <Select
+                    value={formData.tipoUnidadEdificioId || 'all'}
+                    onValueChange={(value) => handleTipologiaChange(value === 'all' ? '' : value)}
+                    disabled={!formData.edificioId}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Todas las tipologías" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todas las tipologías</SelectItem>
+                      {selectedProyecto?.tiposUnidad.map((tipo) => (
+                        <SelectItem key={tipo.id} value={tipo.id}>
+                          {tipo.nombre}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
                   <Label htmlFor="unidad">Unidad (del sistema)</Label>
                   <Select
                     value={formData.unidadId}
@@ -533,13 +640,11 @@ export default function GenerarLeadPage() {
                       <SelectValue placeholder="Seleccionar unidad del sistema" />
                     </SelectTrigger>
                     <SelectContent>
-                      {formData.edificioId && proyectos
-                        .find(p => p.id === formData.edificioId)
-                        ?.unidades.map((unidad) => (
-                          <SelectItem key={unidad.id} value={unidad.id}>
-                            {unidad.numero} - {unidad.tipoUnidad.nombre}
-                          </SelectItem>
-                        ))}
+                      {getFilteredUnidades().map((unidad) => (
+                        <SelectItem key={unidad.id} value={unidad.id}>
+                          {unidad.numero} - {unidad.tipoUnidad.nombre}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
@@ -875,26 +980,31 @@ export default function GenerarLeadPage() {
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="totalLead">Total del Lead *</Label>
+                  <Label htmlFor="totalLead">Total del Arriendo *</Label>
                   <Input
                     id="totalLead"
-                    type="number"
-                    value={formData.totalLead}
-                    onChange={(e) => setFormData({ ...formData, totalLead: e.target.value })}
-                    placeholder="ej: 150000000"
+                    type="text"
+                    value={displayTotalLead}
+                    onChange={handleTotalLeadChange}
+                    placeholder="ej: 150.000.000"
                   />
+                  <p className="text-xs text-muted-foreground">
+                    Formato chileno: punto como separador de miles
+                  </p>
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="montoUf">Monto en UF *</Label>
+                  <Label htmlFor="montoUf">Monto en UF</Label>
                   <Input
                     id="montoUf"
-                    type="number"
-                    step="0.01"
-                    value={formData.montoUf}
-                    onChange={(e) => setFormData({ ...formData, montoUf: e.target.value })}
-                    placeholder="ej: 4500.50"
+                    type="text"
+                    value={displayMontoUf}
+                    onChange={handleMontoUfChange}
+                    placeholder="ej: 4.500,50"
                   />
+                  <p className="text-xs text-muted-foreground">
+                    Formato chileno: punto para miles, coma para decimales
+                  </p>
                 </div>
 
               </div>

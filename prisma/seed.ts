@@ -12,12 +12,66 @@ async function main() {
   await prisma.cliente.deleteMany({})
   await prisma.unidad.deleteMany({})
   await prisma.cambioComisionProgramado.deleteMany({})
+  await prisma.caracteristicaEdificio.deleteMany({})
+  await prisma.imagenEdificio.deleteMany({})
+  await prisma.tipoCaracteristica.deleteMany({})
   await prisma.tipoUnidadEdificio.deleteMany({})
   await prisma.edificio.deleteMany({})
+  await prisma.empresa.deleteMany({})
   await prisma.user.deleteMany({})
   await prisma.comision.deleteMany({})
 
-  // 1. Crear comisiones base (porcentajes)
+  // 1. Crear tipos de características
+  console.log('🏷️ Creando tipos de características...')
+  const tipoAmenities = await prisma.tipoCaracteristica.create({
+    data: {
+      nombre: 'Amenities',
+      descripcion: 'Amenidades y servicios del edificio',
+      activo: true
+    }
+  })
+
+  const tipoUbicacion = await prisma.tipoCaracteristica.create({
+    data: {
+      nombre: 'Ubicación',
+      descripcion: 'Información sobre ubicación y accesos',
+      activo: true
+    }
+  })
+
+  const tipoServicios = await prisma.tipoCaracteristica.create({
+    data: {
+      nombre: 'Servicios',
+      descripcion: 'Servicios incluidos en el proyecto',
+      activo: true
+    }
+  })
+
+  const tipoSeguridad = await prisma.tipoCaracteristica.create({
+    data: {
+      nombre: 'Seguridad',
+      descripcion: 'Sistemas de seguridad y control',
+      activo: true
+    }
+  })
+
+  const tipoSustentabilidad = await prisma.tipoCaracteristica.create({
+    data: {
+      nombre: 'Sustentabilidad',
+      descripcion: 'Características ecológicas y sustentables',
+      activo: true
+    }
+  })
+
+  const tipoTecnologia = await prisma.tipoCaracteristica.create({
+    data: {
+      nombre: 'Tecnología',
+      descripcion: 'Sistemas tecnológicos y automatización',
+      activo: true
+    }
+  })
+
+  // 2. Crear comisiones base (porcentajes)
   console.log('💰 Creando comisiones...')
   const comisionBasica = await prisma.comision.create({
     data: {
@@ -55,7 +109,33 @@ async function main() {
     }
   })
 
-  // 2. Crear usuarios con RUT (1 admin + 6 brokers)
+  // 2. Crear empresas
+  console.log('🏢 Creando empresas...')
+  const empresaPrincipal = await prisma.empresa.create({
+    data: {
+      nombre: 'Inmobiliaria Principal',
+      rut: '76123456-7',
+      razonSocial: 'Inmobiliaria Principal S.A.',
+      direccion: 'Av. Apoquindo 3000, Las Condes, Santiago',
+      telefono: '+56912345678',
+      email: 'contacto@inmobiliariaprincipal.cl',
+      activa: true
+    }
+  })
+
+  const empresaSecundaria = await prisma.empresa.create({
+    data: {
+      nombre: 'Desarrolladora Costa',
+      rut: '76654321-0',
+      razonSocial: 'Desarrolladora Costa Limitada',
+      direccion: 'Av. del Mar 1500, Viña del Mar',
+      telefono: '+56987654321',
+      email: 'contacto@desarrolladoracosta.cl',
+      activa: true
+    }
+  })
+
+  // 3. Crear usuarios con RUT (1 admin + 6 brokers)
   console.log('👤 Creando usuarios...')
   const hashedPassword = await bcrypt.hash('123456', 10)
 
@@ -136,31 +216,157 @@ async function main() {
     }
   })
 
-  // 3. Crear edificios con comisión base
+  // 4. Crear edificios con comisión base y empresa
   console.log('🏢 Creando edificios...')
   const edificio1 = await prisma.edificio.create({
     data: {
       nombre: 'Torres del Sol',
-      direccion: 'Av. Las Condes 12345, Las Condes, Santiago',
+      direccion: 'Av. Las Condes 12345',
+      comuna: 'Las Condes',
+      ciudad: 'Santiago',
+      region: 'Región Metropolitana',
+      codigoPostal: '7550000',
+      urlGoogleMaps: 'https://maps.google.com/?q=Av.+Las+Condes+12345+Santiago',
+      telefono: '+56 2 2345 6789',
+      email: 'ventas@torresdelsol.cl',
       descripcion: 'Moderno conjunto habitacional con vista panorámica a la cordillera',
-      comisionId: comisionStandard.id // 5% base
+      empresaId: empresaPrincipal.id,
+      comisionId: comisionStandard.id, // 5% base
+      imagenes: {
+        create: [
+          {
+            url: 'https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?w=800',
+            descripcion: 'Fachada principal',
+            orden: 1
+          },
+          {
+            url: 'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=800',
+            descripcion: 'Lobby de ingreso',
+            orden: 2
+          },
+          {
+            url: 'https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=800',
+            descripcion: 'Vista desde terraza',
+            orden: 3
+          }
+        ]
+      },
+      caracteristicas: {
+        create: [
+          {
+            tipoCaracteristicaId: tipoAmenities.id,
+            nombre: 'Piscina',
+            valor: 'Piscina temperada todo el año',
+            mostrarEnResumen: true,
+            icono: 'Waves',
+            tipoIcono: 'LUCIDE'
+          },
+          {
+            tipoCaracteristicaId: tipoAmenities.id,
+            nombre: 'Gimnasio',
+            valor: 'Equipamiento completo',
+            mostrarEnResumen: true,
+            icono: 'Dumbbell',
+            tipoIcono: 'LUCIDE'
+          },
+          {
+            tipoCaracteristicaId: tipoSeguridad.id,
+            nombre: 'Seguridad 24/7',
+            valor: 'Guardias y cámaras',
+            mostrarEnResumen: true,
+            icono: 'Shield',
+            tipoIcono: 'LUCIDE'
+          },
+          {
+            tipoCaracteristicaId: tipoUbicacion.id,
+            nombre: 'Metro',
+            valor: 'A 5 min caminando',
+            mostrarEnResumen: true,
+            icono: 'Train',
+            tipoIcono: 'LUCIDE'
+          },
+          {
+            tipoCaracteristicaId: tipoServicios.id,
+            nombre: 'Estacionamiento',
+            valor: 'Subterráneo techado',
+            mostrarEnResumen: false,
+            icono: 'Car',
+            tipoIcono: 'LUCIDE'
+          }
+        ]
+      }
     }
   })
 
   const edificio2 = await prisma.edificio.create({
     data: {
       nombre: 'Residencial Vista Mar',
-      direccion: 'Av. del Mar 6789, Viña del Mar, Valparaíso',
+      direccion: 'Av. del Mar 6789',
+      comuna: 'Viña del Mar',
+      ciudad: 'Viña del Mar',
+      region: 'Región de Valparaíso',
+      codigoPostal: '2520000',
+      urlGoogleMaps: 'https://maps.google.com/?q=Av.+del+Mar+6789+Viña+del+Mar',
+      telefono: '+56 32 2789 0123',
+      email: 'contacto@vistamar.cl',
       descripcion: 'Exclusivo proyecto frente al océano con amenities de lujo',
-      comisionId: comisionPremium.id // 7% base
+      empresaId: empresaSecundaria.id,
+      comisionId: comisionPremium.id, // 7% base
+      imagenes: {
+        create: [
+          {
+            url: 'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=800',
+            descripcion: 'Vista al mar',
+            orden: 1
+          },
+          {
+            url: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=800',
+            descripcion: 'Sala de estar modelo',
+            orden: 2
+          }
+        ]
+      },
+      caracteristicas: {
+        create: [
+          {
+            tipoCaracteristicaId: tipoAmenities.id,
+            nombre: 'Acceso directo a playa',
+            valor: 'Playa privada',
+            mostrarEnResumen: true,
+            icono: 'Umbrella',
+            tipoIcono: 'LUCIDE'
+          },
+          {
+            tipoCaracteristicaId: tipoAmenities.id,
+            nombre: 'Spa',
+            valor: 'Sauna y jacuzzi',
+            mostrarEnResumen: true,
+            icono: 'Sparkles',
+            tipoIcono: 'LUCIDE'
+          },
+          {
+            tipoCaracteristicaId: tipoSeguridad.id,
+            nombre: 'Acceso controlado',
+            valor: 'Portón automático',
+            mostrarEnResumen: true,
+            icono: 'Lock',
+            tipoIcono: 'LUCIDE'
+          }
+        ]
+      }
     }
   })
 
   const edificio3 = await prisma.edificio.create({
     data: {
       nombre: 'Parque Central',
-      direccion: 'Calle Nueva 1234, Providencia, Santiago',
+      direccion: 'Calle Nueva 1234',
+      comuna: 'Providencia',
+      ciudad: 'Santiago',
+      region: 'Región Metropolitana',
+      codigoPostal: '7500000',
       descripcion: 'Proyecto urbano en el corazón de la ciudad',
+      empresaId: empresaPrincipal.id,
       comisionId: comisionBasica.id // 3% base
     }
   })
@@ -168,8 +374,13 @@ async function main() {
   const edificio4 = await prisma.edificio.create({
     data: {
       nombre: 'Alto Mirador',
-      direccion: 'Av. Apoquindo 5678, Las Condes, Santiago',
+      direccion: 'Av. Apoquindo 5678',
+      comuna: 'Las Condes',
+      ciudad: 'Santiago',
+      region: 'Región Metropolitana',
+      codigoPostal: '7560000',
       descripcion: 'Torre de lujo con vista panorámica',
+      empresaId: empresaPrincipal.id,
       comisionId: comisionVip.id // 10% base
     }
   })
@@ -177,13 +388,18 @@ async function main() {
   const edificio5 = await prisma.edificio.create({
     data: {
       nombre: 'Condominio Verde',
-      direccion: 'Pasaje Los Olivos 987, Ñuñoa, Santiago',
+      direccion: 'Pasaje Los Olivos 987',
+      comuna: 'Ñuñoa',
+      ciudad: 'Santiago',
+      region: 'Región Metropolitana',
+      codigoPostal: '7750000',
       descripcion: 'Proyecto sustentable con áreas verdes',
+      empresaId: empresaSecundaria.id,
       comisionId: comisionStandard.id // 5% base
     }
   })
 
-  // 4. Crear tipos de unidad por edificio
+  // 5. Crear tipos de unidad por edificio
   console.log('🏠 Creando tipos de unidad por edificio...')
 
   // Torres del Sol - Tipos de unidad

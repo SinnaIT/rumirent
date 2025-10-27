@@ -32,6 +32,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
         nombre: true,
         rut: true,
         telefono: true,
+        birthDate: true,
         activo: true,
         createdAt: true,
         leads: {
@@ -107,7 +108,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
 
     const { id } = params
     const body = await request.json()
-    const { nombre, rut, telefono, password } = body
+    const { nombre, rut, telefono, birthDate, password } = body
 
     // Validaciones básicas
     if (!nombre || !rut) {
@@ -150,7 +151,8 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     const updateData: any = {
       nombre,
       rut,
-      telefono: telefono || null
+      telefono: telefono || null,
+      birthDate: birthDate ? new Date(birthDate) : null
     }
 
     // Si se proporciona nueva contraseña, hashearla
@@ -174,6 +176,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
         nombre: true,
         rut: true,
         telefono: true,
+        birthDate: true,
         activo: true,
         createdAt: true
       }

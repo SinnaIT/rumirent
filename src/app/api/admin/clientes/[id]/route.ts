@@ -55,6 +55,8 @@ export async function GET(
       rut: cliente.rut,
       email: cliente.email,
       telefono: cliente.telefono,
+      direccion: cliente.direccion,
+      fechaNacimiento: cliente.fechaNacimiento?.toISOString(),
       broker: cliente.broker,
       totalLeads: cliente._count.leads, // BD field name, mapped to totalLeads
       createdAt: cliente.createdAt.toISOString(),
@@ -97,9 +99,9 @@ export async function PUT(
     }
 
     const body = await request.json()
-    const { nombre, rut, email, telefono, brokerId } = body
+    const { nombre, rut, email, telefono, direccion, fechaNacimiento, brokerId } = body
 
-    console.log('📝 Datos a actualizar:', { nombre, rut, email, telefono, brokerId })
+    console.log('📝 Datos a actualizar:', { nombre, rut, email, telefono, direccion, fechaNacimiento, brokerId })
 
     // Validaciones básicas
     if (!nombre || !rut || !brokerId) {
@@ -159,6 +161,8 @@ export async function PUT(
         rut,
         email: email || null,
         telefono: telefono || null,
+        direccion: direccion || null,
+        fechaNacimiento: fechaNacimiento ? new Date(fechaNacimiento) : null,
         brokerId
       },
       include: {
@@ -186,6 +190,8 @@ export async function PUT(
       rut: updatedCliente.rut,
       email: updatedCliente.email,
       telefono: updatedCliente.telefono,
+      direccion: updatedCliente.direccion,
+      fechaNacimiento: updatedCliente.fechaNacimiento?.toISOString(),
       broker: updatedCliente.broker,
       totalLeads: updatedCliente._count.leads, // BD field name, mapped to totalLeads
       createdAt: updatedCliente.createdAt.toISOString(),
@@ -200,8 +206,9 @@ export async function PUT(
 
   } catch (error) {
     console.error('❌ Error al actualizar cliente:', error)
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
     return NextResponse.json(
-      { error: 'Error interno del servidor', details: error.message },
+      { error: 'Error interno del servidor', details: errorMessage },
       { status: 500 }
     )
   }

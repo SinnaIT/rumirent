@@ -8,51 +8,137 @@ datasource db {
 }
 
 model User {
-  id        String     @id @default(cuid())
-  email     String     @unique
-  password  String
-  nombre    String
-  rut       String     @unique
-  telefono  String?
-  role      Role       @default(BROKER)
-  activo    Boolean    @default(true)
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
-  leads Lead[]
-  clientes  Cliente[]  @relation("ClienteBroker")
+  id             String        @id @default(cuid())
+  email          String        @unique
+  password       String
+  nombre         String
+  rut            String        @unique
+  telefono       String?
+  birthDate      DateTime?
+  role           Role          @default(BROKER)
+  activo         Boolean       @default(true)
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  clientes       Cliente[]     @relation("ClienteBroker")
+  leads          Lead[]
+  metasMensuales MetaMensual[]
 
   @@map("users")
+}
+
+model Empresa {
+  id          String     @id @default(cuid())
+  nombre      String
+  rut         String     @unique
+  razonSocial String
+  direccion   String?
+  telefono    String?
+  email       String?
+  activa      Boolean    @default(true)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  edificios   Edificio[]
+
+  @@map("empresas")
 }
 
 model Edificio {
   id                 String                     @id @default(cuid())
   nombre             String
   direccion          String
+  comuna             String
+  ciudad             String
+  region             String
+  codigoPostal       String?
+  urlGoogleMaps      String?
+  telefono           String?
+  email              String?
   descripcion        String?
+  empresaId          String
   comisionId         String
   createdAt          DateTime                   @default(now())
   updatedAt          DateTime                   @updatedAt
-  comision           Comision                   @relation(fields: [comisionId], references: [id])
   cambiosProgramados CambioComisionProgramado[]
-  unidades           Unidad[]
+  empresa            Empresa                    @relation(fields: [empresaId], references: [id])
+  comision           Comision                   @relation(fields: [comisionId], references: [id])
+  leads              Lead[]                     @relation("LeadEdificio")
   tiposUnidad        TipoUnidadEdificio[]
-  leads          Lead[]                 @relation("LeadEdificio")
+  unidades           Unidad[]
+  imagenes           ImagenEdificio[]
+  caracteristicas    CaracteristicaEdificio[]
 
   @@map("edificios")
+}
+
+model ImagenEdificio {
+  id          String         @id @default(cuid())
+  edificioId  String
+  url         String
+  descripcion String?
+  orden       Int            @default(0)
+  imageType   TipoImagenUrl  @default(URL)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  edificio    Edificio       @relation(fields: [edificioId], references: [id], onDelete: Cascade)
+
+  @@map("imagenes_edificio")
+}
+
+model TipoCaracteristica {
+  id              String                   @id @default(cuid())
+  nombre          String                   @unique
+  descripcion     String?
+  activo          Boolean                  @default(true)
+  createdAt       DateTime                 @default(now())
+  updatedAt       DateTime                 @updatedAt
+  caracteristicas CaracteristicaEdificio[]
+
+  @@map("tipos_caracteristica")
+}
+
+model CaracteristicaEdificio {
+  id                   String             @id @default(cuid())
+  edificioId           String
+  tipoCaracteristicaId String
+  nombre               String
+  valor                String
+  mostrarEnResumen     Boolean            @default(true)
+  icono                String?
+  tipoIcono            TipoIcono          @default(LUCIDE)
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+  edificio             Edificio           @relation(fields: [edificioId], references: [id], onDelete: Cascade)
+  tipoCaracteristica   TipoCaracteristica @relation(fields: [tipoCaracteristicaId], references: [id])
+
+  @@map("caracteristicas_edificio")
+}
+
+enum TipoIcono {
+  LUCIDE
+  URL
+  UPLOAD
+}
+
+enum TipoImagenUrl {
+  URL
+  UPLOAD
 }
 
 model TipoUnidadEdificio {
   id                 String                     @id @default(cuid())
   nombre             String
   codigo             String
+  bedrooms           Int?
+  bathrooms          Int?
   comisionId         String?
   createdAt          DateTime                   @default(now())
   updatedAt          DateTime                   @updatedAt
   edificioId         String
-  edificio           Edificio                   @relation(fields: [edificioId], references: [id], onDelete: Cascade)
-  comision           Comision?                  @relation("TipoUnidadComision", fields: [comisionId], references: [id])
-  unidades           Unidad[]
   cambiosProgramados CambioComisionProgramado[]
+  comision           Comision?                  @relation("TipoUnidadComision", fields: [comisionId], references: [id])
+  edificio           Edificio                   @relation(fields: [edificioId], references: [id], onDelete: Cascade)
+  unidades           Unidad[]
+  leads              Lead[]                     @relation("LeadTipoUnidad")
 
   @@unique([edificioId, codigo])
   @@map("tipos_unidad_edificio")
@@ -68,7 +154,7 @@ model Unidad {
   updatedAt            DateTime           @updatedAt
   edificioId           String
   tipoUnidadEdificioId String
-  leads            Lead?
+  leads                Lead?
   edificio             Edificio           @relation(fields: [edificioId], references: [id], onDelete: Cascade)
   tipoUnidadEdificio   TipoUnidadEdificio @relation(fields: [tipoUnidadEdificioId], references: [id])
 
@@ -77,48 +163,52 @@ model Unidad {
 }
 
 model Cliente {
-  id            String     @id @default(cuid())
-  nombre        String
-  rut           String     @unique
-  email         String?
-  telefono      String?
-  brokerId String
-  createdAt     DateTime   @default(now())
-  updatedAt     DateTime   @updatedAt
-  broker   User       @relation("ClienteBroker", fields: [brokerId], references: [id])
-  leads     Lead[]
+  id              String    @id @default(cuid())
+  nombre          String
+  rut             String    @unique
+  email           String?
+  telefono        String?
+  direccion       String?
+  fechaNacimiento DateTime?
+  brokerId        String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  broker          User?     @relation("ClienteBroker", fields: [brokerId], references: [id])
+  leads           Lead[]
 
   @@map("clientes")
 }
 
 model Lead {
-  id                    String         @id @default(cuid())
-  codigoUnidad          String?
-  totalLead         Float
-  montoUf               Float
-  comision              Float
-  estado                EstadoLead @default(ENTREGADO)
-  fechaPagoReserva      DateTime?
-  fechaPagoLead     DateTime?
-  fechaCheckin          DateTime?
-  postulacion           String?
-  observaciones         String?
-  conciliado            Boolean        @default(false)
-  fechaConciliacion     DateTime?
-  reglaComisionId       String?
-  comisionId            String?
-  createdAt             DateTime       @default(now())
-  updatedAt             DateTime       @updatedAt
-  brokerId         String
-  clienteId             String
-  unidadId              String?        @unique
-  edificioId            String
-  broker           User           @relation(fields: [brokerId], references: [id])
-  cliente               Cliente        @relation(fields: [clienteId], references: [id])
-  unidad                Unidad?        @relation(fields: [unidadId], references: [id])
-  edificio              Edificio       @relation("LeadEdificio", fields: [edificioId], references: [id])
-  reglaComision         ReglaComision? @relation(fields: [reglaComisionId], references: [id])
-  comisionBase          Comision?      @relation("LeadComisionBase", fields: [comisionId], references: [id])
+  id                   String              @id @default(cuid())
+  codigoUnidad         String?
+  totalLead            Float
+  montoUf              Float?
+  comision             Float
+  estado               EstadoLead          @default(ENTREGADO)
+  fechaPagoReserva     DateTime?
+  fechaPagoLead        DateTime?
+  fechaCheckin         DateTime?
+  postulacion          String?
+  observaciones        String?
+  conciliado           Boolean             @default(false)
+  fechaConciliacion    DateTime?
+  reglaComisionId      String?
+  createdAt            DateTime            @default(now())
+  updatedAt            DateTime            @updatedAt
+  brokerId             String
+  clienteId            String
+  unidadId             String?             @unique
+  edificioId           String
+  comisionId           String?
+  tipoUnidadEdificioId String?
+  broker               User                @relation(fields: [brokerId], references: [id])
+  cliente              Cliente             @relation(fields: [clienteId], references: [id])
+  comisionBase         Comision?           @relation("LeadComisionBase", fields: [comisionId], references: [id])
+  edificio             Edificio            @relation("LeadEdificio", fields: [edificioId], references: [id])
+  reglaComision        ReglaComision?      @relation(fields: [reglaComisionId], references: [id])
+  unidad               Unidad?             @relation(fields: [unidadId], references: [id])
+  tipoUnidadEdificio   TipoUnidadEdificio? @relation("LeadTipoUnidad", fields: [tipoUnidadEdificioId], references: [id])
 
   @@map("leads")
 }
@@ -131,25 +221,25 @@ model Comision {
   activa             Boolean                    @default(true)
   createdAt          DateTime                   @default(now())
   updatedAt          DateTime                   @updatedAt
-  edificios          Edificio[]
-  tiposUnidad        TipoUnidadEdificio[]       @relation("TipoUnidadComision")
   cambiosProgramados CambioComisionProgramado[]
-  reglasComision     ReglaComision[]
+  edificios          Edificio[]
   leadsComisionBase  Lead[]                     @relation("LeadComisionBase")
+  reglasComision     ReglaComision[]
+  tiposUnidad        TipoUnidadEdificio[]       @relation("TipoUnidadComision")
 
   @@map("comisiones")
 }
 
 model ReglaComision {
-  id             String     @id @default(cuid())
+  id             String   @id @default(cuid())
   cantidadMinima Float
   cantidadMaxima Float?
   porcentaje     Float
   comisionId     String
-  createdAt      DateTime   @default(now())
-  updatedAt      DateTime   @updatedAt
-  comision       Comision   @relation(fields: [comisionId], references: [id], onDelete: Cascade)
-  leads      Lead[]
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  leads          Lead[]
+  comision       Comision @relation(fields: [comisionId], references: [id], onDelete: Cascade)
 
   @@map("reglas_comision")
 }
@@ -165,7 +255,7 @@ model CambioComisionProgramado {
   updatedAt            DateTime            @updatedAt
   comision             Comision            @relation(fields: [comisionId], references: [id], onDelete: Cascade)
   edificio             Edificio            @relation(fields: [edificioId], references: [id], onDelete: Cascade)
-  tipoUnidadEdificio   TipoUnidadEdificio? @relation(fields: [tipoUnidadEdificioId], references: [id], onDelete: SetNull)
+  tipoUnidadEdificio   TipoUnidadEdificio? @relation(fields: [tipoUnidadEdificioId], references: [id])
 
   @@map("cambios_comision_programados")
 }
@@ -186,4 +276,18 @@ enum EstadoLead {
   RESERVA_PAGADA
   APROBADO
   RECHAZADO
+}
+
+model MetaMensual {
+  id        String   @id @default(cuid())
+  brokerId  String?
+  mes       Int
+  anio      Int
+  montoMeta Float
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  broker    User?    @relation(fields: [brokerId], references: [id], onDelete: Cascade)
+
+  @@unique([brokerId, mes, anio])
+  @@map("metas_mensuales")
 }

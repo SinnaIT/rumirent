@@ -34,6 +34,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
         nombre: true,
         rut: true,
         telefono: true,
+        birthDate: true,
         activo: true,
         createdAt: true,
         updatedAt: true
@@ -74,7 +75,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
 
     const { id } = params
     const body = await request.json()
-    const { nombre, rut, telefono, password } = body
+    const { nombre, rut, telefono, birthDate, password } = body
 
     // Validaciones básicas
     if (!nombre || !rut) {
@@ -125,10 +126,18 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     }
 
     // Preparar datos de actualización
-    const updateData: any = {
+    const updateData: {
+      nombre: string
+      rut: string
+      telefono: string | null
+      birthDate: Date | null
+      updatedAt: Date
+      password?: string
+    } = {
       nombre,
       rut,
       telefono: telefono || null,
+      birthDate: birthDate ? new Date(birthDate) : null,
       updatedAt: new Date()
     }
 
@@ -147,6 +156,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
         nombre: true,
         rut: true,
         telefono: true,
+        birthDate: true,
         activo: true,
         createdAt: true,
         updatedAt: true

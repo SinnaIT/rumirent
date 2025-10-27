@@ -3,21 +3,19 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { Badge } from '@/components/ui/badge'
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
+import { Card, CardContent } from '@/components/ui/card'
 import { toast } from 'sonner'
 import {
   Building2,
   Home,
-  ChevronDown,
-  ChevronRight,
   MapPin,
   RefreshCw,
   Plus,
-  Calculator
+  Calculator,
+  Eye,
+  Image as ImageIcon
 } from 'lucide-react'
+import * as LucideIcons from 'lucide-react'
 
 interface Comision {
   id: string
@@ -43,15 +41,40 @@ interface Unidad {
   updatedAt: string
 }
 
+interface Imagen {
+  id: string
+  url: string
+  descripcion?: string
+  orden: number
+}
+
+interface Caracteristica {
+  id: string
+  nombre: string
+  valor: string
+  icono?: string
+  tipoIcono: 'LUCIDE' | 'URL' | 'UPLOAD'
+  mostrarEnResumen: boolean
+  tipoCaracteristica: {
+    id: string
+    nombre: string
+    descripcion?: string
+  }
+}
+
 interface Proyecto {
   id: string
   nombre: string
   direccion: string
   descripcion?: string
-  estado: 'ENTREGA_INMEDIATA' | 'ENTREGA_FUTURA'
+  urlGoogleMaps?: string
+  telefono?: string
+  email?: string
   comision?: Comision | null
   totalUnidades: number
   unidadesDisponibles: number
+  imagenes: Imagen[]
+  caracteristicas: Caracteristica[]
   unidades: Unidad[]
   createdAt: string
   updatedAt: string
@@ -62,7 +85,6 @@ export default function BrokerProyectosPage() {
   const router = useRouter()
   const [proyectos, setProyectos] = useState<Proyecto[]>([])
   const [loading, setLoading] = useState(true)
-  const [expandedProjects, setExpandedProjects] = useState<Set<string>>(new Set())
 
   useEffect(() => {
     fetchProyectos()
@@ -87,19 +109,33 @@ export default function BrokerProyectosPage() {
     }
   }
 
-  const toggleProject = (projectId: string) => {
-    const newExpanded = new Set(expandedProjects)
-    if (newExpanded.has(projectId)) {
-      newExpanded.delete(projectId)
-    } else {
-      newExpanded.add(projectId)
-    }
-    setExpandedProjects(newExpanded)
-  }
-
-
   const handleGenerarLead = (unidadId: string) => {
     router.push(`/broker/generar-lead?unidadId=${unidadId}`)
+  }
+
+  const handleVerDetalle = (proyectoId: string) => {
+    router.push(`/broker/proyectos/${proyectoId}`)
+  }
+
+  const renderIcon = (caracteristica: Caracteristica) => {
+    if (!caracteristica.icono) return null
+
+    if (caracteristica.tipoIcono === 'LUCIDE' && caracteristica.icono) {
+      const IconComponent = (LucideIcons as any)[caracteristica.icono]
+      if (IconComponent) {
+        return <IconComponent className="h-4 w-4 text-primary" />
+      }
+    } else if (caracteristica.tipoIcono === 'URL' || caracteristica.tipoIcono === 'UPLOAD') {
+      return (
+        <img
+          src={caracteristica.icono}
+          alt={caracteristica.nombre}
+          className="h-4 w-4 object-contain"
+        />
+      )
+    }
+
+    return null
   }
 
   if (loading) {
@@ -186,7 +222,7 @@ export default function BrokerProyectosPage() {
         </div>
       )}
 
-      {/* Lista de Proyectos */}
+      {/* Lista de Proyectos - Vista de Tarjetas */}
       <div className="space-y-4">
         {proyectos.length === 0 ? (
           <Card>
@@ -201,144 +237,125 @@ export default function BrokerProyectosPage() {
             </CardContent>
           </Card>
         ) : (
-          proyectos.map((proyecto) => {
-            const isExpanded = expandedProjects.has(proyecto.id)
-
-            return (
-              <Card key={proyecto.id} className="overflow-hidden">
-                <Collapsible open={isExpanded} onOpenChange={() => toggleProject(proyecto.id)}>
-                  <CollapsibleTrigger asChild>
-                    <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-4">
-                          {isExpanded ? (
-                            <ChevronDown className="h-5 w-5 text-muted-foreground" />
-                          ) : (
-                            <ChevronRight className="h-5 w-5 text-muted-foreground" />
-                          )}
-                          <div>
-                            <CardTitle className="text-lg">{proyecto.nombre}</CardTitle>
-                            <CardDescription className="flex items-center">
-                              <MapPin className="w-4 h-4 mr-1" />
-                              {proyecto.direccion}
-                            </CardDescription>
-                          </div>
-                        </div>
-                        <div className="flex items-center space-x-4">
-                          <div className="text-right">
-                            <div className="text-sm font-medium">
-                              {proyecto.unidadesDisponibles} de {proyecto.totalUnidades}
-                            </div>
-                            <div className="text-xs text-muted-foreground">
-                              unidades disponibles
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </CardHeader>
-                  </CollapsibleTrigger>
-
-                  <CollapsibleContent>
-                    <CardContent className="pt-0">
-                      {proyecto.descripcion && (
-                        <div className="mb-4 p-3 bg-muted rounded-lg">
-                          <p className="text-sm text-muted-foreground">{proyecto.descripcion}</p>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {proyectos.map((proyecto) => (
+              <Card key={proyecto.id} className="overflow-hidden hover:shadow-xl transition-shadow group">
+                {/* Imagen del proyecto */}
+                <div className="relative aspect-video bg-muted overflow-hidden">
+                  {proyecto.imagenes.length > 0 ? (
+                    <>
+                      <img
+                        src={proyecto.imagenes[0].url}
+                        alt={proyecto.nombre}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                      />
+                      {proyecto.imagenes.length > 1 && (
+                        <div className="absolute top-2 right-2 bg-black/70 text-white px-2 py-1 rounded-full text-xs flex items-center gap-1">
+                          <ImageIcon className="h-3 w-3" />
+                          {proyecto.imagenes.length}
                         </div>
                       )}
+                    </>
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center">
+                      <Building2 className="h-16 w-16 text-muted-foreground/30" />
+                    </div>
+                  )}
+                </div>
 
-                      {proyecto.comision && (
-                        <div className="mb-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <h4 className="text-sm font-medium text-blue-900">
-                                Comisión del Proyecto
-                              </h4>
-                              <p className="text-sm text-blue-700">
-                                {proyecto.comision.nombre} ({proyecto.comision.codigo})
-                              </p>
-                            </div>
-                            <div className="text-right">
-                              <div className="text-lg font-bold text-blue-900">
-                                {(proyecto.comision.porcentaje * 100).toFixed(1)}%
-                              </div>
-                              <div className="text-xs text-blue-600">
-                                comisión base
-                              </div>
+                <CardContent className="p-5 space-y-4">
+                  {/* Título y ubicación */}
+                  <div>
+                    <h3 className="text-lg font-bold mb-1 line-clamp-1">{proyecto.nombre}</h3>
+                    <div className="flex items-center text-sm text-muted-foreground">
+                      <MapPin className="h-3 w-3 mr-1 flex-shrink-0" />
+                      <span className="line-clamp-1">{proyecto.direccion}</span>
+                    </div>
+                  </div>
+
+                  {/* Descripción */}
+                  {proyecto.descripcion && (
+                    <p className="text-sm text-muted-foreground line-clamp-2">
+                      {proyecto.descripcion}
+                    </p>
+                  )}
+
+                  {/* Características destacadas */}
+                  {proyecto.caracteristicas.filter(c => c.mostrarEnResumen).length > 0 && (
+                    <div className="space-y-2">
+                      <p className="text-xs font-semibold text-muted-foreground uppercase">Características</p>
+                      <div className="grid grid-cols-2 gap-2">
+                        {proyecto.caracteristicas
+                          .filter(c => c.mostrarEnResumen)
+                          .slice(0, 4)
+                          .map((caracteristica) => (
+                          <div
+                            key={caracteristica.id}
+                            className="flex items-center gap-2 text-xs bg-muted/50 rounded px-2 py-1.5"
+                          >
+                            {renderIcon(caracteristica)}
+                            <div className="min-w-0 flex-1">
+                              <p className="font-medium truncate">{caracteristica.nombre}</p>
+                              <p className="text-muted-foreground truncate">{caracteristica.valor}</p>
                             </div>
                           </div>
-                        </div>
-                      )}
-
-                      <div className="overflow-x-auto">
-                        <Table>
-                          <TableHeader>
-                            <TableRow>
-                              <TableHead>Unidad</TableHead>
-                              <TableHead>Tipo</TableHead>
-                              <TableHead>Comisión</TableHead>
-                              <TableHead>m²</TableHead>
-                              <TableHead className="text-right">Acciones</TableHead>
-                            </TableRow>
-                          </TableHeader>
-                          <TableBody>
-                            {proyecto.unidades.map((unidad) => (
-                              <TableRow key={unidad.id}>
-                                <TableCell>
-                                  <div className="font-medium">{unidad.numero}</div>
-                                  {unidad.descripcion && (
-                                    <div className="text-sm text-muted-foreground">{unidad.descripcion}</div>
-                                  )}
-                                </TableCell>
-                                <TableCell>
-                                  <div>
-                                    <div className="font-medium text-sm">{unidad.tipoUnidad.nombre}</div>
-                                    <div className="text-xs text-muted-foreground">{unidad.tipoUnidad.codigo}</div>
-                                  </div>
-                                </TableCell>
-                                <TableCell>
-                                  <div>
-                                    {unidad.tipoUnidad.comision ? (
-                                      <>
-                                        <div className="font-medium text-sm">{unidad.tipoUnidad.comision.nombre}</div>
-                                        <div className="text-xs text-green-600 font-medium">
-                                          {(unidad.tipoUnidad.comision.porcentaje * 100).toFixed(1)}%
-                                        </div>
-                                      </>
-                                    ) : proyecto.comision ? (
-                                      <>
-                                        <div className="font-medium text-sm">{proyecto.comision.nombre}</div>
-                                        <div className="text-xs text-blue-600 font-medium">
-                                          {(proyecto.comision.porcentaje * 100).toFixed(1)}% (base)
-                                        </div>
-                                      </>
-                                    ) : (
-                                      <div className="text-sm text-muted-foreground">Sin comisión</div>
-                                    )}
-                                  </div>
-                                </TableCell>
-                                <TableCell>
-                                  {unidad.metros2 ? `${unidad.metros2} m²` : '-'}
-                                </TableCell>
-                                <TableCell className="text-right">
-                                  <Button
-                                    size="sm"
-                                    onClick={() => handleGenerarLead(unidad.id)}
-                                  >
-                                    <Plus className="w-4 h-4 mr-2" />
-                                    Generar Lead
-                                  </Button>
-                                </TableCell>
-                              </TableRow>
-                            ))}
-                          </TableBody>
-                        </Table>
+                          ))}
                       </div>
-                    </CardContent>
-                  </CollapsibleContent>
-                </Collapsible>
+                      {proyecto.caracteristicas.filter(c => c.mostrarEnResumen).length > 4 && (
+                        <p className="text-xs text-muted-foreground text-center">
+                          +{proyecto.caracteristicas.filter(c => c.mostrarEnResumen).length - 4} más
+                        </p>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Stats */}
+                  <div className="flex items-center justify-between pt-3 border-t">
+                    <div className="flex items-center gap-2">
+                      <Home className="h-4 w-4 text-muted-foreground" />
+                      <div className="text-sm">
+                        <span className="font-bold text-green-600">{proyecto.unidadesDisponibles}</span>
+                        <span className="text-muted-foreground"> / {proyecto.totalUnidades}</span>
+                      </div>
+                    </div>
+                    {proyecto.comision && (
+                      <div className="flex items-center gap-1 bg-primary/10 px-2 py-1 rounded">
+                        <Calculator className="h-3 w-3 text-primary" />
+                        <span className="text-sm font-bold text-primary">
+                          {(proyecto.comision.porcentaje * 100).toFixed(1)}%
+                        </span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Botones de acción */}
+                  <div className="flex gap-2 pt-2">
+                    <Button
+                      variant="outline"
+                      className="flex-1"
+                      onClick={() => handleVerDetalle(proyecto.id)}
+                    >
+                      <Eye className="h-4 w-4 mr-2" />
+                      Ver Detalle
+                    </Button>
+                    <Button
+                      className="flex-1"
+                      onClick={() => {
+                        if (proyecto.unidades.length > 0) {
+                          handleGenerarLead(proyecto.unidades[0].id)
+                        } else {
+                          toast.error('No hay unidades disponibles')
+                        }
+                      }}
+                    >
+                      <Plus className="h-4 w-4 mr-2" />
+                      Lead
+                    </Button>
+                  </div>
+                </CardContent>
               </Card>
-            )
-          })
+            ))}
+          </div>
         )}
       </div>
     </div>

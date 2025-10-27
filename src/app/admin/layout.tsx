@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import {
   Menu,
   X,
+  Building,
   Building2,
   Users,
   Calculator,
@@ -20,7 +21,8 @@ import {
   FileCheck,
   UserCheck,
   FileText,
-  Shield
+  Shield,
+  Target
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/lib/hooks/use-auth'
@@ -28,12 +30,14 @@ import { ThemeToggle } from '@/components/theme-toggle'
 
 const menuItems = [
   { icon: Home, label: 'Dashboard', href: '/admin' },
+  { icon: Building, label: 'Empresas', href: '/admin/empresas' },
   { icon: Building2, label: 'Proyectos', href: '/admin/proyectos' },
   { icon: Users, label: 'Brokers', href: '/admin/brokers' },
   { icon: Shield, label: 'Usuarios Admin', href: '/admin/usuarios' },
-  { icon: UserCheck, label: 'Clientes', href: '/admin/clientes' },
-  { icon: FileText, label: 'Leads', href: '/admin/leads' },
+  { icon: UserCheck, label: 'Leads', href: '/admin/clientes' },
+  { icon: FileText, label: 'Prospectos', href: '/admin/leads' },
   { icon: Calculator, label: 'Comisiones', href: '/admin/comisiones' },
+  { icon: Target, label: 'Metas Mensuales', href: '/admin/metas' },
   { icon: FileCheck, label: 'Conciliación', href: '/admin/conciliacion' },
   {
     icon: BarChart3,
@@ -43,6 +47,7 @@ const menuItems = [
     submenu: [
       { icon: TrendingUp, label: 'Performance Brokers', href: '/admin/reportes' },
       { icon: DollarSign, label: 'Flujo de Caja', href: '/admin/reportes/flujo-caja' },
+      { icon: FileText, label: 'Reporte Mensual Brokers', href: '/admin/reportes/brokers-mensual' },
     ]
   },
 ]

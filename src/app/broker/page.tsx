@@ -1,111 +1,150 @@
 'use client'
 
-import { Home, DollarSign, TrendingUp, Target, Calendar, MapPin } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import {
+  Home,
+  DollarSign,
+  TrendingUp,
+  Target,
+  Calendar,
+  CheckCircle,
+  Users,
+  CheckSquare,
+  ChevronLeft,
+  ChevronRight,
+} from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+
+interface DashboardMetrics {
+  cantidadReservas: number
+  numeroCheckins: number
+  comisionesProyectadas: number
+  comisionesConcretadas: number
+  porcentajeCierre: number
+  metaColocacion: {
+    montoActual: number
+    montoMeta: number
+    porcentaje: number
+  }
+}
+
+const meses = [
+  'Enero',
+  'Febrero',
+  'Marzo',
+  'Abril',
+  'Mayo',
+  'Junio',
+  'Julio',
+  'Agosto',
+  'Septiembre',
+  'Octubre',
+  'Noviembre',
+  'Diciembre',
+]
 
 export default function BrokerDashboard() {
-  // Datos de ejemplo - en producción vendrían de la API
-  const stats = [
-    {
-      title: "Ventas Este Mes",
-      value: "3",
-      change: "+1 vs mes anterior",
-      icon: Home,
-      color: "text-success",
-      bgColor: "bg-success/10"
-    },
-    {
-      title: "Comisiones Ganadas",
-      value: "$8,450",
-      change: "+25% este mes",
-      icon: DollarSign,
-      color: "text-accent",
-      bgColor: "bg-accent/10"
-    },
-    {
-      title: "Meta Mensual",
-      value: "75%",
-      change: "3 de 4 unidades",
-      icon: Target,
-      color: "text-primary",
-      bgColor: "bg-primary/10"
-    },
-    {
-      title: "Promedio Comisión",
-      value: "$2,817",
-      change: "Por unidad vendida",
-      icon: TrendingUp,
-      color: "text-secondary",
-      bgColor: "bg-secondary/10"
-    }
-  ]
+  const [metrics, setMetrics] = useState<DashboardMetrics | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
-  const recentSales = [
-    {
-      unit: "Apt 2B",
-      project: "Torre Verde",
-      price: "$125,000",
-      commission: "$3,750",
-      date: "15 Nov 2024",
-      status: "completed"
-    },
-    {
-      unit: "Apt 1A",
-      project: "Residencial Azul",
-      price: "$98,000",
-      commission: "$2,940",
-      date: "12 Nov 2024",
-      status: "completed"
-    },
-    {
-      unit: "Apt 3C",
-      project: "Torre Verde",
-      price: "$110,000",
-      commission: "$3,300",
-      date: "8 Nov 2024",
-      status: "completed"
-    }
-  ]
+  // Obtener mes y año actual
+  const today = new Date()
+  const [selectedMes, setSelectedMes] = useState<number>(today.getMonth() + 1)
+  const [selectedAnio, setSelectedAnio] = useState<number>(today.getFullYear())
 
-  const availableUnits = [
-    {
-      unit: "Apt 4A",
-      project: "Torre Verde",
-      type: "2 Dormitorios",
-      price: "$135,000",
-      commission: "$4,050",
-      priority: "Alta"
-    },
-    {
-      unit: "Studio 1B",
-      project: "Residencial Azul",
-      type: "Studio",
-      price: "$85,000",
-      commission: "$2,550",
-      priority: "Media"
-    },
-    {
-      unit: "Apt 5C",
-      project: "Torre Verde",
-      type: "3 Dormitorios",
-      price: "$165,000",
-      commission: "$4,950",
-      priority: "Urgente"
-    }
-  ]
+  useEffect(() => {
+    fetchMetrics()
+  }, [selectedMes, selectedAnio])
 
-  const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case 'Urgente': return 'bg-destructive text-destructive-foreground'
-      case 'Alta': return 'bg-warning text-warning-foreground'
-      case 'Media': return 'bg-secondary text-secondary-foreground'
-      default: return 'bg-muted text-muted-foreground'
+  const fetchMetrics = async () => {
+    try {
+      setLoading(true)
+      setError(null)
+      const response = await fetch(
+        `/api/broker/dashboard?mes=${selectedMes}&anio=${selectedAnio}`
+      )
+
+      if (!response.ok) {
+        throw new Error('Error al cargar las métricas')
+      }
+
+      const data = await response.json()
+      setMetrics(data)
+    } catch (error) {
+      console.error('Error fetching metrics:', error)
+      setError('Error al cargar las métricas del dashboard')
+    } finally {
+      setLoading(false)
     }
+  }
+
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('es-CL', {
+      style: 'currency',
+      currency: 'CLP',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(amount)
+  }
+
+  const handlePreviousMonth = () => {
+    if (selectedMes === 1) {
+      setSelectedMes(12)
+      setSelectedAnio(selectedAnio - 1)
+    } else {
+      setSelectedMes(selectedMes - 1)
+    }
+  }
+
+  const handleNextMonth = () => {
+    if (selectedMes === 12) {
+      setSelectedMes(1)
+      setSelectedAnio(selectedAnio + 1)
+    } else {
+      setSelectedMes(selectedMes + 1)
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
+          <p className="mt-4 text-muted-foreground">Cargando métricas...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <p className="text-destructive">{error}</p>
+          <Button onClick={fetchMetrics} className="mt-4">
+            Reintentar
+          </Button>
+        </div>
+      </div>
+    )
+  }
+
+  if (!metrics) {
+    return null
   }
 
   return (
     <div className="space-y-6">
-      {/* Enhanced Header - S-Tier Design */}
-      <div className="flex items-start justify-between mb-8">
+      {/* Enhanced Header with Month/Year Selector */}
+      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-8">
         <div className="space-y-2">
           <h1 className="text-4xl font-bold tracking-tight text-foreground">
             Mi Dashboard
@@ -114,152 +153,277 @@ export default function BrokerDashboard() {
             Resumen de tu actividad de ventas
           </p>
         </div>
-        <div className="flex items-center space-x-3 text-sm bg-gradient-to-r from-primary/10 to-primary/5 px-4 py-3 rounded-xl border border-primary/20">
-          <Calendar className="h-4 w-4 text-primary" />
-          <span className="text-foreground font-semibold">Noviembre 2024</span>
-        </div>
-      </div>
 
-      {/* Enhanced Stats Cards - S-Tier Design */}
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 mb-8">
-        {stats.map((stat, index) => (
-          <div
-            key={stat.title}
-            className="group bg-card border border-border rounded-xl p-6 shadow-sm hover:shadow-lg hover:shadow-primary/5 transition-all duration-300 hover:border-primary/20 cursor-pointer"
-            style={{ animationDelay: `${index * 100}ms` }}
+        {/* Month/Year Selector */}
+        <div className="flex items-center space-x-3 bg-gradient-to-r from-primary/10 to-primary/5 px-4 py-3 rounded-xl border border-primary/20">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handlePreviousMonth}
+            className="h-8 w-8 p-0"
           >
-            <div className="flex items-start justify-between">
-              <div className="space-y-3">
-                <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
-                  {stat.title}
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+
+          <div className="flex items-center space-x-2">
+            <Calendar className="h-4 w-4 text-primary" />
+            <Select
+              value={selectedMes.toString()}
+              onValueChange={(value) => setSelectedMes(parseInt(value))}
+            >
+              <SelectTrigger className="w-[140px] border-0 bg-transparent focus:ring-0">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {meses.map((mes, index) => (
+                  <SelectItem key={index} value={(index + 1).toString()}>
+                    {mes}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select
+              value={selectedAnio.toString()}
+              onValueChange={(value) => setSelectedAnio(parseInt(value))}
+            >
+              <SelectTrigger className="w-[100px] border-0 bg-transparent focus:ring-0">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {Array.from({ length: 10 }, (_, i) => selectedAnio - 5 + i).map(
+                  (year) => (
+                    <SelectItem key={year} value={year.toString()}>
+                      {year}
+                    </SelectItem>
+                  )
+                )}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleNextMonth}
+            className="h-8 w-8 p-0"
+          >
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+        </div>
+      </div>
+
+      {/* 6 Metric Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 mb-8">
+        {/* 1. Cantidad de Reservas */}
+        <div className="group bg-card border border-border rounded-xl p-6 shadow-sm hover:shadow-lg hover:shadow-primary/5 transition-all duration-300 hover:border-primary/20 cursor-pointer">
+          <div className="flex items-start justify-between">
+            <div className="space-y-3 flex-1">
+              <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+                Cantidad de Reservas
+              </p>
+              <div className="space-y-1">
+                <p className="text-3xl font-bold text-card-foreground tracking-tight">
+                  {metrics.cantidadReservas}
                 </p>
-                <div className="space-y-1">
-                  <p className="text-3xl font-bold text-card-foreground tracking-tight">
-                    {stat.value}
-                  </p>
-                  <div className="flex items-center space-x-2">
-                    <div className="w-1 h-1 bg-success rounded-full"></div>
-                    <p className="text-sm text-success font-medium">{stat.change}</p>
-                  </div>
-                </div>
-              </div>
-              <div className={`p-3 rounded-xl ${stat.bgColor} group-hover:scale-110 transition-transform duration-300`}>
-                <stat.icon className={`h-6 w-6 ${stat.color}`} />
+                <p className="text-sm text-muted-foreground font-medium">
+                  Leads generados este mes
+                </p>
               </div>
             </div>
-          </div>
-        ))}
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* Enhanced Recent Sales */}
-        <div className="bg-card border border-border rounded-xl p-6 shadow-sm hover:shadow-md transition-shadow duration-300">
-          <div className="flex items-center justify-between mb-6">
-            <h3 className="text-xl font-bold text-card-foreground">Ventas Recientes</h3>
-            <button className="text-sm text-success hover:text-success/80 font-medium transition-colors">
-              Ver historial
-            </button>
-          </div>
-          <div className="space-y-4">
-            {recentSales.map((sale, index) => (
-              <div
-                key={index}
-                className="group flex items-center justify-between p-4 bg-gradient-to-r from-success/5 to-transparent rounded-xl border border-success/10 hover:border-success/30 transition-all duration-300 cursor-pointer hover:scale-[1.01]"
-              >
-                <div className="flex items-center space-x-4">
-                  <div className="w-12 h-12 bg-success/20 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform">
-                    <Home className="h-6 w-6 text-success" />
-                  </div>
-                  <div>
-                    <p className="font-semibold text-card-foreground group-hover:text-success transition-colors">
-                      {sale.unit} - {sale.project}
-                    </p>
-                    <p className="text-sm text-muted-foreground font-medium bg-muted/50 px-2 py-1 rounded-full inline-block mt-1">
-                      {sale.date}
-                    </p>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <p className="font-mono font-bold text-accent text-lg">{sale.commission}</p>
-                  <p className="text-xs text-muted-foreground">de {sale.price}</p>
-                </div>
-              </div>
-            ))}
+            <div className="p-3 rounded-xl bg-primary/10 group-hover:scale-110 transition-transform duration-300">
+              <Users className="h-6 w-6 text-primary" />
+            </div>
           </div>
         </div>
 
-        {/* Enhanced Available Units */}
-        <div className="bg-card border border-border rounded-xl p-6 shadow-sm hover:shadow-md transition-shadow duration-300">
-          <div className="flex items-center justify-between mb-6">
-            <div>
-              <h3 className="text-xl font-bold text-card-foreground mb-1">Unidades Destacadas</h3>
-              <p className="text-sm text-muted-foreground">Oportunidades con alta comisión</p>
+        {/* 2. Número de Check-ins */}
+        <div className="group bg-card border border-border rounded-xl p-6 shadow-sm hover:shadow-lg hover:shadow-success/5 transition-all duration-300 hover:border-success/20 cursor-pointer">
+          <div className="flex items-start justify-between">
+            <div className="space-y-3 flex-1">
+              <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+                Número de Check-ins
+              </p>
+              <div className="space-y-1">
+                <p className="text-3xl font-bold text-card-foreground tracking-tight">
+                  {metrics.numeroCheckins}
+                </p>
+                <p className="text-sm text-muted-foreground font-medium">
+                  Arriendos concretados
+                </p>
+              </div>
+            </div>
+            <div className="p-3 rounded-xl bg-success/10 group-hover:scale-110 transition-transform duration-300">
+              <CheckCircle className="h-6 w-6 text-success" />
             </div>
           </div>
-          <div className="space-y-4">
-            {availableUnits.map((unit, index) => (
-              <div
-                key={index}
-                className="group p-4 border border-border rounded-xl hover:bg-muted/20 transition-all duration-300 cursor-pointer hover:border-primary/30 hover:scale-[1.01]"
-              >
-                <div className="flex items-start justify-between">
-                  <div className="flex items-start space-x-4">
-                    <div className="w-12 h-12 bg-primary/20 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform">
-                      <MapPin className="h-6 w-6 text-primary" />
-                    </div>
-                    <div className="space-y-2">
-                      <p className="font-semibold text-card-foreground group-hover:text-primary transition-colors">
-                        {unit.unit} - {unit.project}
-                      </p>
-                      <p className="text-sm text-muted-foreground font-medium">{unit.type}</p>
-                      <div className="flex items-center space-x-2">
-                        <span className={`px-3 py-1 text-xs font-semibold rounded-full ${getPriorityColor(unit.priority)} shadow-sm`}>
-                          {unit.priority}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="text-right space-y-1">
-                    <p className="font-mono font-bold text-accent text-lg">{unit.commission}</p>
-                    <p className="text-xs text-muted-foreground">de {unit.price}</p>
-                  </div>
-                </div>
+        </div>
+
+        {/* 3. Meta de Colocación */}
+        <div className="group bg-card border border-border rounded-xl p-6 shadow-sm hover:shadow-lg hover:shadow-warning/5 transition-all duration-300 hover:border-warning/20 cursor-pointer">
+          <div className="flex items-start justify-between mb-3">
+            <div className="space-y-1 flex-1">
+              <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+                Meta de Colocación
+              </p>
+              <div className="flex items-baseline space-x-2">
+                <p className="text-2xl font-bold text-card-foreground tracking-tight">
+                  {formatCurrency(metrics.metaColocacion.montoActual)}
+                </p>
+                <span className="text-sm text-muted-foreground">/</span>
+                <p className="text-lg font-semibold text-muted-foreground">
+                  {formatCurrency(metrics.metaColocacion.montoMeta)}
+                </p>
               </div>
-            ))}
+            </div>
+            <div className="p-3 rounded-xl bg-warning/10 group-hover:scale-110 transition-transform duration-300">
+              <Target className="h-6 w-6 text-warning" />
+            </div>
+          </div>
+          {/* Progress bar */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-muted-foreground">Progreso</span>
+              <span className="font-bold text-warning">
+                {metrics.metaColocacion.porcentaje.toFixed(1)}%
+              </span>
+            </div>
+            <div className={`w-full rounded-full h-2 overflow-hidden transition-all ${
+              metrics.metaColocacion.porcentaje >= 100 ? 'bg-gradient-to-r from-warning to-warning/70' : 'bg-muted'
+            }`}>
+              {metrics.metaColocacion.porcentaje < 100 && (
+                <div
+                  className="bg-gradient-to-r from-warning to-warning/70 h-full rounded-full transition-all duration-500"
+                  style={{
+                    width: `${metrics.metaColocacion.porcentaje}%`,
+                  }}
+                />
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* 4. % de Cierre del Mes */}
+        <div className="group bg-card border border-border rounded-xl p-6 shadow-sm hover:shadow-lg hover:shadow-accent/5 transition-all duration-300 hover:border-accent/20 cursor-pointer">
+          <div className="flex items-start justify-between">
+            <div className="space-y-3 flex-1">
+              <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+                % de Cierre del Mes
+              </p>
+              <div className="space-y-1">
+                <p className="text-3xl font-bold text-card-foreground tracking-tight">
+                  {metrics.porcentajeCierre.toFixed(1)}%
+                </p>
+                <p className="text-sm text-muted-foreground font-medium">
+                  Tasa de conversión
+                </p>
+              </div>
+            </div>
+            <div className="p-3 rounded-xl bg-accent/10 group-hover:scale-110 transition-transform duration-300">
+              <TrendingUp className="h-6 w-6 text-accent" />
+            </div>
+          </div>
+        </div>
+
+        {/* 5. Comisiones Proyectadas */}
+        <div className="group bg-card border border-border rounded-xl p-6 shadow-sm hover:shadow-lg hover:shadow-secondary/5 transition-all duration-300 hover:border-secondary/20 cursor-pointer">
+          <div className="flex items-start justify-between">
+            <div className="space-y-3 flex-1">
+              <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+                Comisiones Proyectadas
+              </p>
+              <div className="space-y-1">
+                <p className="text-3xl font-bold text-secondary tracking-tight">
+                  {formatCurrency(metrics.comisionesProyectadas)}
+                </p>
+                <p className="text-sm text-muted-foreground font-medium">
+                  Potencial de ingresos
+                </p>
+              </div>
+            </div>
+            <div className="p-3 rounded-xl bg-secondary/10 group-hover:scale-110 transition-transform duration-300">
+              <DollarSign className="h-6 w-6 text-secondary" />
+            </div>
+          </div>
+        </div>
+
+        {/* 6. Comisiones Concretadas */}
+        <div className="group bg-card border border-border rounded-xl p-6 shadow-sm hover:shadow-lg hover:shadow-success/5 transition-all duration-300 hover:border-success/20 cursor-pointer">
+          <div className="flex items-start justify-between">
+            <div className="space-y-3 flex-1">
+              <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+                Comisiones Concretadas
+              </p>
+              <div className="space-y-1">
+                <p className="text-3xl font-bold text-success tracking-tight">
+                  {formatCurrency(metrics.comisionesConcretadas)}
+                </p>
+                <p className="text-sm text-muted-foreground font-medium">
+                  Ingresos confirmados
+                </p>
+              </div>
+            </div>
+            <div className="p-3 rounded-xl bg-success/10 group-hover:scale-110 transition-transform duration-300">
+              <CheckSquare className="h-6 w-6 text-success" />
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Enhanced Quick Actions */}
+      {/* Quick Actions - Mantener las acciones rápidas originales */}
       <div className="bg-card border border-border rounded-xl p-6 shadow-sm hover:shadow-md transition-shadow duration-300">
         <div className="mb-6">
-          <h3 className="text-xl font-bold text-card-foreground mb-2">Acciones Rápidas</h3>
-          <p className="text-sm text-muted-foreground">Gestiona tus ventas y comisiones</p>
+          <h3 className="text-xl font-bold text-card-foreground mb-2">
+            Acciones Rápidas
+          </h3>
+          <p className="text-sm text-muted-foreground">
+            Gestiona tus ventas y comisiones
+          </p>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-          <button className="group p-6 text-left bg-gradient-to-br from-primary/10 to-primary/5 hover:from-primary/20 hover:to-primary/10 rounded-xl transition-all duration-300 border border-primary/10 hover:border-primary/30 hover:scale-[1.02]">
+          <button
+            onClick={() => (window.location.href = '/broker/proyectos')}
+            className="group p-6 text-left bg-gradient-to-br from-primary/10 to-primary/5 hover:from-primary/20 hover:to-primary/10 rounded-xl transition-all duration-300 border border-primary/10 hover:border-primary/30 hover:scale-[1.02]"
+          >
             <div className="flex items-center justify-between mb-4">
               <Home className="h-7 w-7 text-primary group-hover:scale-110 transition-transform" />
               <div className="w-2 h-2 bg-primary/30 rounded-full"></div>
             </div>
-            <p className="text-base font-bold text-foreground mb-2">Ver Unidades</p>
-            <p className="text-sm text-muted-foreground">Explorar inventario disponible</p>
+            <p className="text-base font-bold text-foreground mb-2">
+              Ver Proyectos
+            </p>
+            <p className="text-sm text-muted-foreground">
+              Explorar proyectos disponibles
+            </p>
           </button>
-          <button className="group p-6 text-left bg-gradient-to-br from-success/10 to-success/5 hover:from-success/20 hover:to-success/10 rounded-xl transition-all duration-300 border border-success/10 hover:border-success/30 hover:scale-[1.02]">
+          <button
+            onClick={() => (window.location.href = '/broker/generar-lead')}
+            className="group p-6 text-left bg-gradient-to-br from-success/10 to-success/5 hover:from-success/20 hover:to-success/10 rounded-xl transition-all duration-300 border border-success/10 hover:border-success/30 hover:scale-[1.02]"
+          >
             <div className="flex items-center justify-between mb-4">
               <DollarSign className="h-7 w-7 text-success group-hover:scale-110 transition-transform" />
               <div className="w-2 h-2 bg-success/30 rounded-full"></div>
             </div>
-            <p className="text-base font-bold text-foreground mb-2">Registrar Venta</p>
-            <p className="text-sm text-muted-foreground">Agregar nueva transacción</p>
+            <p className="text-base font-bold text-foreground mb-2">
+              Generar Lead
+            </p>
+            <p className="text-sm text-muted-foreground">
+              Agregar nueva oportunidad
+            </p>
           </button>
-          <button className="group p-6 text-left bg-gradient-to-br from-secondary/10 to-secondary/5 hover:from-secondary/20 hover:to-secondary/10 rounded-xl transition-all duration-300 border border-secondary/10 hover:border-secondary/30 hover:scale-[1.02]">
+          <button
+            onClick={() => (window.location.href = '/broker/reportes')}
+            className="group p-6 text-left bg-gradient-to-br from-secondary/10 to-secondary/5 hover:from-secondary/20 hover:to-secondary/10 rounded-xl transition-all duration-300 border border-secondary/10 hover:border-secondary/30 hover:scale-[1.02]"
+          >
             <div className="flex items-center justify-between mb-4">
               <TrendingUp className="h-7 w-7 text-secondary group-hover:scale-110 transition-transform" />
               <div className="w-2 h-2 bg-secondary/30 rounded-full"></div>
             </div>
-            <p className="text-base font-bold text-foreground mb-2">Ver Historial</p>
-            <p className="text-sm text-muted-foreground">Revisar rendimiento</p>
+            <p className="text-base font-bold text-foreground mb-2">
+              Ver Reportes
+            </p>
+            <p className="text-sm text-muted-foreground">
+              Revisar rendimiento
+            </p>
           </button>
         </div>
       </div>

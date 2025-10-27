@@ -25,6 +25,7 @@ export async function GET(request: NextRequest) {
         nombre: true,
         rut: true,
         telefono: true,
+        birthDate: true,
         activo: true,
         createdAt: true,
         updatedAt: true
@@ -60,7 +61,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { email, nombre, rut, telefono, password } = body
+    const { email, nombre, rut, telefono, birthDate, password } = body
 
     // Validaciones básicas
     if (!email || !nombre || !rut || !password) {
@@ -111,6 +112,7 @@ export async function POST(request: NextRequest) {
         nombre,
         rut,
         telefono: telefono || undefined,
+        birthDate: birthDate ? new Date(birthDate) : undefined,
         password: hashedPassword,
         role: 'ADMIN',
         activo: true
@@ -121,6 +123,7 @@ export async function POST(request: NextRequest) {
         nombre: true,
         rut: true,
         telefono: true,
+        birthDate: true,
         activo: true,
         createdAt: true,
         updatedAt: true

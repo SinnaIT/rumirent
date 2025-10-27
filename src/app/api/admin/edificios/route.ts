@@ -25,7 +25,7 @@ export async function GET(request: NextRequest) {
 
     console.log('✅ Usuario autorizado, consultando edificios...')
 
-    // Obtener edificios con estadísticas de unidades y comisión
+    // Obtener edificios con estadísticas de unidades, comisión y empresa
     const edificios = await prisma.edificio.findMany({
       include: {
         _count: {
@@ -50,6 +50,15 @@ export async function GET(request: NextRequest) {
             nombre: true,
             codigo: true,
             porcentaje: true,
+            activa: true
+          }
+        },
+        empresa: {
+          select: {
+            id: true,
+            nombre: true,
+            rut: true,
+            razonSocial: true,
             activa: true
           }
         }
@@ -78,8 +87,13 @@ export async function GET(request: NextRequest) {
         id: edificio.id,
         nombre: edificio.nombre,
         direccion: edificio.direccion,
+        comuna: edificio.comuna,
+        ciudad: edificio.ciudad,
+        region: edificio.region,
+        codigoPostal: edificio.codigoPostal,
         descripcion: edificio.descripcion,
         comision: edificio.comision,
+        empresa: edificio.empresa,
         totalUnidades: edificio._count.unidades,
         unidadesDisponibles,
         unidadesVendidas,
@@ -125,12 +139,25 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { nombre, direccion, descripcion, comisionId } = body
+    const {
+      nombre,
+      direccion,
+      comuna,
+      ciudad,
+      region,
+      codigoPostal,
+      urlGoogleMaps,
+      telefono,
+      email,
+      descripcion,
+      comisionId,
+      empresaId
+    } = body
 
     // Validaciones básicas
-    if (!nombre || !direccion) {
+    if (!nombre || !direccion || !comuna || !ciudad || !region) {
       return NextResponse.json(
-        { error: 'Nombre y dirección son requeridos' },
+        { error: 'Nombre, dirección, comuna, ciudad y región son requeridos' },
         { status: 400 }
       )
     }
@@ -138,6 +165,13 @@ export async function POST(request: NextRequest) {
     if (!comisionId) {
       return NextResponse.json(
         { error: 'ID de comisión es requerido' },
+        { status: 400 }
+      )
+    }
+
+    if (!empresaId) {
+      return NextResponse.json(
+        { error: 'ID de empresa es requerido' },
         { status: 400 }
       )
     }
@@ -159,8 +193,16 @@ export async function POST(request: NextRequest) {
       data: {
         nombre,
         direccion,
-        descripcion: descripcion || undefined,
-        comisionId
+        comuna,
+        ciudad,
+        region,
+        codigoPostal: codigoPostal || null,
+        urlGoogleMaps: urlGoogleMaps || null,
+        telefono: telefono || null,
+        email: email || null,
+        descripcion: descripcion || null,
+        comisionId,
+        empresaId
       }
     })
 

@@ -56,6 +56,15 @@ export async function GET(
             porcentaje: true,
             activa: true
           }
+        },
+        empresa: {
+          select: {
+            id: true,
+            nombre: true,
+            rut: true,
+            razonSocial: true,
+            activa: true
+          }
         }
       }
     })
@@ -83,8 +92,16 @@ export async function GET(
       id: edificio.id,
       nombre: edificio.nombre,
       direccion: edificio.direccion,
+      comuna: edificio.comuna,
+      ciudad: edificio.ciudad,
+      region: edificio.region,
+      codigoPostal: edificio.codigoPostal,
+      urlGoogleMaps: edificio.urlGoogleMaps,
+      telefono: edificio.telefono,
+      email: edificio.email,
       descripcion: edificio.descripcion,
       comision: edificio.comision,
+      empresa: edificio.empresa,
       totalUnidades: edificio._count.unidades,
       unidadesDisponibles,
       unidadesVendidas,
@@ -142,21 +159,47 @@ export async function PUT(
     }
 
     const body = await request.json()
-    const { nombre, direccion, descripcion, comisionId } = body
+    const {
+      nombre,
+      direccion,
+      comuna,
+      ciudad,
+      region,
+      codigoPostal,
+      urlGoogleMaps,
+      telefono,
+      email,
+      descripcion,
+      comisionId,
+      empresaId
+    } = body
 
-    console.log('📝 Datos a actualizar:', { nombre, direccion, descripcion, comisionId })
+    console.log('📝 Datos a actualizar:', { nombre, direccion, comuna, ciudad, region, codigoPostal, urlGoogleMaps, telefono, email, descripcion, comisionId, empresaId })
 
     // Validaciones básicas
-    if (!nombre || !direccion) {
+    if (!nombre || !direccion || !comuna || !ciudad || !region) {
       return NextResponse.json(
-        { error: 'Nombre y dirección son requeridos' },
+        { error: 'Nombre, dirección, comuna, ciudad y región son requeridos' },
         { status: 400 }
       )
     }
 
+    if (empresaId && empresaId !== 'none') {
+      const empresaExists = await prisma.empresa.findUnique({
+        where: { id: empresaId }
+      })
+
+      if (!empresaExists) {
+        return NextResponse.json(
+          { error: 'La empresa especificada no existe' },
+          { status: 400 }
+        )
+      }
+    }
+
     // Verificar que el edificio existe
     const existingEdificio = await prisma.edificio.findUnique({
-      where: { id: params.id }
+      where: { id }
     })
 
     if (!existingEdificio) {
@@ -170,7 +213,7 @@ export async function PUT(
     const duplicateEdificio = await prisma.edificio.findFirst({
       where: {
         nombre,
-        id: { not: params.id }
+        id: { not: id }
       }
     })
 
@@ -196,14 +239,36 @@ export async function PUT(
     }
 
     // Actualizar edificio
+    const updateData: any = {
+      nombre,
+      direccion,
+      comuna,
+      ciudad,
+      region,
+      codigoPostal: codigoPostal || null,
+      urlGoogleMaps: urlGoogleMaps || null,
+      telefono: telefono || null,
+      email: email || null,
+      descripcion: descripcion || null
+    }
+
+    // Manejar la relación de comisión
+    if (comisionId && comisionId !== 'none') {
+      updateData.comision = {
+        connect: { id: comisionId }
+      }
+    }
+
+    // Manejar la relación de empresa
+    if (empresaId && empresaId !== 'none') {
+      updateData.empresa = {
+        connect: { id: empresaId }
+      }
+    }
+
     const updatedEdificio = await prisma.edificio.update({
       where: { id },
-      data: {
-        nombre,
-        direccion,
-        descripcion: descripcion || null,
-        comisionId: comisionId === 'none' || !comisionId ? null : comisionId
-      },
+      data: updateData,
       include: {
         comision: {
           select: {
@@ -211,6 +276,15 @@ export async function PUT(
             nombre: true,
             codigo: true,
             porcentaje: true,
+            activa: true
+          }
+        },
+        empresa: {
+          select: {
+            id: true,
+            nombre: true,
+            rut: true,
+            razonSocial: true,
             activa: true
           }
         }
@@ -228,7 +302,7 @@ export async function PUT(
   } catch (error) {
     console.error('❌ Error al actualizar edificio:', error)
     return NextResponse.json(
-      { error: 'Error interno del servidor', details: error.message },
+      { error: 'Error interno del servidor', details: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }
     )
   }
@@ -284,7 +358,7 @@ export async function DELETE(
 
     // Eliminar edificio
     await prisma.edificio.delete({
-      where: { id: params.id }
+      where: { id }
     })
 
     console.log('✅ Edificio eliminado exitosamente')

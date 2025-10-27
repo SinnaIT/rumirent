@@ -7,17 +7,17 @@ export async function middleware(request: NextRequest) {
 
   console.log(`[MIDDLEWARE] ${request.method} ${pathname}`)
 
-  // In development, disable middleware for admin/broker routes
+  // In development, disable middleware for admin/broker PAGE routes (not API routes)
   // Let pages handle their own authentication with localStorage
   if (process.env.NODE_ENV === 'development') {
-    if (pathname.startsWith('/admin') || pathname.startsWith('/broker')) {
+    if ((pathname.startsWith('/admin') || pathname.startsWith('/broker')) && !pathname.startsWith('/api')) {
       console.log(`[MIDDLEWARE] Development mode - allowing access to ${pathname}`)
       return NextResponse.next()
     }
   }
 
   // Public routes that don't require authentication
-  const publicRoutes = ['/login', '/register']
+  const publicRoutes = ['/login', '/register', '/api/auth/login', '/api/auth/register']
   const isPublicRoute = publicRoutes.some(route => pathname.startsWith(route))
 
   // Get auth token from cookies
@@ -54,13 +54,23 @@ export async function middleware(request: NextRequest) {
       }
 
       // Strict role-based access control - users can ONLY access their role prefix
-      if (pathname.startsWith('/admin') && payload.role !== 'ADMIN') {
-        console.log(`[MIDDLEWARE] Usuario ${payload.role} intenta acceder a admin`)
+      // This applies to BOTH page routes and API routes
+
+      // Admin routes (pages and APIs)
+      if ((pathname.startsWith('/admin') || pathname.startsWith('/api/admin')) && payload.role !== 'ADMIN') {
+        console.log(`[MIDDLEWARE] Usuario ${payload.role} intenta acceder a admin: ${pathname}`)
+        if (pathname.startsWith('/api')) {
+          return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
+        }
         return NextResponse.redirect(new URL('/login', request.url))
       }
 
-      if (pathname.startsWith('/broker') && payload.role !== 'BROKER') {
-        console.log(`[MIDDLEWARE] Usuario ${payload.role} intenta acceder a broker`)
+      // Broker routes (pages and APIs)
+      if ((pathname.startsWith('/broker') || pathname.startsWith('/api/broker')) && payload.role !== 'BROKER') {
+        console.log(`[MIDDLEWARE] Usuario ${payload.role} intenta acceder a broker: ${pathname}`)
+        if (pathname.startsWith('/api')) {
+          return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
+        }
         return NextResponse.redirect(new URL('/login', request.url))
       }
 

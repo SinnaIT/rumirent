@@ -12,7 +12,8 @@ import {
   Calculator,
   LogOut,
   User,
-  Plus
+  Plus,
+  DollarSign
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/lib/hooks/use-auth'
@@ -21,9 +22,11 @@ import { ThemeToggle } from '@/components/theme-toggle'
 const menuItems = [
   { icon: Home, label: 'Dashboard', href: '/broker' },
   { icon: Building2, label: 'Proyectos', href: '/broker/proyectos' },
+  { icon: User, label: 'Mis Leads', href: '/broker/leads' },
   { icon: Plus, label: 'Generar Lead', href: '/broker/generar-lead' },
   { icon: Calculator, label: 'Mis Prospectos', href: '/broker/ventas' },
   { icon: BarChart3, label: 'Reportes', href: '/broker/reportes' },
+  { icon: DollarSign, label: 'Flujo de Caja', href: '/broker/reportes/flujo-caja' },
 ]
 
 export default function BrokerLayout({
