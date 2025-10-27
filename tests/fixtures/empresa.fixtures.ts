@@ -1,0 +1,26 @@
+export const mockEmpresas = {
+  empresa1: {
+    id: 'empresa-1-id',
+    nombre: 'Inmobiliaria Central',
+    rut: '76.123.456-7',
+    razonSocial: 'Inmobiliaria Central SpA',
+    direccion: 'Av. Providencia 1234, Santiago',
+    telefono: '+56 2 2345 6789',
+    email: 'contacto@inmobiliariacentral.cl',
+    activa: true,
+    createdAt: new Date('2024-01-01'),
+    updatedAt: new Date('2024-01-01'),
+  },
+  empresa2: {
+    id: 'empresa-2-id',
+    nombre: 'Constructora Vista Mar',
+    rut: '76.987.654-3',
+    razonSocial: 'Constructora Vista Mar Limitada',
+    direccion: 'Av. Libertad 567, Viña del Mar',
+    telefono: '+56 32 2876 543',
+    email: 'info@vistamar.cl',
+    activa: true,
+    createdAt: new Date('2024-01-01'),
+    updatedAt: new Date('2024-01-01'),
+  },
+}

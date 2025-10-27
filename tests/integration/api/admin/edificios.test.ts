@@ -26,6 +26,7 @@ vi.mock('@/lib/auth', () => ({
 const { GET, POST } = await import('@/app/api/admin/edificios/route')
 const { mockEdificios, mockComisiones, mockUnidades } = await import('../../../fixtures/edificio.fixtures')
 const { mockUsers } = await import('../../../fixtures/user.fixtures')
+const { mockEmpresas } = await import('../../../fixtures/empresa.fixtures')
 
 describe('GET /api/admin/edificios', () => {
   beforeEach(() => {
@@ -155,8 +156,12 @@ describe('POST /api/admin/edificios', () => {
     const newEdificioData = {
       nombre: 'Nuevo Edificio',
       direccion: 'Calle Nueva 123',
+      comuna: 'Las Condes',
+      ciudad: 'Santiago',
+      region: 'Región Metropolitana',
       descripcion: 'Edificio de prueba',
       comisionId: mockComisiones.standard.id,
+      empresaId: mockEmpresas.empresa1.id,
     }
 
     prismaMock.edificio.findFirst.mockResolvedValue(null)
@@ -184,7 +189,11 @@ describe('POST /api/admin/edificios', () => {
   it('should reject edificio creation with missing nombre', async () => {
     const invalidData = {
       direccion: 'Calle Nueva 123',
+      comuna: 'Las Condes',
+      ciudad: 'Santiago',
+      region: 'Región Metropolitana',
       comisionId: mockComisiones.standard.id,
+      empresaId: mockEmpresas.empresa1.id,
     }
 
     const request = new NextRequest('http://localhost:3000/api/admin/edificios', {
@@ -196,13 +205,17 @@ describe('POST /api/admin/edificios', () => {
     const data = await response.json()
 
     expect(response.status).toBe(400)
-    expect(data.error).toBe('Nombre y dirección son requeridos')
+    expect(data.error).toBe('Nombre, dirección, comuna, ciudad y región son requeridos')
   })
 
   it('should reject edificio creation with missing direccion', async () => {
     const invalidData = {
       nombre: 'Nuevo Edificio',
+      comuna: 'Las Condes',
+      ciudad: 'Santiago',
+      region: 'Región Metropolitana',
       comisionId: mockComisiones.standard.id,
+      empresaId: mockEmpresas.empresa1.id,
     }
 
     const request = new NextRequest('http://localhost:3000/api/admin/edificios', {
@@ -214,13 +227,17 @@ describe('POST /api/admin/edificios', () => {
     const data = await response.json()
 
     expect(response.status).toBe(400)
-    expect(data.error).toBe('Nombre y dirección son requeridos')
+    expect(data.error).toBe('Nombre, dirección, comuna, ciudad y región son requeridos')
   })
 
   it('should reject edificio creation with missing comisionId', async () => {
     const invalidData = {
       nombre: 'Nuevo Edificio',
       direccion: 'Calle Nueva 123',
+      comuna: 'Las Condes',
+      ciudad: 'Santiago',
+      region: 'Región Metropolitana',
+      empresaId: mockEmpresas.empresa1.id,
     }
 
     const request = new NextRequest('http://localhost:3000/api/admin/edificios', {
@@ -241,7 +258,11 @@ describe('POST /api/admin/edificios', () => {
     const duplicateData = {
       nombre: mockEdificios.edificio1.nombre,
       direccion: 'Calle Nueva 123',
+      comuna: 'Las Condes',
+      ciudad: 'Santiago',
+      region: 'Región Metropolitana',
       comisionId: mockComisiones.standard.id,
+      empresaId: mockEmpresas.empresa1.id,
     }
 
     const request = new NextRequest('http://localhost:3000/api/admin/edificios', {
@@ -260,13 +281,21 @@ describe('POST /api/admin/edificios', () => {
     const minimalData = {
       nombre: 'Edificio Mínimo',
       direccion: 'Calle Mínima 1',
+      comuna: 'Las Condes',
+      ciudad: 'Santiago',
+      region: 'Región Metropolitana',
       comisionId: mockComisiones.standard.id,
+      empresaId: mockEmpresas.empresa1.id,
     }
 
     prismaMock.edificio.findFirst.mockResolvedValue(null)
     prismaMock.edificio.create.mockResolvedValue({
       id: 'minimal-edificio-id',
       ...minimalData,
+      codigoPostal: null,
+      urlGoogleMaps: null,
+      telefono: null,
+      email: null,
       descripcion: null,
       createdAt: new Date(),
       updatedAt: new Date(),
@@ -292,7 +321,11 @@ describe('POST /api/admin/edificios', () => {
     const validData = {
       nombre: 'Nuevo Edificio',
       direccion: 'Calle Nueva 123',
+      comuna: 'Las Condes',
+      ciudad: 'Santiago',
+      region: 'Región Metropolitana',
       comisionId: mockComisiones.standard.id,
+      empresaId: mockEmpresas.empresa1.id,
     }
 
     const request = new NextRequest('http://localhost:3000/api/admin/edificios', {

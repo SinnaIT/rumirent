@@ -1,4 +1,5 @@
 import { EstadoUnidad } from '@prisma/client'
+import { mockEmpresas } from './empresa.fixtures'
 
 export const mockComisiones = {
   standard: {
@@ -34,18 +35,34 @@ export const mockEdificios = {
   edificio1: {
     id: 'edificio-1-id',
     nombre: 'Edificio Plaza Central',
-    direccion: 'Av. Principal 123, Santiago',
+    direccion: 'Av. Principal 123',
+    comuna: 'Providencia',
+    ciudad: 'Santiago',
+    region: 'Región Metropolitana',
+    codigoPostal: '7500000',
+    urlGoogleMaps: null,
+    telefono: null,
+    email: null,
     descripcion: 'Edificio residencial de 10 pisos',
     comisionId: mockComisiones.standard.id,
+    empresaId: mockEmpresas.empresa1.id,
     createdAt: new Date('2024-01-01'),
     updatedAt: new Date('2024-01-01'),
   },
   edificio2: {
     id: 'edificio-2-id',
     nombre: 'Edificio Vista Mar',
-    direccion: 'Av. Costanera 456, Viña del Mar',
+    direccion: 'Av. Costanera 456',
+    comuna: 'Viña del Mar',
+    ciudad: 'Viña del Mar',
+    region: 'Región de Valparaíso',
+    codigoPostal: '2520000',
+    urlGoogleMaps: null,
+    telefono: null,
+    email: null,
     descripcion: 'Edificio frente al mar con 15 pisos',
     comisionId: mockComisiones.premium.id,
+    empresaId: mockEmpresas.empresa2.id,
     createdAt: new Date('2024-01-01'),
     updatedAt: new Date('2024-01-01'),
   },
