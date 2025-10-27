@@ -218,11 +218,17 @@ docker image prune -a
 #### Comandos Prisma
 
 ```bash
-# Ejecutar migraciones
-docker compose -f docker-compose.deploy.yml exec app sh -c "pnpm db:migrate:prod"
+# Ejecutar migraciones (método actualizado - Octubre 2025)
+docker compose -f docker-compose.deploy.yml exec -T app npx prisma migrate deploy
+
+# Verificar estado de migraciones
+docker compose -f docker-compose.deploy.yml exec app npx prisma migrate status
 
 # Generar Prisma Client
-docker compose -f docker-compose.deploy.yml exec app sh -c "pnpm db:generate"
+docker compose -f docker-compose.deploy.yml exec app npx prisma generate
+
+# Ver migraciones disponibles
+docker compose -f docker-compose.deploy.yml exec app ls -la prisma/migrations/
 
 # Abrir shell en contenedor
 docker compose -f docker-compose.deploy.yml exec app sh
@@ -351,29 +357,59 @@ sleep 10
 docker compose -f docker-compose.deploy.yml restart app
 ```
 
-### Problema: Migraciones fallan
+### Problema: Migraciones fallan o no se aplican
 
-**Síntomas**: Error al ejecutar `db:migrate:prod`
+**Síntomas**:
+- Error "Migration file not found"
+- Las migraciones no se aplican después del build
+- Base de datos desactualizada después del deployment
 
-**Soluciones**:
+**Causa Principal**:
+La carpeta `prisma/migrations/` no estaba siendo copiada correctamente a la imagen Docker final.
+
+**✅ Solución Aplicada (Octubre 2025)**:
+El `Dockerfile` fue actualizado para copiar explícitamente toda la carpeta prisma:
+```dockerfile
+# En el stage final (runner)
+COPY --chown=nextjs:nodejs prisma ./prisma
+```
+
+Además, el script `scripts/deploy-vps.sh` fue mejorado para usar `npx` directamente:
 ```bash
-# 1. Ver logs detallados
+docker compose -f docker-compose.deploy.yml exec -T app npx prisma migrate deploy
+```
+
+**Verificación**:
+```bash
+# 1. Verificar que las migraciones están en la imagen
+docker compose -f docker-compose.deploy.yml exec app ls -la prisma/migrations/
+
+# 2. Verificar estado de migraciones
+docker compose -f docker-compose.deploy.yml exec app npx prisma migrate status
+
+# 3. Ver logs detallados
 docker compose -f docker-compose.deploy.yml logs app | grep -i prisma
+```
 
-# 2. Entrar al contenedor y ejecutar manualmente
+**Si todavía fallan las migraciones**:
+```bash
+# 1. Entrar al contenedor y ejecutar manualmente
 docker compose -f docker-compose.deploy.yml exec app sh
-pnpm db:generate
-pnpm db:migrate:prod
+npx prisma migrate status
+npx prisma migrate deploy
 
-# 3. Verificar schema
+# 2. Verificar schema
 cat prisma/schema.prisma
+
+# 3. Si es necesario regenerar Prisma Client
+npx prisma generate
 
 # 4. Reset de base de datos (⚠️ CUIDADO: borra datos)
 docker compose -f docker-compose.deploy.yml exec db \
   psql -U rumirent_prod -d postgres -c "DROP DATABASE rumirent_db;"
 docker compose -f docker-compose.deploy.yml exec db \
   psql -U rumirent_prod -d postgres -c "CREATE DATABASE rumirent_db;"
-docker compose -f docker-compose.deploy.yml exec app sh -c "pnpm db:migrate:prod"
+docker compose -f docker-compose.deploy.yml exec app npx prisma migrate deploy
 ```
 
 ### Problema: Aplicación lenta
