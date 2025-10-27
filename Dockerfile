@@ -41,8 +41,8 @@ RUN adduser --system --uid 1001 nextjs
 
 COPY --from=builder /app/public ./public
 
-# Copy Prisma schema and migrations (complete folder)
-COPY --chown=nextjs:nodejs prisma ./prisma
+# Copy Prisma schema and migrations (complete folder from builder)
+COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
 
 # Copiar todo node_modules de deps (incluye Prisma generado)
 COPY --from=deps /app/node_modules ./node_modules
