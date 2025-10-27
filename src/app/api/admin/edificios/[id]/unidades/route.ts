@@ -52,7 +52,13 @@ export async function GET(
     })
 
     // Formatear estadísticas
-    const resumenTipos: Record<string, any> = {}
+    const resumenTipos: Record<string, {
+      tipo: string
+      total: number
+      disponibles: number
+      reservadas: number
+      vendidas: number
+    }> = {}
 
     estadisticasPorTipo.forEach(stat => {
       if (!resumenTipos[stat.tipo]) {

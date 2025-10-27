@@ -806,7 +806,7 @@ export default function AdminLeadsPage() {
 
                                   <div className="grid grid-cols-1 gap-2">
                                     <Label htmlFor="estado">Estado</Label>
-                                    <Select value={formData.estado} onValueChange={(value: any) => setFormData({ ...formData, estado: value })}>
+                                    <Select value={formData.estado} onValueChange={(value: string) => setFormData({ ...formData, estado: value })}>
                                       <SelectTrigger>
                                         <SelectValue />
                                       </SelectTrigger>

@@ -18,7 +18,10 @@ export async function GET(request: NextRequest) {
     const tipo = searchParams.get('tipo')
 
     // Construir filtros
-    const whereClause: any = {}
+    const whereClause: {
+      edificioId?: string
+      tipo?: string
+    } = {}
     if (edificioId) whereClause.edificioId = edificioId
     if (tipo) whereClause.tipo = tipo
 

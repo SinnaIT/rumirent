@@ -9,7 +9,7 @@ interface ExcelData {
   monto: number
   proyecto: string
   unidad: string
-  raw: any
+  raw: unknown
 }
 
 interface LeadSistema {
@@ -177,13 +177,13 @@ export async function POST(request: NextRequest) {
 
     // Leer el archivo
     const buffer = await file.arrayBuffer()
-    let parsedData: any[] = []
+    let parsedData: Record<string, unknown>[] = []
 
     if (file.name.endsWith('.csv')) {
       // Procesar CSV
       const text = new TextDecoder().decode(buffer)
       const parsed = Papa.parse(text, { header: true, skipEmptyLines: true })
-      parsedData = parsed.data as any[]
+      parsedData = parsed.data as Record<string, unknown>[]
     } else {
       // Procesar Excel
       const workbook = XLSX.read(buffer, { type: 'array' })

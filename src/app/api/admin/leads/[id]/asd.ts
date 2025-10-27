@@ -21,7 +21,11 @@ export async function GET(request: NextRequest) {
     const offset = searchParams.get('offset')
 
     // Construir filtros
-    const whereClause: any = {}
+    const whereClause: {
+      estado?: string
+      brokerId?: string
+      unidad?: { edificioId: string }
+    } = {}
     if (estado) whereClause.estado = estado
     if (brokerId) whereClause.brokerId = brokerId
     if (edificioId) {
@@ -259,13 +263,13 @@ export async function POST(request: NextRequest) {
     })
 
     // Actualizar estado de la unidad según el estado del lead
-    let nuevoEstadoUnidad = 'DISPONIBLE'
+    let nuevoEstadoUnidad: 'DISPONIBLE' | 'RESERVADA' | 'VENDIDA' = 'DISPONIBLE'
     if (estado === 'RESERVADO') nuevoEstadoUnidad = 'RESERVADA'
     else if (estado === 'CONTRATADO' || estado === 'CHECKIN_REALIZADO') nuevoEstadoUnidad = 'VENDIDA'
 
     await prisma.unidad.update({
       where: { id: unidadId },
-      data: { estado: nuevoEstadoUnidad as any }
+      data: { estado: nuevoEstadoUnidad }
     })
 
     return NextResponse.json({

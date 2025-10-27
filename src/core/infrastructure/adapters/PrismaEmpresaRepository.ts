@@ -87,7 +87,18 @@ export class PrismaEmpresaRepository implements EmpresaRepository {
   /**
    * Convierte el modelo de Prisma a entidad de dominio
    */
-  private toDomain(prismaEmpresa: any): Empresa {
+  private toDomain(prismaEmpresa: {
+    id: string
+    nombre: string
+    rut: string
+    razonSocial: string | null
+    direccion: string | null
+    telefono: string | null
+    email: string | null
+    logo: string | null
+    createdAt: Date
+    updatedAt: Date
+  }): Empresa {
     return new Empresa(
       prismaEmpresa.id,
       prismaEmpresa.nombre,

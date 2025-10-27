@@ -4,7 +4,7 @@ import bcrypt from 'bcryptjs'
 import { verifyAuth } from '@/lib/auth'
 
 interface RouteParams {
-  params: { id: string }
+  params: Promise<{ id: string }>
 }
 
 export async function GET(request: NextRequest, { params }: RouteParams) {
@@ -18,7 +18,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       )
     }
 
-    const { id } = params
+    const { id } = await params
 
     // Obtener broker específico con estadísticas detalladas
     const broker = await prisma.user.findUnique({
@@ -106,7 +106,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       )
     }
 
-    const { id } = params
+    const { id } = await params
     const body = await request.json()
     const { nombre, rut, telefono, birthDate, password } = body
 
@@ -148,7 +148,14 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     }
 
     // Preparar datos de actualización
-    const updateData: any = {
+    const updateData: {
+      nombre: string
+      rut: string
+      telefono: string | null
+      birthDate: Date | null
+      email?: string
+      password?: string
+    } = {
       nombre,
       rut,
       telefono: telefono || null,
@@ -208,7 +215,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
       )
     }
 
-    const { id } = params
+    const { id } = await params
 
     // Verificar que el broker existe
     const existingbroker = await prisma.user.findUnique({

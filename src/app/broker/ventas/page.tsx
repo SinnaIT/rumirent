@@ -311,7 +311,7 @@ export default function BrokerVentasPage() {
   const edificiosUnicos = leads
     .map(c => c.unidad?.edificio || c.edificio)
     .filter(Boolean)
-    .reduce((acc: any[], edificio: any) => {
+    .reduce((acc: Array<{ id: string; nombre: string }>, edificio: { id: string; nombre: string }) => {
       // Solo agregar si no existe un edificio con el mismo ID
       if (!acc.find(e => e.id === edificio.id)) {
         acc.push(edificio)
@@ -473,7 +473,7 @@ export default function BrokerVentasPage() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="todos">Todos los edificios</SelectItem>
-                    {edificiosUnicos.map((edificio: any) => (
+                    {edificiosUnicos.map((edificio) => (
                       <SelectItem key={edificio.id} value={edificio.id}>
                         {edificio.nombre}
                       </SelectItem>

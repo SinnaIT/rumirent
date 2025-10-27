@@ -49,7 +49,7 @@ interface ExcelData {
   monto: number
   proyecto: string
   unidad: string
-  raw: any
+  raw: unknown
 }
 
 interface LeadSistema {
@@ -70,6 +70,12 @@ interface ConciliacionMatch {
   sistema: LeadSistema
   tipo: 'automatico' | 'manual'
   confidence: number
+}
+
+interface DraggedItemType {
+  type: 'excel' | 'sistema'
+  data: ExcelData | LeadSistema
+  index: number
 }
 
 interface DraggableRowProps {
@@ -122,7 +128,7 @@ export default function ConciliacionPage() {
 
   // Estados para drag and drop
   const [activeId, setActiveId] = useState<UniqueIdentifier | null>(null)
-  const [draggedItem, setDraggedItem] = useState<any>(null)
+  const [draggedItem, setDraggedItem] = useState<DraggedItemType | null>(null)
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -659,9 +665,19 @@ export default function ConciliacionPage() {
           {activeId && draggedItem ? (
             <Card className="opacity-80 rotate-3 shadow-lg">
               <CardContent className="p-3">
-                <div className="text-sm font-medium">{draggedItem.data.proyecto}</div>
-                <div className="text-xs text-muted-foreground">{draggedItem.data.unidad}</div>
-                <div className="text-xs font-medium text-green-600">{formatCurrency(draggedItem.data.monto)}</div>
+                {draggedItem.type === 'excel' && 'proyecto' in draggedItem.data ? (
+                  <>
+                    <div className="text-sm font-medium">{draggedItem.data.proyecto}</div>
+                    <div className="text-xs text-muted-foreground">{draggedItem.data.unidad}</div>
+                    <div className="text-xs font-medium text-green-600">{formatCurrency(draggedItem.data.monto)}</div>
+                  </>
+                ) : 'edificioNombre' in draggedItem.data ? (
+                  <>
+                    <div className="text-sm font-medium">{draggedItem.data.edificioNombre}</div>
+                    <div className="text-xs text-muted-foreground">{draggedItem.data.unidadCodigo}</div>
+                    <div className="text-xs font-medium text-green-600">{formatCurrency(draggedItem.data.totalLead)}</div>
+                  </>
+                ) : null}
               </CardContent>
             </Card>
           ) : null}

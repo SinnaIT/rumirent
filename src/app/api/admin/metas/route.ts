@@ -14,7 +14,11 @@ export async function GET(request: NextRequest) {
     const mes = searchParams.get('mes')
     const anio = searchParams.get('anio')
 
-    const where: any = {}
+    const where: {
+      brokerId?: string
+      mes?: number
+      anio?: number
+    } = {}
     if (brokerId) where.brokerId = brokerId
     if (mes) where.mes = parseInt(mes)
     if (anio) where.anio = parseInt(anio)
@@ -121,11 +125,11 @@ export async function POST(request: NextRequest) {
     })
 
     return NextResponse.json(meta, { status: 201 })
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error creating meta:', error)
 
     // Manejar error de unique constraint
-    if (error.code === 'P2002') {
+    if (error && typeof error === 'object' && 'code' in error && error.code === 'P2002') {
       return NextResponse.json(
         { error: 'Ya existe una meta para este período' },
         { status: 409 }

@@ -256,7 +256,7 @@ export async function requireRole(request: Request, role: 'ADMIN' | 'BROKER'): P
 // Higher Order Function Wrappers - Automatic auth for entire route handlers
 // ============================================================================
 
-type RouteHandler<T = any> = (
+type RouteHandler<T = NextRouteContext> = (
   request: Request,
   context: T,
   user: AuthUser

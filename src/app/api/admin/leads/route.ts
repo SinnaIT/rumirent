@@ -32,7 +32,11 @@ export async function GET(request: NextRequest) {
     console.log('🔍 Filtros aplicados:', { brokerId, clienteId, estado })
 
     // Construir filtros dinámicos
-    const whereClause: any = {}
+    const whereClause: {
+      brokerId?: string
+      clienteId?: string
+      estado?: string
+    } = {}
 
     if (brokerId && brokerId !== 'todos') {
       whereClause.brokerId = brokerId

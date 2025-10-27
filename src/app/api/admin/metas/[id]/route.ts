@@ -112,7 +112,12 @@ export async function PUT(
     }
 
     // Actualizar la meta
-    const dataToUpdate: any = {}
+    const dataToUpdate: {
+      brokerId?: string | null
+      mes?: number
+      anio?: number
+      montoMeta?: number
+    } = {}
     if (brokerId !== undefined) dataToUpdate.brokerId = brokerId || null
     if (mes) dataToUpdate.mes = parseInt(mes)
     if (anio) dataToUpdate.anio = parseInt(anio)
@@ -134,11 +139,11 @@ export async function PUT(
     })
 
     return NextResponse.json(meta)
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error updating meta:', error)
 
     // Manejar error de unique constraint
-    if (error.code === 'P2002') {
+    if (error && typeof error === 'object' && 'code' in error && error.code === 'P2002') {
       return NextResponse.json(
         { error: 'Ya existe una meta para este período' },
         { status: 409 }

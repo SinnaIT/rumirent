@@ -8,7 +8,7 @@ interface ConciliacionMatch {
     monto: number
     proyecto: string
     unidad: string
-    raw: any
+    raw: unknown
   }
   sistema: {
     id: string

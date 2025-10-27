@@ -121,7 +121,7 @@ export default function BrokerProyectosPage() {
     if (!caracteristica.icono) return null
 
     if (caracteristica.tipoIcono === 'LUCIDE' && caracteristica.icono) {
-      const IconComponent = (LucideIcons as any)[caracteristica.icono]
+      const IconComponent = (LucideIcons as Record<string, React.ComponentType<{ className?: string }>>)[caracteristica.icono]
       if (IconComponent) {
         return <IconComponent className="h-4 w-4 text-primary" />
       }

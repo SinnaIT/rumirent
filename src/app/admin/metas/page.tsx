@@ -162,8 +162,8 @@ export default function MetasPage() {
       setSuccess(editingMeta ? 'Meta actualizada exitosamente' : 'Meta creada exitosamente')
       handleCloseDialog()
       fetchMetas()
-    } catch (error: any) {
-      setError(error.message)
+    } catch (error: unknown) {
+      setError(error instanceof Error ? error.message : 'Error desconocido')
     }
   }
 
@@ -181,8 +181,8 @@ export default function MetasPage() {
 
       setSuccess('Meta eliminada exitosamente')
       fetchMetas()
-    } catch (error: any) {
-      setError(error.message)
+    } catch (error: unknown) {
+      setError(error instanceof Error ? error.message : 'Error desconocido')
     }
   }
 

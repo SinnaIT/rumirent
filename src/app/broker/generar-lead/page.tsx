@@ -1012,7 +1012,7 @@ export default function GenerarLeadPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="estado">Estado del Lead</Label>
-                  <Select value={formData.estado} onValueChange={(value: any) => setFormData({ ...formData, estado: value })}>
+                  <Select value={formData.estado} onValueChange={(value: string) => setFormData({ ...formData, estado: value })}>
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>

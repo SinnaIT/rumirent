@@ -254,7 +254,7 @@ export default function FlujoCajaPage() {
               <Calendar className="h-12 w-12 mx-auto mb-4 opacity-50" />
               <p className="text-lg font-medium mb-2">Selecciona un rango de fechas</p>
               <p className="text-sm">
-                Haz clic en "Generar Reporte" para ver el resumen de tus comisiones
+                Haz clic en &quot;Generar Reporte&quot; para ver el resumen de tus comisiones
               </p>
             </div>
           </CardContent>

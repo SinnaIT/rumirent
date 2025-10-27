@@ -239,7 +239,19 @@ export async function PUT(
     }
 
     // Actualizar edificio
-    const updateData: any = {
+    const updateData: {
+      nombre: string
+      direccion: string
+      comuna: string
+      ciudad: string
+      region: string
+      codigoPostal: string | null
+      descripcion?: string | null
+      fechaInicio?: Date | null
+      fechaEntrega?: Date | null
+      estado?: string
+      empresaId?: string
+    } = {
       nombre,
       direccion,
       comuna,
