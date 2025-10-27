@@ -1,35 +1,57 @@
 # 🚀 Instrucciones para el Servidor VPS
 
-## ⚠️ ERROR DETECTADO: Migración Parcialmente Aplicada
+## ⚠️ ACTUALIZACIÓN: Múltiples Conflictos de Migración
 
 **Estado Actual**:
 - ✅ Las migraciones YA están en el contenedor
-- ❌ La primera migración falló porque el enum `Role` ya existe en la base de datos
-- 📝 Esto significa que la base de datos tiene objetos de migraciones anteriores
+- ❌ Hay múltiples conflictos con objetos existentes en la base de datos
+- 📝 La base de datos tiene un estado inconsistente con muchas migraciones parciales
 
-## 🔥 SOLUCIÓN (Ejecuta AHORA en el servidor)
+## 🔥 SOLUCIÓN RECOMENDADA: Reset Completo
 
-### Paso 1: Marcar la primera migración como aplicada
+### ⚠️ IMPORTANTE: Esto borrará todos los datos actuales
+
+**Si tienes datos importantes, haz un backup primero** (instrucciones abajo).
+
+Si NO tienes datos importantes o puedes volver a crearlos:
 
 ```bash
 cd /opt/rumirent-app
 
-# Marcar la primera migración como ya aplicada (resolve el error)
-docker exec rumirent-app npx prisma migrate resolve --applied "20250924201153_init_with_optional_commission"
+# Ejecutar el script de reset (te pedirá confirmación DOS veces)
+bash scripts/reset-database.sh
 ```
 
-### Paso 2: Aplicar las migraciones restantes
+**Qué hace este script:**
+1. ✅ Borra todas las tablas y datos
+2. ✅ Aplica las 9 migraciones desde cero
+3. ✅ Carga datos de seed (usuarios, edificios de ejemplo, comisiones, etc.)
+
+**Usuarios que se crearán:**
+- Admin: `admin@rumirent.com` / `admin123`
+- Broker: `broker@rumirent.com` / `broker123`
+
+### 💾 Backup Opcional (Antes de Reset)
+
+Si quieres guardar los datos actuales:
 
 ```bash
-# Ahora ejecutar todas las migraciones restantes
-docker exec rumirent-app npx prisma migrate deploy
+# Crear backup
+mkdir -p /opt/rumirent-app/backups
+docker exec rumirent-db pg_dump -U rumirent_prod rumirent_db | gzip > /opt/rumirent-app/backups/backup_$(date +%Y%m%d_%H%M%S).sql.gz
+
+# Verificar backup
+ls -lh /opt/rumirent-app/backups/
 ```
 
-### Paso 3: Verificar que todo está bien
+### ✅ Verificar Después del Reset
 
 ```bash
-# Verificar estado final
+# Estado de migraciones
 docker exec rumirent-app npx prisma migrate status
+
+# Probar la API
+curl http://localhost:3000/api/test
 ```
 
 Deberías ver:
@@ -38,6 +60,24 @@ Deberías ver:
 
 Database schema is up to date!
 ```
+
+---
+
+## 🛠️ ALTERNATIVA: Resolver Migración por Migración (NO Recomendado)
+
+Si realmente necesitas conservar los datos actuales y resolver conflicto por conflicto:
+
+```bash
+# Marcar migraciones conflictivas como aplicadas
+docker exec rumirent-app npx prisma migrate resolve --applied "20250924201153_init_with_optional_commission"
+
+# Intentar aplicar las restantes
+docker exec rumirent-app npx prisma migrate deploy
+
+# Si hay más conflictos, repite el proceso para cada migración con error
+```
+
+⚠️ **Advertencia**: Este método es tedioso y propenso a errores. El reset es más limpio y rápido.
 
 ## ⏳ Opción 2: Esperar y Usar Nueva Imagen (Más Limpio)
 
