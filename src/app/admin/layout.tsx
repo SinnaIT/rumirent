@@ -49,7 +49,6 @@ const menuItems = [
     submenu: [
       { icon: TrendingUp, label: 'Performance Brokers', href: '/admin/reportes' },
       { icon: Trophy, label: 'RumiRace - Ranking', href: '/admin/reportes/rumi-race' },
-      { icon: DollarSign, label: 'Flujo de Caja', href: '/admin/reportes/flujo-caja' },
       { icon: Calculator, label: 'Resumen de Comisiones', href: '/admin/reportes/resumen-comisiones' },
     ]
   },
