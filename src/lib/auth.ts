@@ -55,21 +55,18 @@ export async function verifyToken(token: string): Promise<JWTPayload | null> {
     const secret = new TextEncoder().encode(JWT_SECRET)
     const { payload } = await jwtVerify(token, secret)
     const jwtPayload = payload as JWTPayload
-    console.log('[AUTH] Token payload:', jwtPayload)
 
     // Verificar que el usuario aún existe en la base de datos
     console.log('[AUTH] Checking user exists in DB:', jwtPayload.userId)
     const userExists = await prisma.user.findUnique({
       where: { id: jwtPayload.userId }
     })
-    console.log('[AUTH] User exists:', !!userExists)
 
     if (!userExists) {
       console.log('[AUTH] User not found in DB')
       return null
     }
 
-    console.log('[AUTH] Token verification successful')
     return jwtPayload
   } catch (error) {
     console.log('[AUTH] Token verification failed:', error)

@@ -107,9 +107,9 @@ export default function BrokerDashboard() {
     try {
       // Fetch the full ranking
       const response = await fetch(
-        `/api/admin/reportes/rumi-race?mes=${selectedMes}&anio=${selectedAnio}`
+        `/api/broker/dashboard/rumi-race?mes=${selectedMes}&anio=${selectedAnio}`
       )
-
+      
       if (!response.ok) {
         console.error('Error fetching RumiRace ranking')
         return

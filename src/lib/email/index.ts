@@ -2,7 +2,6 @@ import { EmailProvider, PasswordResetEmailParams, ContactAdminEmailParams } from
 import { getEmailConfig } from './config';
 import { GmailProvider } from './providers/gmail';
 import { SMTPProvider } from './providers/smtp';
-import { ResendProvider } from './providers/resend';
 import { getPasswordResetEmailTemplate, getContactAdminEmailTemplate } from './templates';
 
 // Factory function to get the appropriate email provider
@@ -16,8 +15,6 @@ function getEmailProvider(): EmailProvider {
       return new GmailProvider(config);
     case 'smtp':
       return new SMTPProvider(config);
-    case 'resend':
-      return new ResendProvider(config);
     default:
       console.warn(`[Email] Unknown provider: ${config.provider}, falling back to SMTP`);
       return new SMTPProvider(config);
@@ -72,9 +69,9 @@ export async function sendContactAdminEmail(params: ContactAdminEmailParams) {
 
   const result = await provider.sendEmail({
     to: adminEmail,
-    subject: `Nueva solicitud de acceso - ${fromName}`,
+    subject: `Nuevo mensaje de contacto por soporte - ${fromName}`,
     html,
-    text: `Nueva solicitud de acceso a RumiRent\n\nNombre: ${fromName}\nEmail: ${fromEmail}\n\nMensaje:\n${message}\n\nResponde directamente a: ${fromEmail}`,
+    text: `Nuevo mensaje de contacto en RumiRent\n\nNombre: ${fromName}\nEmail: ${fromEmail}\n\nMensaje:\n${message}\n\nResponde directamente a: ${fromEmail}`,
   });
 
   if (!result.success) {
