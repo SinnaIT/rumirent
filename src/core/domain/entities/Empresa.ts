@@ -1,3 +1,5 @@
+import { TipoEntidad } from '../enums';
+
 /**
  * Entidad de Dominio: Empresa
  * Representa una empresa encargada o dueña de proyectos inmobiliarios
@@ -8,6 +10,7 @@ export class Empresa {
     public nombre: string,
     public rut: string,
     public razonSocial: string,
+    public tipoEntidad: TipoEntidad,
     public direccion?: string,
     public telefono?: string,
     public email?: string,
@@ -47,12 +50,14 @@ export class Empresa {
   update(data: {
     nombre?: string
     razonSocial?: string
+    tipoEntidad?: TipoEntidad
     direccion?: string
     telefono?: string
     email?: string
   }): void {
     if (data.nombre !== undefined) this.nombre = data.nombre
     if (data.razonSocial !== undefined) this.razonSocial = data.razonSocial
+    if (data.tipoEntidad !== undefined) this.tipoEntidad = data.tipoEntidad
     if (data.direccion !== undefined) this.direccion = data.direccion
     if (data.telefono !== undefined) this.telefono = data.telefono
     if (data.email !== undefined) this.email = data.email
@@ -83,6 +88,7 @@ export class Empresa {
       nombre: this.nombre,
       rut: this.rut,
       razonSocial: this.razonSocial,
+      tipoEntidad: this.tipoEntidad,
       direccion: this.direccion,
       telefono: this.telefono,
       email: this.email,

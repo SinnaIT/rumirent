@@ -1,10 +1,26 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import { Input } from '@/components/ui/input'
 import { toast } from 'sonner'
 import {
   ArrowLeft,
@@ -19,7 +35,9 @@ import {
   Plus,
   Bed,
   Bath,
-  Info
+  Info,
+  Search,
+  ArrowUpDown
 } from 'lucide-react'
 import * as LucideIcons from 'lucide-react'
 
@@ -101,6 +119,13 @@ export default function ProyectoDetailPage() {
   const [loading, setLoading] = useState(true)
   const [currentImageIndex, setCurrentImageIndex] = useState(0)
 
+  // Estados para filtrado y ordenamiento de unidades
+  const [searchTerm, setSearchTerm] = useState('')
+  const [estadoFilter, setEstadoFilter] = useState<string>('TODOS')
+  const [tipoFilter, setTipoFilter] = useState<string>('TODOS')
+  const [sortField, setSortField] = useState<'numero' | 'metros2' | 'comision'>('numero')
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc')
+
   useEffect(() => {
     if (proyectoId) {
       fetchProyecto()
@@ -171,6 +196,66 @@ export default function ProyectoDetailPage() {
     }
 
     return null
+  }
+
+  // Filtrado y ordenamiento de unidades
+  const filteredAndSortedUnidades = useMemo(() => {
+    if (!proyecto) return []
+
+    let filtered = proyecto.unidades
+
+    // Filtrar por búsqueda
+    if (searchTerm) {
+      filtered = filtered.filter(u =>
+        u.numero.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        u.tipoUnidad.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        u.descripcion?.toLowerCase().includes(searchTerm.toLowerCase())
+      )
+    }
+
+    // Filtrar por estado
+    if (estadoFilter !== 'TODOS') {
+      filtered = filtered.filter(u => u.estado === estadoFilter)
+    }
+
+    // Filtrar por tipo
+    if (tipoFilter !== 'TODOS') {
+      filtered = filtered.filter(u => u.tipoUnidad.id === tipoFilter)
+    }
+
+    // Ordenar
+    const sorted = [...filtered].sort((a, b) => {
+      let comparison = 0
+
+      switch (sortField) {
+        case 'numero':
+          comparison = a.numero.localeCompare(b.numero, undefined, { numeric: true })
+          break
+        case 'metros2':
+          const aMetros = a.metros2 || 0
+          const bMetros = b.metros2 || 0
+          comparison = aMetros - bMetros
+          break
+        case 'comision':
+          const aComision = a.tipoUnidad.comision?.porcentaje || 0
+          const bComision = b.tipoUnidad.comision?.porcentaje || 0
+          comparison = aComision - bComision
+          break
+      }
+
+      return sortDirection === 'asc' ? comparison : -comparison
+    })
+
+    return sorted
+  }, [proyecto, searchTerm, estadoFilter, tipoFilter, sortField, sortDirection])
+
+  const handleSort = (field: 'numero' | 'metros2' | 'comision') => {
+    if (sortField === field) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc')
+    } else {
+      setSortField(field)
+      setSortDirection('asc')
+    }
   }
 
   if (loading) {
@@ -512,71 +597,168 @@ export default function ProyectoDetailPage() {
         )
       })()}
 
-      {/* Resumen de unidades */}
+      {/* Tabla de unidades con filtros */}
       <Card>
         <CardContent className="p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-bold">Unidades Disponibles</h2>
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-xl font-bold">Unidades del Proyecto</h2>
             <div className="flex items-center gap-2">
               <Home className="h-5 w-5 text-muted-foreground" />
               <span className="text-lg font-semibold">
-                {proyecto.unidadesDisponibles} de {proyecto.totalUnidades}
+                {proyecto.unidadesDisponibles} disponibles de {proyecto.totalUnidades} total
               </span>
             </div>
           </div>
 
           {proyecto.unidades.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
-              No hay unidades disponibles en este momento
+              No hay unidades registradas en este proyecto
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {proyecto.unidades.map((unidad) => (
-                <Card key={unidad.id} className="overflow-hidden hover:shadow-lg transition-shadow">
-                  <CardContent className="p-4">
-                    <div className="space-y-3">
-                      <div className="flex items-start justify-between">
-                        <div>
-                          <h3 className="font-bold text-lg">Unidad {unidad.numero}</h3>
-                          <p className="text-sm text-muted-foreground">{unidad.tipoUnidad.nombre}</p>
-                        </div>
-                        <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
-                          Disponible
-                        </Badge>
-                      </div>
+            <>
+              {/* Filtros y búsqueda */}
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Buscar unidad..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-9"
+                  />
+                </div>
 
-                      {unidad.descripcion && (
-                        <p className="text-sm text-muted-foreground">{unidad.descripcion}</p>
-                      )}
+                <Select value={estadoFilter} onValueChange={setEstadoFilter}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Estado" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="TODOS">Todos los estados</SelectItem>
+                    <SelectItem value="DISPONIBLE">Disponible</SelectItem>
+                    <SelectItem value="RESERVADA">Reservada</SelectItem>
+                    <SelectItem value="VENDIDA">Vendida</SelectItem>
+                  </SelectContent>
+                </Select>
 
-                      {unidad.metros2 && (
-                        <div className="flex items-center gap-2 text-sm">
-                          <Home className="h-4 w-4 text-muted-foreground" />
-                          <span>{unidad.metros2} m²</span>
-                        </div>
-                      )}
+                <Select value={tipoFilter} onValueChange={setTipoFilter}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Tipo de unidad" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="TODOS">Todos los tipos</SelectItem>
+                    {proyecto.tiposUnidad.map((tipo) => (
+                      <SelectItem key={tipo.id} value={tipo.id}>
+                        {tipo.nombre}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
 
-                      {unidad.tipoUnidad.comision && (
-                        <div className="flex items-center justify-between p-2 bg-primary/5 rounded">
-                          <span className="text-sm font-medium">Comisión</span>
-                          <span className="text-sm font-bold text-primary">
-                            {(unidad.tipoUnidad.comision.porcentaje * 100).toFixed(1)}%
-                          </span>
-                        </div>
-                      )}
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <span>
+                    Mostrando {filteredAndSortedUnidades.length} de {proyecto.unidades.length}
+                  </span>
+                </div>
+              </div>
 
-                      <Button
-                        className="w-full"
-                        onClick={() => handleGenerarLead(unidad.id)}
-                      >
-                        <Plus className="h-4 w-4 mr-2" />
-                        Generar Lead
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
+              {/* Tabla */}
+              <div className="overflow-x-auto border rounded-lg">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleSort('numero')}
+                          className="h-8 px-2 lg:px-3"
+                        >
+                          Número
+                          <ArrowUpDown className="ml-2 h-4 w-4" />
+                        </Button>
+                      </TableHead>
+                      <TableHead>Tipo</TableHead>
+                      <TableHead>Estado</TableHead>
+                      <TableHead>Descripción</TableHead>
+                      <TableHead>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleSort('metros2')}
+                          className="h-8 px-2 lg:px-3"
+                        >
+                          M²
+                          <ArrowUpDown className="ml-2 h-4 w-4" />
+                        </Button>
+                      </TableHead>
+                      <TableHead className="text-right">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleSort('comision')}
+                          className="h-8 px-2 lg:px-3"
+                        >
+                          Comisión
+                          <ArrowUpDown className="ml-2 h-4 w-4" />
+                        </Button>
+                      </TableHead>
+                      <TableHead className="text-center">Acciones</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredAndSortedUnidades.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                          No se encontraron unidades con los filtros aplicados
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      filteredAndSortedUnidades.map((unidad) => {
+                        const estadoBadgeColor =
+                          unidad.estado === 'DISPONIBLE' ? 'bg-green-100 text-green-800 border-green-200' :
+                          unidad.estado === 'RESERVADA' ? 'bg-yellow-100 text-yellow-800 border-yellow-200' :
+                          'bg-red-100 text-red-800 border-red-200';
+
+                        return (
+                          <TableRow key={unidad.id} className="hover:bg-muted/50">
+                            <TableCell className="font-medium">{unidad.numero}</TableCell>
+                            <TableCell>{unidad.tipoUnidad.nombre}</TableCell>
+                            <TableCell>
+                              <Badge variant="outline" className={estadoBadgeColor}>
+                                {unidad.estado}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="max-w-xs truncate">
+                              {unidad.descripcion || '-'}
+                            </TableCell>
+                            <TableCell className="text-right">
+                              {unidad.metros2 ? `${unidad.metros2} m²` : '-'}
+                            </TableCell>
+                            <TableCell className="text-right">
+                              {unidad.tipoUnidad.comision ? (
+                                <span className="font-bold text-primary">
+                                  {(unidad.tipoUnidad.comision.porcentaje * 100).toFixed(1)}%
+                                </span>
+                              ) : '-'}
+                            </TableCell>
+                            <TableCell className="text-center">
+                              <Button
+                                size="sm"
+                                onClick={() => handleGenerarLead(unidad.id)}
+                                disabled={unidad.estado !== 'DISPONIBLE'}
+                              >
+                                <Plus className="h-4 w-4 mr-2" />
+                                Lead
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+            </>
           )}
         </CardContent>
       </Card>

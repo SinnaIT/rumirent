@@ -35,6 +35,9 @@ export async function GET(request: NextRequest) {
           gte: fechaInicioAño,
           lte: fechaFinAño,
         },
+        estado: {
+          not: 'RECHAZADO'
+        }
       },
       include: {
         cliente: true,
@@ -63,9 +66,9 @@ export async function GET(request: NextRequest) {
         (lead) => lead.createdAt >= fechaInicio && lead.createdAt <= fechaFin
       )
 
-      // Calcular métricas del mes
+      // Calcular métricas del mes (con soporte para estados antiguos y nuevos)
       const reservas = leadsDelMes
-        .filter(c => c.estado === 'ENTREGADO' || c.estado === 'RESERVA_PAGADA')
+        .filter(c => c.estado === 'ENTREGADO' || c.estado === 'DEPARTAMENTO_ENTREGADO' || c.estado === 'RESERVA_PAGADA')
         .reduce((sum, lead) => {
           // Simular valor de reserva (10% del total)
           return sum + (lead.totalLead * 0.1)

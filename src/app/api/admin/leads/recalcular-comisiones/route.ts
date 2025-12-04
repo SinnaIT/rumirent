@@ -54,11 +54,15 @@ export async function POST(request: NextRequest) {
     console.log(`📅 Recalculando comisiones para el período: ${firstDay.toISOString()} - ${lastDay.toISOString()}`)
 
     // Obtener leads del mes actual filtrados por fecha de reserva
+    // Solo recalcular comisiones para leads en estado DEPARTAMENTO_ENTREGADO
     const leadsDelMes = await prisma.lead.findMany({
       where: {
         fechaPagoReserva: {
           gte: firstDay,
           lte: lastDay
+        },
+        estado:{
+         notIn: ['RECHAZADO']
         },
         // Solo procesar leads que tienen una comisión base asignada
         comisionId: {
@@ -135,6 +139,8 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    console.log(`leadsPorComision:`, leadsPorComision)
+
     // Procesar cada grupo de comisión
     for (const [, grupo] of leadsPorComision) {
       const { comision, leads: leadsGrupo } = grupo
@@ -157,6 +163,9 @@ export async function POST(request: NextRequest) {
       })
 
       const reglaAplicable = reglasComision[0]
+
+      console.log(`🔍 Reglas encontradas para ${cantidadLeads} leads:`, reglasComision)
+      console.log(`reglaAplicable:`, reglaAplicable)
 
       if (reglaAplicable) {
         console.log(`✅ Aplicando regla: ${(reglaAplicable.porcentaje * 100).toFixed(1)}% para ${cantidadLeads} leads (rango: ${reglaAplicable.cantidadMinima}-${reglaAplicable.cantidadMaxima || '∞'})`)

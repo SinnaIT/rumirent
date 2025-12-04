@@ -1,0 +1,60 @@
+# Docker Compose para QA environment en VPS
+# Domain: demo.rumirent.com
+# Ports: App 3001, DB 5433
+version: '3.8'
+
+services:
+  # Base de datos PostgreSQL para QA
+  qa-db:
+    image: postgres:16-alpine
+    container_name: rumirent-qa-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_qa_data:/var/lib/postgresql/data
+    networks:
+      - rumirent-qa-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+  # Aplicación Next.js QA desde GHCR
+  qa-app:
+    image: ghcr.io/${GITHUB_REPOSITORY}:qa
+    container_name: rumirent-qa-app
+    restart: unless-stopped
+    ports:
+      - "3001:3000"
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=${DATABASE_URL}
+      - JWT_SECRET=${JWT_SECRET}
+      - JWT_EXPIRES_IN=${JWT_EXPIRES_IN:-7d}
+      - NEXTAUTH_URL=${NEXTAUTH_URL}
+    depends_on:
+      qa-db:
+        condition: service_healthy
+    networks:
+      - rumirent-qa-network
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3000/api/test || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+volumes:
+  postgres_qa_data:
+    driver: local
+
+networks:
+  rumirent-qa-network:
+    driver: bridge

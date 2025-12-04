@@ -22,11 +22,13 @@ import {
   UserCheck,
   FileText,
   Shield,
-  Target
+  Target,
+  Trophy
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/lib/hooks/use-auth'
 import { ThemeToggle } from '@/components/theme-toggle'
+import { Logo } from '@/components/logo'
 
 const menuItems = [
   { icon: Home, label: 'Dashboard', href: '/admin' },
@@ -46,8 +48,9 @@ const menuItems = [
     hasSubmenu: true,
     submenu: [
       { icon: TrendingUp, label: 'Performance Brokers', href: '/admin/reportes' },
+      { icon: Trophy, label: 'RumiRace - Ranking', href: '/admin/reportes/rumi-race' },
       { icon: DollarSign, label: 'Flujo de Caja', href: '/admin/reportes/flujo-caja' },
-      { icon: FileText, label: 'Reporte Mensual Brokers', href: '/admin/reportes/brokers-mensual' },
+      { icon: Calculator, label: 'Resumen de Comisiones', href: '/admin/reportes/resumen-comisiones' },
     ]
   },
 ]
@@ -111,12 +114,7 @@ export default function AdminLayout({
         <div className="flex flex-col h-full">
           {/* Logo/Header */}
           <div className="flex items-center justify-between p-4 border-b border-sidebar-border">
-            <div className="flex items-center space-x-2">
-              <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-                <Building2 className="w-5 h-5 text-primary-foreground" />
-              </div>
-              <h2 className="text-xl font-semibold text-sidebar-foreground">RumiRent</h2>
-            </div>
+            <Logo size="sm" showText={true} className="text-sidebar-foreground" />
             <Button
               variant="ghost"
               size="sm"
@@ -128,7 +126,7 @@ export default function AdminLayout({
           </div>
 
           {/* Menu Items */}
-          <nav className="flex-1 p-4">
+          <nav className="flex-1 p-4 overflow-y-auto">
             <ul className="space-y-1">
               {menuItems.map((item) => {
                 const isActive = pathname === item.href

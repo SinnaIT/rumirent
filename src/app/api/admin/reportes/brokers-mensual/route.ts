@@ -47,13 +47,17 @@ export async function GET(request: NextRequest) {
     const startDate = new Date(anio, mes - 1, 1);
     const endDate = new Date(anio, mes, 0, 23, 59, 59, 999);
 
-    // Fetch all leads for the specified month
+    // Fetch all leads for the specified month (excluding RECHAZADO)
+    // Use fechaPagoReserva to determine month for Rumi Race ranking
     const leads = await prisma.lead.findMany({
       where: {
-        createdAt: {
+        fechaPagoReserva: {
           gte: startDate,
           lte: endDate,
         },
+        estado: {
+          not: 'RECHAZADO'
+        }
       },
       include: {
         broker: {
@@ -63,6 +67,17 @@ export async function GET(request: NextRequest) {
             role: true,
           },
         },
+        cliente: {
+          select: {
+            nombre: true,
+            rut: true
+          }
+        },
+        edificio: {
+          select: {
+            nombre: true
+          }
+        }
       },
     });
 
@@ -77,6 +92,17 @@ export async function GET(request: NextRequest) {
       anticipos: number;
       despAnticipo: number;
       liquido: number;
+      leads: Array<{
+        id: string;
+        clienteNombre: string;
+        clienteRut: string;
+        edificioNombre: string;
+        codigoUnidad: string;
+        totalLead: number;
+        comision: number;
+        estado: string;
+        fechaCheckin: Date | null;
+      }>;
     }>();
 
     leads.forEach(lead => {
@@ -98,15 +124,27 @@ export async function GET(request: NextRequest) {
           anticipos: 0,
           despAnticipo: 0,
           liquido: 0,
+          leads: [],
         });
       }
 
       const brokerData = brokerMap.get(brokerId)!;
 
-      // Count reservas (RESERVA_PAGADA)
-      if (lead.estado === "RESERVA_PAGADA") {
-        brokerData.reservas++;
-      }
+      // Add lead details to array
+      brokerData.leads.push({
+        id: lead.id,
+        clienteNombre: lead.cliente.nombre,
+        clienteRut: lead.cliente.rut,
+        edificioNombre: lead.edificio.nombre,
+        codigoUnidad: lead.codigoUnidad,
+        totalLead: lead.totalLead,
+        comision: lead.comision,
+        estado: lead.estado,
+        fechaCheckin: lead.fechaCheckin,
+      });
+
+      // Count all reservas (excluding RECHAZADO which is already filtered in query)
+      brokerData.reservas++;
 
       // Count checkins (fechaCheckin not null)
       if (lead.fechaCheckin) {

@@ -75,12 +75,12 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
 
     const { id } = params
     const body = await request.json()
-    const { nombre, rut, telefono, birthDate, password } = body
+    const { email, nombre, rut, telefono, birthDate, password } = body
 
     // Validaciones básicas
-    if (!nombre || !rut) {
+    if (!nombre || !rut || !email) {
       return NextResponse.json(
-        { error: 'Nombre y RUT son requeridos' },
+        { error: 'Nombre, RUT y email son requeridos' },
         { status: 400 }
       )
     }
@@ -100,12 +100,21 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       )
     }
 
-    // Prevenir que un admin se elimine a sí mismo
-    if (existingUser.id === authResult.user.id) {
-      return NextResponse.json(
-        { error: 'No puedes modificar tu propio usuario desde esta pantalla' },
-        { status: 400 }
-      )
+    // Verificar si el email ya existe en otro usuario
+    if (email !== existingUser.email) {
+      const existingEmail = await prisma.user.findFirst({
+        where: {
+          email,
+          id: { not: id }
+        }
+      })
+
+      if (existingEmail) {
+        return NextResponse.json(
+          { error: 'Ya existe un usuario con este email' },
+          { status: 400 }
+        )
+      }
     }
 
     // Verificar si el RUT ya existe en otro usuario
@@ -127,13 +136,17 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
 
     // Preparar datos de actualización
     const updateData: {
+      email: string
       nombre: string
       rut: string
       telefono: string | null
       birthDate: Date | null
       updatedAt: Date
       password?: string
+      mustChangePassword?: boolean
+      lastPasswordChange?: Date
     } = {
+      email,
       nombre,
       rut,
       telefono: telefono || null,
@@ -141,9 +154,12 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       updatedAt: new Date()
     }
 
-    // Si se proporciona contraseña, hashearla
+    // Si se proporciona contraseña, hashearla y forzar cambio
     if (password && password.length >= 6) {
       updateData.password = await bcrypt.hash(password, 12)
+      // Cuando admin cambia password, forzar cambio en próximo login
+      updateData.mustChangePassword = true
+      updateData.lastPasswordChange = new Date()
     }
 
     // Actualizar usuario

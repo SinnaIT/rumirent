@@ -11,6 +11,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Badge } from '@/components/ui/badge'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { CommissionPreviewCard } from '@/components/commission-preview-card'
 import { toast } from 'sonner'
 import {
   Plus,
@@ -76,11 +77,42 @@ interface Cliente {
   }
 }
 
+interface CommissionRule {
+  id: string
+  porcentaje: number
+  cantidadMinima: number
+  cantidadMaxima: number | null
+}
+
+interface CommissionInfo {
+  comisionId: string
+  comisionNombre: string
+  comisionCodigo: string
+  porcentajeBase: number
+  totalLeads: number
+  currentRule: CommissionRule | null
+  nextRule: CommissionRule | null
+  untilNextLevel: number | null
+}
+
+interface MultiCommissionResponse {
+  success: boolean
+  date: string
+  commissionData: Record<string, CommissionInfo>
+}
+
 const ESTADOS_CONTRATO = [
+  { value: 'INGRESADO', label: 'Ingresado' },
   { value: 'ENTREGADO', label: 'Entregado' },
-  { value: 'RESERVA_PAGADA', label: 'Reserva Pagada' },
+  { value: 'EN_EVALUACION', label: 'En Evaluación' },
+  { value: 'OBSERVADO', label: 'Observado' },
   { value: 'APROBADO', label: 'Aprobado' },
-  { value: 'RECHAZADO', label: 'Rechazado' }
+  { value: 'RESERVA_PAGADA', label: 'Reserva Pagada' },
+  { value: 'CONTRATO_FIRMADO', label: 'Contrato Firmado' },
+  { value: 'CONTRATO_PAGADO', label: 'Contrato Pagado' },
+  { value: 'DEPARTAMENTO_ENTREGADO', label: 'Departamento Entregado' },
+  { value: 'RECHAZADO', label: 'Rechazado' },
+  { value: 'CANCELADO', label: 'Cancelado' }
 ]
 
 export default function GenerarLeadPage() {
@@ -107,6 +139,8 @@ export default function GenerarLeadPage() {
   const [clientCreatedInCurrentSession, setClientCreatedInCurrentSession] = useState(false)
   const [showClientModal, setShowClientModal] = useState(false)
   const [clientSearchTerm, setClientSearchTerm] = useState('')
+  const [commissionData, setCommissionData] = useState<Record<string, CommissionInfo>>({})
+  const [loadingCommissionRules, setLoadingCommissionRules] = useState(false)
 
   // Form state
   const [formData, setFormData] = useState({
@@ -119,7 +153,7 @@ export default function GenerarLeadPage() {
     montoUf: '',
     comision: '',
     estado: 'ENTREGADO' as const,
-    fechaPagoReserva: '',
+    fechaPagoReserva: new Date().toISOString().split('T')[0], // Default to today
     fechaPagoLead: '',
     fechaCheckin: '',
     observaciones: ''
@@ -132,6 +166,7 @@ export default function GenerarLeadPage() {
   useEffect(() => {
     fetchProyectos()
     fetchClientes()
+    fetchCommissionRules()
   }, [])
 
   useEffect(() => {
@@ -188,6 +223,33 @@ export default function GenerarLeadPage() {
       toast.error('Error de conexión al cargar clientes')
     } finally {
       setLoadingClientes(false)
+    }
+  }
+
+  const fetchCommissionRules = async (date?: string) => {
+    try {
+      setLoadingCommissionRules(true)
+
+      // Use provided date or form's fechaPagoReserva or default to today
+      const targetDate = date || formData.fechaPagoReserva || new Date().toISOString().split('T')[0]
+
+      console.log('Fetching commission rules for date:', targetDate)
+      const response = await fetch(`/api/broker/commission-rules?date=${targetDate}`)
+      const data = await response.json()
+      console.log('Commission rules response:', data)
+
+      if (data.success && data.commissionData) {
+        setCommissionData(data.commissionData)
+        console.log('Commission data set:', data.commissionData)
+      } else {
+        console.warn('Commission rules fetch unsuccessful:', data)
+        setCommissionData({})
+      }
+    } catch (error) {
+      console.error('Error al cargar reglas de comisión:', error)
+      setCommissionData({})
+    } finally {
+      setLoadingCommissionRules(false)
     }
   }
 
@@ -350,33 +412,71 @@ export default function GenerarLeadPage() {
   }
 
   const calculateComision = () => {
-    if (!formData.totalLead) return { amount: 0, rate: 0, source: 'none' }
+    // Calculate price (0 if not provided, to still show rate)
+    const precio = formData.totalLead ? parseFloat(formData.totalLead) : 0
 
-    const precio = parseFloat(formData.totalLead)
-    if (isNaN(precio)) return { amount: 0, rate: 0, source: 'none' }
+    // Determinar la comisión base aplicable (tipo de unidad tiene prioridad sobre proyecto)
+    let baseComision = null
+    let comisionSource = 'none'
 
-    // Prioridad: Comisión específica de la unidad > Comisión del proyecto > 0
+    // Prioridad 1: Comisión del tipo de unidad (si está seleccionada una unidad)
     if (selectedUnidad?.tipoUnidad.comision) {
-      const rate = selectedUnidad.tipoUnidad.comision.porcentaje
-      return {
-        amount: precio * rate,
-        rate: rate,
-        source: 'unit',
-        name: selectedUnidad.tipoUnidad.comision.nombre
+      baseComision = selectedUnidad.tipoUnidad.comision
+      comisionSource = 'unit'
+    }
+    // Prioridad 2: Comisión del tipo de unidad (para código manual)
+    else if (formData.tipoUnidadEdificioId && selectedProyecto) {
+      const tipoUnidad = selectedProyecto.tiposUnidad.find(t => t.id === formData.tipoUnidadEdificioId)
+      if (tipoUnidad?.comision) {
+        baseComision = tipoUnidad.comision
+        comisionSource = 'unitType'
       }
     }
-
-    if (selectedProyecto?.comision) {
-      const rate = selectedProyecto.comision.porcentaje
-      return {
-        amount: precio * rate,
-        rate: rate,
-        source: 'project',
-        name: selectedProyecto.comision.nombre
-      }
+    // Prioridad 3: Comisión base del proyecto
+    if (!baseComision && selectedProyecto?.comision) {
+      baseComision = selectedProyecto.comision
+      comisionSource = 'project'
     }
 
-    return { amount: 0, rate: 0, source: 'none' }
+    console.log('calculateComision - baseComision:', baseComision)
+    console.log('calculateComision - commissionData:', commissionData)
+
+    // Si no hay comisión base, no podemos calcular nada
+    if (!baseComision) {
+      return { amount: 0, rate: 0, source: 'none' }
+    }
+
+    // Verificar si existe una regla de comisión que corresponda a esta comisión base
+    // Las reglas solo aplican si pertenecen a la MISMA comisión
+    const commissionInfo = commissionData[baseComision.id]
+    if (commissionInfo?.currentRule) {
+      console.log('Commission rule found:', commissionInfo.currentRule)
+      console.log('Applying commission rule for:', commissionInfo.comisionNombre)
+      const rate = commissionInfo.currentRule.porcentaje
+      console.log('Commission rule applies! Rate:', rate)
+      return {
+        amount: precio > 0 ? precio * rate : 0,
+        rate: rate,
+        source: 'rule',
+        name: commissionInfo.comisionNombre,
+        isRule: true,
+        reglaComisionId: commissionInfo.currentRule.id,
+        comisionId: baseComision.id
+      }
+    } else {
+      console.log('No commission rules found for this commission')
+    }
+
+    // Si no hay regla aplicable, usar la tasa base de la comisión
+    const rate = baseComision.porcentaje
+    console.log('Using base commission rate:', rate)
+    return {
+      amount: precio > 0 ? precio * rate : 0,
+      rate: rate,
+      source: comisionSource,
+      name: baseComision.nombre,
+      comisionId: baseComision.id
+    }
   }
 
   const handleSubmit = async () => {
@@ -401,22 +501,33 @@ export default function GenerarLeadPage() {
       return
     }
 
-    if (!formData.totalLead || !formData.montoUf) {
-      toast.error('Total del lead y monto UF son requeridos')
+    // Validación: si se ingresa código manual, el tipo de unidad es obligatorio
+    if (formData.codigoUnidad && !formData.unidadId && !formData.tipoUnidadEdificioId) {
+      toast.error('Debe seleccionar una tipología cuando ingresa un código de unidad manual')
+      return
+    }
+
+    // Validar solo el total del arriendo (obligatorio)
+    if (!formData.totalLead) {
+      toast.error('Total del arriendo es requerido')
       return
     }
 
     const totalLead = parseFloat(formData.totalLead)
-    const montoUf = parseFloat(formData.montoUf)
 
     if (isNaN(totalLead) || totalLead <= 0) {
-      toast.error('El total del lead debe ser un número válido mayor a 0')
+      toast.error('El total del arriendo debe ser un número válido mayor a 0')
       return
     }
 
-    if (isNaN(montoUf) || montoUf <= 0) {
-      toast.error('El monto UF debe ser un número válido mayor a 0')
-      return
+    // Validar monto UF solo si se proporcionó
+    let montoUf = 0
+    if (formData.montoUf) {
+      montoUf = parseFloat(formData.montoUf)
+      if (isNaN(montoUf) || montoUf <= 0) {
+        toast.error('El monto UF debe ser un número válido mayor a 0')
+        return
+      }
     }
 
     try {
@@ -459,8 +570,18 @@ export default function GenerarLeadPage() {
         return
       }
 
+      // La creacion automatica de unidad se maneja en el backend (API)
+      const unidadIdToUse = formData.unidadId
+
       const comisionData = calculateComision()
       const comisionCalculada = comisionData.amount
+
+      // Task 12.3: Determinar reglaComisionId y comisionId
+      let reglaComisionId = undefined
+      const comisionId = comisionData.comisionId || undefined
+      if (comisionData.isRule && comisionData.reglaComisionId) {
+        reglaComisionId = comisionData.reglaComisionId
+      }
 
       const response = await fetch('/api/broker/leads', {
         method: 'POST',
@@ -468,14 +589,16 @@ export default function GenerarLeadPage() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          unidadId: formData.unidadId || undefined,
-          codigoUnidad: formData.codigoUnidad || undefined,
+          unidadId: unidadIdToUse || undefined,
+          codigoUnidad: !unidadIdToUse ? formData.codigoUnidad : undefined,
           tipoUnidadEdificioId: formData.tipoUnidadEdificioId || undefined,
           clienteId: clienteId,
           edificioId: formData.edificioId,
           totalLead,
           montoUf,
           comision: comisionCalculada,
+          comisionId: comisionId,
+          reglaComisionId: reglaComisionId,
           estado: formData.estado,
           fechaPagoReserva: formData.fechaPagoReserva || undefined,
           fechaPagoLead: formData.fechaPagoLead || undefined,
@@ -609,7 +732,9 @@ export default function GenerarLeadPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="tipologia">Tipología (Opcional)</Label>
+                  <Label htmlFor="tipologia">
+                    Tipología {formData.codigoUnidad && !formData.unidadId ? <span className="text-red-600">*</span> : ''}
+                  </Label>
                   <Select
                     value={formData.tipoUnidadEdificioId || 'all'}
                     onValueChange={(value) => handleTipologiaChange(value === 'all' ? '' : value)}
@@ -627,6 +752,11 @@ export default function GenerarLeadPage() {
                       ))}
                     </SelectContent>
                   </Select>
+                  {formData.codigoUnidad && !formData.unidadId && (
+                    <p className="text-xs text-orange-600 font-medium mt-1">
+                      * Obligatorio cuando se ingresa código de unidad manual
+                    </p>
+                  )}
                 </div>
 
                 <div className="space-y-2">
@@ -660,7 +790,10 @@ export default function GenerarLeadPage() {
                   disabled={!!formData.unidadId}
                 />
                 <p className="text-xs text-muted-foreground">
-                  Use este campo si la unidad no está registrada en el sistema
+                  Use este campo si la unidad no está registrada en el sistema.
+                  {formData.codigoUnidad && !formData.unidadId && (
+                    <span className="text-orange-600 font-medium"> Debe seleccionar una tipología para continuar.</span>
+                  )}
                 </p>
               </div>
 
@@ -994,7 +1127,7 @@ export default function GenerarLeadPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="montoUf">Monto en UF</Label>
+                  <Label htmlFor="montoUf">Monto en UF (Opcional)</Label>
                   <Input
                     id="montoUf"
                     type="text"
@@ -1012,7 +1145,7 @@ export default function GenerarLeadPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="estado">Estado del Lead</Label>
-                  <Select value={formData.estado} onValueChange={(value: string) => setFormData({ ...formData, estado: value })}>
+                  <Select value={formData.estado} onValueChange={(value) => setFormData({ ...formData, estado: value as typeof formData.estado })}>
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
@@ -1049,7 +1182,13 @@ export default function GenerarLeadPage() {
                     id="fechaPagoReserva"
                     type="date"
                     value={formData.fechaPagoReserva}
-                    onChange={(e) => setFormData({ ...formData, fechaPagoReserva: e.target.value })}
+                    onChange={(e) => {
+                      setFormData({ ...formData, fechaPagoReserva: e.target.value })
+                      // Recalculate commission rules when date changes
+                      if (e.target.value) {
+                        fetchCommissionRules(e.target.value)
+                      }
+                    }}
                   />
                 </div>
 
@@ -1152,44 +1291,56 @@ export default function GenerarLeadPage() {
                     </div>
                   )}
 
-                  {/* Sección de Comisión Siempre Visible */}
+                  {/* Sección de Comisión Mejorada */}
                   <div>
                     <h4 className="font-medium text-sm text-muted-foreground">COMISIÓN</h4>
-                    {comisionData.amount > 0 ? (
-                      <div className="p-3 bg-green-50 rounded-lg border border-green-200 mt-2">
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <p className="text-lg font-bold text-green-900">
-                              {formatCurrency(comisionData.amount)}
-                            </p>
-                            <p className="text-sm text-green-700">
-                              {comisionData.name}
-                            </p>
+                    {(formData.edificioId && comisionData.rate > 0) ? (
+                      <div className="p-3 bg-green-50 rounded-lg border border-green-200 mt-2 space-y-3">
+                        {/* Badge de Regla Automática */}
+                        {comisionData.source === 'rule' && (
+                          <div className="flex items-center gap-2">
+                            <span className="inline-flex items-center px-2 py-1 rounded-md bg-amber-100 text-amber-800 text-xs font-medium">
+                              ⭐ Regla Automática
+                            </span>
                           </div>
-                          <div className="text-right">
-                            <p className="text-xl font-bold text-green-900">
+                        )}
+
+                        {/* Información de Comisión */}
+                        <div>
+                          <p className="text-sm font-medium text-green-700">{comisionData.name || 'Sin nombre'}</p>
+                          <div className="flex items-baseline gap-2 mt-1">
+                            <p className="text-2xl font-bold text-green-900">
                               {(comisionData.rate * 100).toFixed(1)}%
                             </p>
                             <p className="text-xs text-green-600">
-                              {comisionData.source === 'unit' ? 'Específica de unidad' : 'Base del proyecto'}
+                              {comisionData.source === 'rule' ? 'Regla de comisión aplicada' :
+                               comisionData.source === 'unit' ? 'Específica de unidad' :
+                               'Base del proyecto'}
                             </p>
                           </div>
                         </div>
+
+                        {/* Monto estimado (solo si hay totalLead) */}
+                        {formData.totalLead && comisionData.amount > 0 && (
+                          <div className="pt-3 border-t border-green-200">
+                            <p className="text-xs text-green-600">Monto estimado:</p>
+                            <p className="text-lg font-bold text-green-900">
+                              {formatCurrency(comisionData.amount)}
+                            </p>
+                          </div>
+                        )}
                       </div>
-                    ) : formData.totalLead ? (
+                    ) : formData.edificioId ? (
                       <div className="p-3 bg-gray-50 rounded-lg border border-gray-200 mt-2">
-                        <p className="text-sm text-gray-600">
-                          Sin comisión configurada
-                        </p>
+                        <p className="text-sm text-gray-600">Sin comisión configurada</p>
                         <p className="text-xs text-gray-500">
-                          {!selectedProyecto ? 'Selecciona un proyecto para ver comisiones disponibles' :
-                           'Este proyecto no tiene comisión base configurada'}
+                          Este proyecto no tiene comisión base configurada
                         </p>
                       </div>
                     ) : (
                       <div className="p-3 bg-blue-50 rounded-lg border border-blue-200 mt-2">
                         <p className="text-sm text-blue-600">
-                          Ingresa el monto del lead para calcular la comisión
+                          Selecciona un proyecto para ver la comisión aplicable
                         </p>
                       </div>
                     )}
@@ -1231,31 +1382,54 @@ export default function GenerarLeadPage() {
                     </div>
                   )}
 
-                  {/* Sección de Comisión para vista de solo edificio */}
+                  {/* Sección de Comisión Mejorada para vista de solo edificio */}
                   <div>
                     <h4 className="font-medium text-sm text-muted-foreground">COMISIÓN</h4>
-                    {comisionData.amount > 0 ? (
-                      <div className="p-3 bg-green-50 rounded-lg border border-green-200 mt-2">
+                    {(formData.edificioId && comisionData.rate > 0) ? (
+                      <div className="p-3 bg-green-50 rounded-lg border border-green-200 mt-2 space-y-3">
+                        {/* Badge de Regla Automática */}
+                        {comisionData.source === 'rule' && (
+                          <div className="flex items-center gap-2">
+                            <span className="inline-flex items-center px-2 py-1 rounded-md bg-amber-100 text-amber-800 text-xs font-medium">
+                              ⭐ Regla Automática
+                            </span>
+                          </div>
+                        )}
+
+                        {/* Porcentaje de Comisión */}
                         <div className="flex items-center justify-between">
                           <div>
-                            <p className="text-lg font-bold text-green-900">
-                              {formatCurrency(comisionData.amount)}
-                            </p>
                             <p className="text-sm text-green-700">
-                              {comisionData.name}
+                              {comisionData.name || 'Comisión del proyecto'}
                             </p>
+                            {formData.totalLead && comisionData.amount > 0 && (
+                              <p className="text-lg font-bold text-green-900 mt-1">
+                                {formatCurrency(comisionData.amount)}
+                              </p>
+                            )}
                           </div>
                           <div className="text-right">
                             <p className="text-xl font-bold text-green-900">
                               {(comisionData.rate * 100).toFixed(1)}%
                             </p>
                             <p className="text-xs text-green-600">
-                              Base del proyecto
+                              {comisionData.source === 'rule' ? 'Por regla' :
+                               comisionData.source === 'unitType' ? 'Por tipología' :
+                               'Base del proyecto'}
                             </p>
                           </div>
                         </div>
+
+                        {/* Commission progress info is now shown in the dedicated Commission Preview Card above */}
+
+                        {/* Mensaje informativo si no hay monto */}
+                        {!formData.totalLead && (
+                          <p className="text-xs text-green-600 italic">
+                            Ingresa el monto del arriendo para ver la comisión estimada
+                          </p>
+                        )}
                       </div>
-                    ) : formData.totalLead ? (
+                    ) : formData.edificioId ? (
                       <div className="p-3 bg-gray-50 rounded-lg border border-gray-200 mt-2">
                         <p className="text-sm text-gray-600">
                           Sin comisión configurada
@@ -1267,7 +1441,7 @@ export default function GenerarLeadPage() {
                     ) : (
                       <div className="p-3 bg-blue-50 rounded-lg border border-blue-200 mt-2">
                         <p className="text-sm text-blue-600">
-                          Ingresa el monto del lead para calcular la comisión
+                          Selecciona un proyecto para ver la comisión
                         </p>
                       </div>
                     )}
@@ -1280,6 +1454,31 @@ export default function GenerarLeadPage() {
               )}
             </CardContent>
           </Card>
+
+          {/* Commission Preview Card */}
+          {formData.edificioId && Object.keys(commissionData).length > 0 && (
+            <CommissionPreviewCard
+              commissionData={commissionData}
+              activeComisionId={(() => {
+                // Determine active commission ID based on selection hierarchy
+                if (selectedUnidad?.tipoUnidad.comision) {
+                  return selectedUnidad.tipoUnidad.comision.id
+                }
+                if (formData.tipoUnidadEdificioId && selectedProyecto) {
+                  const tipoUnidad = selectedProyecto.tiposUnidad.find(t => t.id === formData.tipoUnidadEdificioId)
+                  if (tipoUnidad?.comision) {
+                    return tipoUnidad.comision.id
+                  }
+                }
+                if (selectedProyecto?.comision) {
+                  return selectedProyecto.comision.id
+                }
+                return null
+              })()}
+              isLoading={loadingCommissionRules}
+              selectedDate={formData.fechaPagoReserva ? new Date(formData.fechaPagoReserva) : new Date()}
+            />
+          )}
 
           <Button
             className="w-full"

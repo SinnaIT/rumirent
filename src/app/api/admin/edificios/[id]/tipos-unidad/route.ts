@@ -95,18 +95,6 @@ export async function POST(
     }
 
     const body = await request.json()
-    const { nombre, codigo, comisionId } = body
-
-    console.log('📝 Datos del nuevo tipo de unidad:', { nombre, codigo, comisionId })
-    console.log('📝 Comisión procesada:', comisionId === 'none' || !comisionId ? null : comisionId)
-
-    // Validaciones básicas
-    if (!nombre || !codigo) {
-      return NextResponse.json(
-        { error: 'Nombre y código son requeridos' },
-        { status: 400 }
-      )
-    }
 
     // Verificar que el edificio existe
     const edificio = await prisma.edificio.findUnique({
@@ -120,7 +108,106 @@ export async function POST(
       )
     }
 
-    // Verificar que la comisión existe (si se proporciona)
+    // Check if this is a bulk assignment request
+    if (body.asignaciones && Array.isArray(body.asignaciones)) {
+      // Handle bulk assignments
+      const asignaciones = body.asignaciones
+      const resultados = []
+      const errores = []
+
+      for (const asignacion of asignaciones) {
+        try {
+          const { tipoUnidadId, comisionId } = asignacion
+
+          // Verify the source unit type exists (from another building)
+          const tipoUnidadOrigen = await prisma.tipoUnidadEdificio.findUnique({
+            where: { id: tipoUnidadId }
+          })
+
+          if (!tipoUnidadOrigen) {
+            errores.push({
+              tipoUnidadId,
+              error: 'Tipo de unidad no encontrado'
+            })
+            continue
+          }
+
+          // Verify commission exists if provided and not empty
+          if (comisionId && comisionId !== '' && comisionId !== 'none') {
+            const comision = await prisma.comision.findUnique({
+              where: { id: comisionId }
+            })
+
+            if (!comision) {
+              errores.push({
+                tipoUnidadId,
+                nombre: tipoUnidadOrigen.nombre,
+                error: 'La comisión especificada no existe'
+              })
+              continue
+            }
+          }
+
+          // Check if unit type already exists in this building
+          const existingTipoUnidad = await prisma.tipoUnidadEdificio.findFirst({
+            where: {
+              edificioId: id,
+              codigo: tipoUnidadOrigen.codigo
+            }
+          })
+
+          if (existingTipoUnidad) {
+            errores.push({
+              tipoUnidadId,
+              nombre: tipoUnidadOrigen.nombre,
+              error: 'Ya existe un tipo de unidad con este código en este edificio'
+            })
+            continue
+          }
+
+          // Create the unit type copying from the source type
+          const nuevoTipoUnidad = await prisma.tipoUnidadEdificio.create({
+            data: {
+              nombre: tipoUnidadOrigen.nombre,
+              codigo: tipoUnidadOrigen.codigo,
+              bedrooms: tipoUnidadOrigen.bedrooms,
+              bathrooms: tipoUnidadOrigen.bathrooms,
+              descripcion: tipoUnidadOrigen.descripcion,
+              comisionId: comisionId && comisionId !== '' && comisionId !== 'none' ? comisionId : null,
+              edificioId: id,
+              plantillaOrigenId: tipoUnidadOrigen.plantillaOrigenId // Preserve the template origin if it exists
+            }
+          })
+
+          resultados.push(nuevoTipoUnidad)
+        } catch (error) {
+          errores.push({
+            tipoUnidadId: asignacion.tipoUnidadId,
+            error: error.message || 'Error desconocido'
+          })
+        }
+      }
+
+      return NextResponse.json({
+        success: true,
+        message: `Se procesaron ${resultados.length} tipos de unidad exitosamente`,
+        resultados,
+        errores: errores.length > 0 ? errores : undefined
+      }, { status: 201 })
+    }
+
+    // Handle single unit type creation
+    const { nombre, codigo, comisionId, bedrooms, bathrooms, descripcion } = body
+
+    // Validaciones básicas
+    if (!nombre || !codigo) {
+      return NextResponse.json(
+        { error: 'Nombre y código son requeridos' },
+        { status: 400 }
+      )
+    }
+
+    // Verificar que la comisión existe (si se proporciona y no es 'none')
     if (comisionId && comisionId !== 'none') {
       const comision = await prisma.comision.findUnique({
         where: { id: comisionId }
@@ -154,6 +241,9 @@ export async function POST(
       data: {
         nombre,
         codigo,
+        bedrooms: bedrooms || null,
+        bathrooms: bathrooms || null,
+        descripcion: descripcion || null,
         comisionId: comisionId === 'none' || !comisionId ? null : comisionId,
         edificioId: id
       },

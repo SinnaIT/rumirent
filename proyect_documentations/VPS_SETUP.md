@@ -2,6 +2,19 @@
 
 Esta guía te ayudará a configurar tu servidor VPS para recibir deployments automáticos desde GitHub Actions usando Docker y GHCR (GitHub Container Registry).
 
+> **⚠️ NOTA IMPORTANTE:** Si necesitas configurar múltiples ambientes (QA y PRODUCTION) en el mismo VPS, consulta la guía completa: **[VPS_DUAL_ENV_SETUP.md](./VPS_DUAL_ENV_SETUP.md)**
+
+## 📚 Documentación Disponible
+
+- **Este documento (VPS_SETUP.md)**: Configuración básica de un solo ambiente
+- **[VPS_DUAL_ENV_SETUP.md](./VPS_DUAL_ENV_SETUP.md)**: Configuración avanzada con:
+  - QA environment en `demo.rumirent.com` (puerto 3001)
+  - PROD environment en `desk.rumirent.com` (puerto 3000)
+  - Nginx como reverse proxy
+  - SSL/HTTPS con Let's Encrypt
+  - Bases de datos separadas
+  - Scripts de deployment independientes
+
 ## 📋 Requisitos Previos
 
 - Un servidor VPS con Ubuntu 22.04 LTS o superior

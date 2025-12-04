@@ -462,10 +462,10 @@ export default function ClientesPage() {
               </p>
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
+            <div className="relative overflow-auto max-h-[calc(100vh-100px)] border rounded-md">
+              <table className="w-full caption-bottom text-sm">
+                <thead className="sticky top-0 bg-background z-10 border-b">
+                  <tr className="border-b transition-colors hover:bg-muted/50">
                     <TableHead>Cliente</TableHead>
                     <TableHead>RUT</TableHead>
                     <TableHead>Contacto</TableHead>
@@ -475,8 +475,8 @@ export default function ClientesPage() {
                     <TableHead>Leads</TableHead>
                     <TableHead>Fecha Registro</TableHead>
                     <TableHead className="text-right">Acciones</TableHead>
-                  </TableRow>
-                </TableHeader>
+                  </tr>
+                </thead>
                 <TableBody>
                   {filteredClientes.map((cliente) => (
                     <TableRow key={cliente.id}>
@@ -693,7 +693,7 @@ export default function ClientesPage() {
                     </TableRow>
                   ))}
                 </TableBody>
-              </Table>
+              </table>
             </div>
           )}
         </CardContent>

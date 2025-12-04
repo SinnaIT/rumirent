@@ -2,8 +2,19 @@ name: Build and Push Docker Image
 
 on:
   push:
-    branches: [main]
+    branches:
+      - main      # Production deployments
+      - develop   # QA deployments
   workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Target environment'
+        required: true
+        default: 'qa'
+        type: choice
+        options:
+          - qa
+          - prod
 
 jobs:
   test:
@@ -73,14 +84,41 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       
+      - name: Determine environment and tags
+        id: env
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            # Manual trigger - use input
+            if [ "${{ github.event.inputs.environment }}" = "prod" ]; then
+              echo "ENV_NAME=production" >> $GITHUB_OUTPUT
+              echo "IMAGE_TAG=latest" >> $GITHUB_OUTPUT
+              echo "IMAGE_TAG_EXTRA=prod-${{ github.sha }}" >> $GITHUB_OUTPUT
+            else
+              echo "ENV_NAME=qa" >> $GITHUB_OUTPUT
+              echo "IMAGE_TAG=qa" >> $GITHUB_OUTPUT
+              echo "IMAGE_TAG_EXTRA=qa-${{ github.sha }}" >> $GITHUB_OUTPUT
+            fi
+          else
+            # Auto trigger - use branch
+            if [ "${{ github.ref }}" = "refs/heads/main" ]; then
+              echo "ENV_NAME=production" >> $GITHUB_OUTPUT
+              echo "IMAGE_TAG=latest" >> $GITHUB_OUTPUT
+              echo "IMAGE_TAG_EXTRA=prod-${{ github.sha }}" >> $GITHUB_OUTPUT
+            else
+              echo "ENV_NAME=qa" >> $GITHUB_OUTPUT
+              echo "IMAGE_TAG=qa" >> $GITHUB_OUTPUT
+              echo "IMAGE_TAG_EXTRA=qa-${{ github.sha }}" >> $GITHUB_OUTPUT
+            fi
+          fi
+
       - name: Extract metadata
         id: meta
         uses: docker/metadata-action@v5
         with:
           images: ghcr.io/${{ github.repository }}
           tags: |
-            type=raw,value=latest
-            type=sha,prefix={{branch}}-
+            type=raw,value=${{ steps.env.outputs.IMAGE_TAG }}
+            type=raw,value=${{ steps.env.outputs.IMAGE_TAG_EXTRA }}
       
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
@@ -93,7 +131,19 @@ jobs:
       - name: Image URL
         run: |
           echo "✅ Docker image published successfully!"
-          echo "📦 Image: ghcr.io/${{ github.repository }}:latest"
+          echo "🎯 Environment: ${{ steps.env.outputs.ENV_NAME }}"
+          echo "📦 Image Tags:"
+          echo "   - ghcr.io/${{ github.repository }}:${{ steps.env.outputs.IMAGE_TAG }}"
+          echo "   - ghcr.io/${{ github.repository }}:${{ steps.env.outputs.IMAGE_TAG_EXTRA }}"
           echo ""
-          echo "To pull this image on your VPS:"
-          echo "docker pull ghcr.io/${{ github.repository }}:latest"
+          if [ "${{ steps.env.outputs.ENV_NAME }}" = "production" ]; then
+            echo "🚀 To deploy to PRODUCTION:"
+            echo "   cd /opt/rumirent-app-prod"
+            echo "   ./deploy-prod.sh"
+            echo "   🌐 https://desk.rumirent.com"
+          else
+            echo "🧪 To deploy to QA:"
+            echo "   cd /opt/rumirent-app-qa"
+            echo "   ./deploy-qa.sh"
+            echo "   🌐 https://demo.rumirent.com"
+          fi

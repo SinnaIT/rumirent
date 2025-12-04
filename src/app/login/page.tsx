@@ -2,9 +2,11 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Building2, Mail, Lock, Eye, EyeOff, HelpCircle } from 'lucide-react'
+import { Mail, Lock, Eye, EyeOff, HelpCircle } from 'lucide-react'
 import { AuthRedirect } from '@/components/AuthRedirect'
 import { ThemeToggle } from '@/components/theme-toggle'
+import { Logo } from '@/components/logo'
+import { ContactAdminModal } from '@/components/contact-admin-modal'
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
@@ -14,6 +16,7 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [loginSuccess, setLoginSuccess] = useState<{ role: 'ADMIN' | 'BROKER', token: string } | null>(null)
+  const [showContactModal, setShowContactModal] = useState(false)
   const router = useRouter()
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -41,6 +44,13 @@ export default function LoginPage() {
       }
 
       console.log('Login exitoso, iniciando redirección...')
+
+      // Check if user must change password
+      if (data.user.mustChangePassword) {
+        console.log('Usuario debe cambiar contraseña, redirigiendo...')
+        router.push('/change-password')
+        return
+      }
 
       // Set login success state to trigger AuthRedirect component
       setLoginSuccess({
@@ -81,9 +91,9 @@ export default function LoginPage() {
           <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-2xl p-6 sm:p-8 space-y-6">
             {/* Logo and Header */}
             <div className="text-center space-y-4">
-              {/* Icon */}
-              <div className="mx-auto w-16 h-16 bg-blue-600 dark:bg-blue-500 rounded-2xl flex items-center justify-center">
-                <Building2 className="w-8 h-8 text-white" />
+              {/* Logo */}
+              <div className="flex justify-center">
+                <Logo size="lg" showText={false} />
               </div>
 
               {/* Title */}
@@ -176,7 +186,7 @@ export default function LoginPage() {
                 </div>
                 <div className="text-sm">
                   <a
-                    href="#"
+                    href="/forgot-password"
                     className="font-medium text-blue-600 dark:text-blue-400 hover:text-blue-500 dark:hover:text-blue-300"
                   >
                     ¿Olvidaste tu contraseña?
@@ -205,17 +215,23 @@ export default function LoginPage() {
             <div className="text-center">
               <p className="text-sm text-gray-500 dark:text-gray-400">
                 ¿Necesitas acceso?{' '}
-                <a
-                  href="#"
-                  className="font-medium text-blue-600 dark:text-blue-400 hover:text-blue-500 dark:hover:text-blue-300"
+                <button
+                  onClick={() => setShowContactModal(true)}
+                  className="font-medium text-blue-600 dark:text-blue-400 hover:text-blue-500 dark:hover:text-blue-300 transition-colors"
                 >
                   Contacta al administrador
-                </a>
+                </button>
               </p>
             </div>
           </div>
         </div>
       </div>
+
+      {/* Contact Admin Modal */}
+      <ContactAdminModal
+        isOpen={showContactModal}
+        onClose={() => setShowContactModal(false)}
+      />
 
       {/* Footer */}
       <div className="absolute bottom-4 left-4 text-white/70 text-xs sm:text-sm flex items-center space-x-1">

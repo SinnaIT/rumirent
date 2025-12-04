@@ -214,8 +214,8 @@ export async function POST(request: NextRequest) {
                 fechaNacimiento = null
               }
             }
-          } catch (e) {
-            console.warn(`⚠️ No se pudo parsear fecha para fila ${rowNumber}:`, fechaNacimientoStr)
+          } catch (e: unknown) {
+            console.warn(`⚠️ No se pudo parsear fecha para fila ${rowNumber}:`, fechaNacimientoStr, e)
           }
         }
 

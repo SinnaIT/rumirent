@@ -1,6 +1,7 @@
-import { PrismaClient } from '@prisma/client'
+import { PrismaClient, TipoEntidad as PrismaTipoEntidad } from '@prisma/client'
 import { Empresa } from '@/core/domain/entities/Empresa'
 import { EmpresaRepository } from '@/core/application/ports/EmpresaRepository'
+import { TipoEntidad } from '@/core/domain/enums'
 
 /**
  * Implementación del repositorio de Empresa usando Prisma
@@ -15,6 +16,7 @@ export class PrismaEmpresaRepository implements EmpresaRepository {
         nombre: empresa.nombre,
         rut: empresa.rut,
         razonSocial: empresa.razonSocial,
+        tipoEntidad: empresa.tipoEntidad as PrismaTipoEntidad,
         direccion: empresa.direccion,
         telefono: empresa.telefono,
         email: empresa.email,
@@ -41,9 +43,24 @@ export class PrismaEmpresaRepository implements EmpresaRepository {
     return empresa ? this.toDomain(empresa) : null
   }
 
-  async findAll(options?: { activeOnly?: boolean }): Promise<Empresa[]> {
+  async findAll(options?: { activeOnly?: boolean; tipo?: TipoEntidad }): Promise<Empresa[]> {
     const empresas = await this.prisma.empresa.findMany({
-      where: options?.activeOnly ? { activa: true } : undefined,
+      where: {
+        ...(options?.activeOnly ? { activa: true } : {}),
+        ...(options?.tipo ? { tipoEntidad: options.tipo as PrismaTipoEntidad } : {}),
+      },
+      orderBy: { nombre: 'asc' },
+    })
+
+    return empresas.map(this.toDomain)
+  }
+
+  async findByTipo(tipo: TipoEntidad, options?: { activeOnly?: boolean }): Promise<Empresa[]> {
+    const empresas = await this.prisma.empresa.findMany({
+      where: {
+        tipoEntidad: tipo as PrismaTipoEntidad,
+        ...(options?.activeOnly ? { activa: true } : {}),
+      },
       orderBy: { nombre: 'asc' },
     })
 
@@ -56,6 +73,7 @@ export class PrismaEmpresaRepository implements EmpresaRepository {
       data: {
         nombre: data.nombre,
         razonSocial: data.razonSocial,
+        tipoEntidad: data.tipoEntidad as PrismaTipoEntidad | undefined,
         direccion: data.direccion,
         telefono: data.telefono,
         email: data.email,
@@ -91,11 +109,12 @@ export class PrismaEmpresaRepository implements EmpresaRepository {
     id: string
     nombre: string
     rut: string
-    razonSocial: string | null
+    razonSocial: string
+    tipoEntidad: PrismaTipoEntidad
     direccion: string | null
     telefono: string | null
     email: string | null
-    logo: string | null
+    activa: boolean
     createdAt: Date
     updatedAt: Date
   }): Empresa {
@@ -104,9 +123,10 @@ export class PrismaEmpresaRepository implements EmpresaRepository {
       prismaEmpresa.nombre,
       prismaEmpresa.rut,
       prismaEmpresa.razonSocial,
-      prismaEmpresa.direccion,
-      prismaEmpresa.telefono,
-      prismaEmpresa.email,
+      prismaEmpresa.tipoEntidad as TipoEntidad,
+      prismaEmpresa.direccion ?? undefined,
+      prismaEmpresa.telefono ?? undefined,
+      prismaEmpresa.email ?? undefined,
       prismaEmpresa.activa,
       prismaEmpresa.createdAt,
       prismaEmpresa.updatedAt

@@ -115,7 +115,9 @@ export async function POST(request: NextRequest) {
         birthDate: birthDate ? new Date(birthDate) : undefined,
         password: hashedPassword,
         role: 'ADMIN',
-        activo: true
+        activo: true,
+        mustChangePassword: true,
+        lastPasswordChange: null
       },
       select: {
         id: true,

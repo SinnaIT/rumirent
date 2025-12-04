@@ -1,7 +1,8 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { Building2, Users, Calculator, TrendingUp, Home, DollarSign, Cake, Trophy, Target, RefreshCw, ArrowUpRight, ArrowDownRight } from 'lucide-react'
+import { useEffect, useState, useCallback } from 'react'
+import { Building2, Users, Calculator, TrendingUp, Home, DollarSign, Cake, Trophy, Target, RefreshCw, ArrowUpRight, ArrowDownRight, Calendar } from 'lucide-react'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 
 interface DashboardData {
   stats: {
@@ -85,30 +86,59 @@ interface DashboardData {
   }>
 }
 
+const MESES = [
+  { value: '1', label: 'Enero' },
+  { value: '2', label: 'Febrero' },
+  { value: '3', label: 'Marzo' },
+  { value: '4', label: 'Abril' },
+  { value: '5', label: 'Mayo' },
+  { value: '6', label: 'Junio' },
+  { value: '7', label: 'Julio' },
+  { value: '8', label: 'Agosto' },
+  { value: '9', label: 'Septiembre' },
+  { value: '10', label: 'Octubre' },
+  { value: '11', label: 'Noviembre' },
+  { value: '12', label: 'Diciembre' },
+]
+
 export default function AdminDashboard() {
+  const now = new Date()
   const [dashboardData, setDashboardData] = useState<DashboardData | null>(null)
   const [loading, setLoading] = useState(true)
   const [lastUpdate, setLastUpdate] = useState<Date>(new Date())
+  const [mes, setMes] = useState<string>((now.getMonth() + 1).toString())
+  const [anio, setAnio] = useState<string>(now.getFullYear().toString())
 
-  useEffect(() => {
-    fetchDashboardData()
-  }, [])
+  // Generate array of years (last 6 years)
+  const currentYear = now.getFullYear()
+  const YEARS = Array.from({ length: 6 }, (_, i) => {
+    const year = currentYear - i
+    return { value: year.toString(), label: year.toString() }
+  })
 
-  const fetchDashboardData = async () => {
+  const fetchDashboardData = useCallback(async () => {
     try {
       setLoading(true)
-      const response = await fetch('/api/admin/dashboard')
+      const response = await fetch(`/api/admin/dashboard?mes=${mes}&anio=${anio}`, {
+        credentials: 'include'
+      })
       if (response.ok) {
         const data = await response.json()
         setDashboardData(data)
         setLastUpdate(new Date())
+      } else {
+        console.error('Error response:', response.status, await response.text())
       }
     } catch (error) {
       console.error('Error fetching dashboard data:', error)
     } finally {
       setLoading(false)
     }
-  }
+  }, [mes, anio])
+
+  useEffect(() => {
+    fetchDashboardData()
+  }, [fetchDashboardData])
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('es-CL', {
@@ -146,7 +176,7 @@ export default function AdminDashboard() {
           trend: null,
         },
         {
-          title: "Unidades Vendidas",
+          title: "Unidades Arrendadas",
           value: dashboardData.stats.unitsSoldThisMonth.toString(),
           change: `${dashboardData.stats.unitsChange >= 0 ? '+' : ''}${dashboardData.stats.unitsChange.toFixed(1)}% vs mes anterior`,
           icon: Home,
@@ -180,7 +210,7 @@ export default function AdminDashboard() {
   return (
     <div className="space-y-6">
       {/* Header - Enhanced Visual Hierarchy */}
-      <div className="flex items-start justify-between mb-8">
+      <div className="flex items-start justify-between mb-6">
         <div className="space-y-2">
           <h1 className="text-4xl font-bold tracking-tight text-foreground">
             Dashboard
@@ -200,6 +230,104 @@ export default function AdminDashboard() {
             title="Actualizar datos"
           >
             <RefreshCw className={`h-5 w-5 text-muted-foreground ${loading ? 'animate-spin' : ''}`} />
+          </button>
+        </div>
+      </div>
+
+      {/* Date Filters */}
+      <div className="bg-card border border-border rounded-xl p-5 shadow-sm mb-6">
+        <div className="flex items-center justify-between gap-4 flex-wrap">
+          <div className="flex items-center space-x-2">
+            <Calendar className="h-5 w-5 text-primary" />
+            <h3 className="text-base font-bold text-card-foreground">Filtros de Período</h3>
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
+              <label className="text-sm font-medium text-muted-foreground">Mes:</label>
+              <Select value={mes} onValueChange={setMes}>
+                <SelectTrigger className="w-[150px]">
+                  <SelectValue placeholder="Seleccionar mes" />
+                </SelectTrigger>
+                <SelectContent>
+                  {MESES.map((month) => (
+                    <SelectItem key={month.value} value={month.value}>
+                      {month.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex items-center gap-2">
+              <label className="text-sm font-medium text-muted-foreground">Año:</label>
+              <Select value={anio} onValueChange={setAnio}>
+                <SelectTrigger className="w-[120px]">
+                  <SelectValue placeholder="Seleccionar año" />
+                </SelectTrigger>
+                <SelectContent>
+                  {YEARS.map((year) => (
+                    <SelectItem key={year.value} value={year.value}>
+                      {year.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Enhanced Quick Actions - Horizontal at Top */}
+      <div className="bg-card border border-border rounded-xl p-6 shadow-sm hover:shadow-md transition-shadow duration-300 mb-8">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h3 className="text-lg font-bold text-card-foreground">Acciones Rápidas</h3>
+            <p className="text-xs text-muted-foreground">Gestiona tu plataforma inmobiliaria</p>
+          </div>
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <button
+            onClick={() => window.location.href = '/admin/proyectos'}
+            className="group p-4 text-left bg-gradient-to-br from-primary/10 to-primary/5 hover:from-primary/20 hover:to-primary/10 rounded-xl transition-all duration-300 border border-primary/10 hover:border-primary/30 hover:scale-[1.02]"
+          >
+            <div className="flex items-center justify-between mb-2">
+              <Building2 className="h-5 w-5 text-primary group-hover:scale-110 transition-transform" />
+              <div className="w-1.5 h-1.5 bg-primary/30 rounded-full"></div>
+            </div>
+            <p className="text-sm font-semibold text-foreground mb-0.5">Nuevo Proyecto</p>
+            <p className="text-xs text-muted-foreground">Crear edificio</p>
+          </button>
+          <button
+            onClick={() => window.location.href = '/admin/brokers'}
+            className="group p-4 text-left bg-gradient-to-br from-secondary/10 to-secondary/5 hover:from-secondary/20 hover:to-secondary/10 rounded-xl transition-all duration-300 border border-secondary/10 hover:border-secondary/30 hover:scale-[1.02]"
+          >
+            <div className="flex items-center justify-between mb-2">
+              <Users className="h-5 w-5 text-secondary group-hover:scale-110 transition-transform" />
+              <div className="w-1.5 h-1.5 bg-secondary/30 rounded-full"></div>
+            </div>
+            <p className="text-sm font-semibold text-foreground mb-0.5">Gestionar Brokers</p>
+            <p className="text-xs text-muted-foreground">Ver listado</p>
+          </button>
+          <button
+            onClick={() => window.location.href = '/admin/comisiones'}
+            className="group p-4 text-left bg-gradient-to-br from-accent/10 to-accent/5 hover:from-accent/20 hover:to-accent/10 rounded-xl transition-all duration-300 border border-accent/10 hover:border-accent/30 hover:scale-[1.02]"
+          >
+            <div className="flex items-center justify-between mb-2">
+              <Calculator className="h-5 w-5 text-accent group-hover:scale-110 transition-transform" />
+              <div className="w-1.5 h-1.5 bg-accent/30 rounded-full"></div>
+            </div>
+            <p className="text-sm font-semibold text-foreground mb-0.5">Configurar Comisiones</p>
+            <p className="text-xs text-muted-foreground">Ajustar tarifas</p>
+          </button>
+          <button
+            onClick={() => window.location.href = '/admin/reportes'}
+            className="group p-4 text-left bg-gradient-to-br from-success/10 to-success/5 hover:from-success/20 hover:to-success/10 rounded-xl transition-all duration-300 border border-success/10 hover:border-success/30 hover:scale-[1.02]"
+          >
+            <div className="flex items-center justify-between mb-2">
+              <TrendingUp className="h-5 w-5 text-success group-hover:scale-110 transition-transform" />
+              <div className="w-1.5 h-1.5 bg-success/30 rounded-full"></div>
+            </div>
+            <p className="text-sm font-semibold text-foreground mb-0.5">Ver Reportes</p>
+            <p className="text-xs text-muted-foreground">Analytics</p>
           </button>
         </div>
       </div>
@@ -248,7 +376,7 @@ export default function AdminDashboard() {
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center space-x-2">
               <Trophy className="h-5 w-5 text-yellow-500" />
-              <h3 className="text-lg font-bold text-card-foreground">Top Brokers</h3>
+              <h3 className="text-lg font-bold text-card-foreground">RumiRace</h3>
             </div>
           </div>
           <div className="space-y-3">
@@ -669,8 +797,8 @@ export default function AdminDashboard() {
         {/* Units Sold by Building Chart */}
         <div className="bg-card border border-border rounded-xl p-6 shadow-sm hover:shadow-md transition-shadow duration-300">
           <div className="mb-6">
-            <h3 className="text-xl font-bold text-card-foreground mb-2">Unidades Vendidas por Proyecto</h3>
-            <p className="text-sm text-muted-foreground">Total de ventas aprobadas</p>
+            <h3 className="text-xl font-bold text-card-foreground mb-2">Unidades Arrendadas por Proyecto</h3>
+            <p className="text-sm text-muted-foreground">Total de Arriendos aprobadas</p>
           </div>
           {dashboardData && dashboardData.unitsSoldByBuilding.length > 0 ? (
             <div className="space-y-4">
@@ -708,8 +836,8 @@ export default function AdminDashboard() {
         </div>
       </div>
 
-      {/* Fourth Row: Active Projects & Quick Actions - 2 large cards */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+      {/* Fourth Row: Active Projects - Full width card */}
+      <div className="mb-8">
         {/* Active Projects - Stacked Bar Chart */}
         <div className="bg-card border border-border rounded-xl p-6 shadow-sm hover:shadow-md transition-shadow duration-300">
           <div className="mb-6">
@@ -726,7 +854,7 @@ export default function AdminDashboard() {
               </div>
               <div className="flex items-center space-x-2">
                 <div className="w-4 h-4 rounded bg-orange-500"></div>
-                <span className="text-xs font-medium text-muted-foreground">Vendidas</span>
+                <span className="text-xs font-medium text-muted-foreground">Arrendadas</span>
               </div>
             </div>
           )}
@@ -814,60 +942,6 @@ export default function AdminDashboard() {
             )}
           </div>
         </div>
-
-        {/* Enhanced Quick Actions */}
-        <div className="bg-card border border-border rounded-xl p-6 shadow-sm hover:shadow-md transition-shadow duration-300">
-          <div className="mb-6">
-            <h3 className="text-xl font-bold text-card-foreground mb-2">Acciones Rápidas</h3>
-            <p className="text-sm text-muted-foreground">Gestiona tu plataforma inmobiliaria</p>
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <button
-              onClick={() => window.location.href = '/admin/proyectos'}
-              className="group p-5 text-left bg-gradient-to-br from-primary/10 to-primary/5 hover:from-primary/20 hover:to-primary/10 rounded-xl transition-all duration-300 border border-primary/10 hover:border-primary/30 hover:scale-[1.02]"
-            >
-              <div className="flex items-center justify-between mb-3">
-                <Building2 className="h-6 w-6 text-primary group-hover:scale-110 transition-transform" />
-                <div className="w-2 h-2 bg-primary/30 rounded-full"></div>
-              </div>
-              <p className="text-sm font-semibold text-foreground mb-1">Nuevo Proyecto</p>
-              <p className="text-xs text-muted-foreground">Crear edificio</p>
-            </button>
-            <button
-              onClick={() => window.location.href = '/admin/brokers'}
-              className="group p-5 text-left bg-gradient-to-br from-secondary/10 to-secondary/5 hover:from-secondary/20 hover:to-secondary/10 rounded-xl transition-all duration-300 border border-secondary/10 hover:border-secondary/30 hover:scale-[1.02]"
-            >
-              <div className="flex items-center justify-between mb-3">
-                <Users className="h-6 w-6 text-secondary group-hover:scale-110 transition-transform" />
-                <div className="w-2 h-2 bg-secondary/30 rounded-full"></div>
-              </div>
-              <p className="text-sm font-semibold text-foreground mb-1">Gestionar Brokers</p>
-              <p className="text-xs text-muted-foreground">Ver listado</p>
-            </button>
-            <button
-              onClick={() => window.location.href = '/admin/comisiones'}
-              className="group p-5 text-left bg-gradient-to-br from-accent/10 to-accent/5 hover:from-accent/20 hover:to-accent/10 rounded-xl transition-all duration-300 border border-accent/10 hover:border-accent/30 hover:scale-[1.02]"
-            >
-              <div className="flex items-center justify-between mb-3">
-                <Calculator className="h-6 w-6 text-accent group-hover:scale-110 transition-transform" />
-                <div className="w-2 h-2 bg-accent/30 rounded-full"></div>
-              </div>
-              <p className="text-sm font-semibold text-foreground mb-1">Configurar Comisiones</p>
-              <p className="text-xs text-muted-foreground">Ajustar tarifas</p>
-            </button>
-            <button
-              onClick={() => window.location.href = '/admin/reportes'}
-              className="group p-5 text-left bg-gradient-to-br from-success/10 to-success/5 hover:from-success/20 hover:to-success/10 rounded-xl transition-all duration-300 border border-success/10 hover:border-success/30 hover:scale-[1.02]"
-            >
-              <div className="flex items-center justify-between mb-3">
-                <TrendingUp className="h-6 w-6 text-success group-hover:scale-110 transition-transform" />
-                <div className="w-2 h-2 bg-success/30 rounded-full"></div>
-              </div>
-              <p className="text-sm font-semibold text-foreground mb-1">Ver Reportes</p>
-              <p className="text-xs text-muted-foreground">Analytics</p>
-            </button>
-          </div>
-        </div>
       </div>
 
       {/* Fifth Row: Broker Monthly Reservations Chart - Full width large card */}
@@ -903,8 +977,8 @@ export default function AdminDashboard() {
               })()}
             </div>
 
-            {/* Chart */}
-            <div className="relative">
+            {/* Chart with horizontal scroll */}
+            <div className="relative overflow-x-auto pb-4">
               {(() => {
                 const months = dashboardData.brokerMonthlyReservations[0]?.monthlyData.map(m => m.month) || []
                 const monthColors = [
@@ -914,19 +988,33 @@ export default function AdminDashboard() {
                   '#06b6d4', // cyan-500
                 ]
 
+                // Sort brokers by total reservations (descending)
+                const sortedBrokers = [...dashboardData.brokerMonthlyReservations].sort((a, b) => {
+                  const totalA = a.monthlyData.reduce((sum, month) => sum + month.count, 0)
+                  const totalB = b.monthlyData.reduce((sum, month) => sum + month.count, 0)
+                  return totalB - totalA
+                })
+
                 // Calculate max total value per broker for scaling
-                const brokerTotals = dashboardData.brokerMonthlyReservations.map(broker => {
+                const brokerTotals = sortedBrokers.map(broker => {
                   return broker.monthlyData.reduce((sum, month) => sum + month.count, 0)
                 })
                 const maxTotal = Math.max(...brokerTotals, 1)
 
+                // Calculate minimum width based on number of brokers
+                const brokerCount = sortedBrokers.length
+                const minWidth = brokerCount > 6 ? `${brokerCount * 120}px` : '100%'
+
                 return (
-                  <div className="flex items-end justify-center space-x-6 h-64 pb-8">
-                    {dashboardData.brokerMonthlyReservations.map((broker) => {
+                  <div
+                    className="flex items-end justify-start space-x-6 h-64 pb-8"
+                    style={{ minWidth }}
+                  >
+                    {sortedBrokers.map((broker) => {
                       const brokerTotal = broker.monthlyData.reduce((sum, month) => sum + month.count, 0)
 
                       return (
-                        <div key={broker.brokerId} className="flex flex-col items-center flex-1 h-full">
+                        <div key={broker.brokerId} className="flex flex-col items-center h-full min-w-[100px]">
                           {/* Stacked bar container */}
                           <div className="flex-1 flex flex-col-reverse justify-start w-full max-w-[80px] relative group">
                             {broker.monthlyData.map((monthData, monthIndex) => {
@@ -962,8 +1050,8 @@ export default function AdminDashboard() {
                           </div>
 
                           {/* Broker label and Total */}
-                          <div className="mt-4 text-center space-y-1">
-                            <span className="text-sm font-semibold text-card-foreground block">
+                          <div className="mt-4 text-center space-y-1 w-full">
+                            <span className="text-sm font-semibold text-card-foreground block truncate px-1" title={broker.brokerName}>
                               {broker.brokerName}
                             </span>
                             <span className="text-xs text-muted-foreground">
@@ -977,6 +1065,15 @@ export default function AdminDashboard() {
                 )
               })()}
             </div>
+
+            {/* Scroll indicator hint */}
+            {dashboardData.brokerMonthlyReservations.length > 6 && (
+              <div className="flex items-center justify-center mt-2">
+                <p className="text-xs text-muted-foreground italic">
+                  Desliza horizontalmente para ver todos los brokers →
+                </p>
+              </div>
+            )}
           </div>
         </div>
       )}

@@ -9,11 +9,25 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
     }
 
+    // Extract query parameters for filtering by month and year
+    const { searchParams } = new URL(request.url)
+    const mesParam = searchParams.get('mes')
+    const anioParam = searchParams.get('anio')
+
+    // Default to current month/year if not provided
     const now = new Date()
-    const currentMonth = now.getMonth()
-    const currentYear = now.getFullYear()
-    const startOfMonth = new Date(currentYear, currentMonth, 1)
-    const endOfMonth = new Date(currentYear, currentMonth + 1, 0, 23, 59, 59)
+    const selectedMonth = mesParam ? parseInt(mesParam) : now.getMonth() + 1 // 1-12
+    const selectedYear = anioParam ? parseInt(anioParam) : now.getFullYear()
+
+    // Calculate date ranges based on selected month/year
+    const startOfMonth = new Date(selectedYear, selectedMonth - 1, 1)
+    const endOfMonth = new Date(selectedYear, selectedMonth, 0, 23, 59, 59)
+
+    // Calculate previous month for comparisons
+    const previousMonth = selectedMonth === 1 ? 12 : selectedMonth - 1
+    const previousYear = selectedMonth === 1 ? selectedYear - 1 : selectedYear
+    const startOfPreviousMonth = new Date(previousYear, previousMonth - 1, 1)
+    const endOfPreviousMonth = new Date(previousYear, previousMonth, 0, 23, 59, 59)
 
     // Get total projects count
     const totalProjects = await prisma.edificio.count()
@@ -242,7 +256,7 @@ export async function GET(request: NextRequest) {
       .filter((cliente) => {
         if (!cliente.fechaNacimiento) return false
         const birthDate = new Date(cliente.fechaNacimiento)
-        return birthDate.getMonth() === currentMonth
+        return birthDate.getMonth() === (selectedMonth - 1) // Month is 0-indexed in Date
       })
       .map((cliente) => {
         const birthDate = new Date(cliente.fechaNacimiento!)
@@ -261,7 +275,7 @@ export async function GET(request: NextRequest) {
       .filter((user) => {
         if (!user.birthDate) return false
         const birthDate = new Date(user.birthDate)
-        return birthDate.getMonth() === currentMonth
+        return birthDate.getMonth() === (selectedMonth - 1) // Month is 0-indexed in Date
       })
       .map((user) => {
         const birthDate = new Date(user.birthDate!)
@@ -290,12 +304,12 @@ export async function GET(request: NextRequest) {
         nombre: true,
         leads: {
           where: {
-            createdAt: {
+            fechaPagoReserva: {
               gte: startOfMonth,
               lte: endOfMonth,
             },
             estado: {
-              in: ['APROBADO', 'RESERVA_PAGADA'],
+              notIn: ['RECHAZADO'],
             },
           },
           select: {
@@ -325,8 +339,8 @@ export async function GET(request: NextRequest) {
     // Get monthly goals for current month
     const allGoals = await prisma.metaMensual.findMany({
       where: {
-        mes: currentMonth + 1, // Prisma uses 1-indexed months
-        anio: currentYear,
+        mes: selectedMonth,
+        anio: selectedYear,
       },
       include: {
         broker: {
@@ -353,12 +367,12 @@ export async function GET(request: NextRequest) {
         nombre: true,
         leads: {
           where: {
-            createdAt: {
+            fechaPagoReserva: {
               gte: startOfMonth,
               lte: endOfMonth,
             },
             estado: {
-              in: ['APROBADO', 'RESERVA_PAGADA'],
+              notIn: ['RECHAZADO'],
             },
           },
           select: {
@@ -482,15 +496,12 @@ export async function GET(request: NextRequest) {
       percentage: totalUnitsInTypologies > 0 ? (t.count / totalUnitsInTypologies) * 100 : 0,
     }))
 
-    // Calculate change percentages (comparing to last month)
-    const lastMonthStart = new Date(currentYear, currentMonth - 1, 1)
-    const lastMonthEnd = new Date(currentYear, currentMonth, 0, 23, 59, 59)
-
+    // Calculate change percentages (comparing to previous month)
     const unitsSoldLastMonth = await prisma.lead.count({
       where: {
         createdAt: {
-          gte: lastMonthStart,
-          lte: lastMonthEnd,
+          gte: startOfPreviousMonth,
+          lte: endOfPreviousMonth,
         },
         estado: {
           in: ['APROBADO', 'RESERVA_PAGADA'],
@@ -501,8 +512,8 @@ export async function GET(request: NextRequest) {
     const commissionsLastMonth = await prisma.lead.aggregate({
       where: {
         createdAt: {
-          gte: lastMonthStart,
-          lte: lastMonthEnd,
+          gte: startOfPreviousMonth,
+          lte: endOfPreviousMonth,
         },
         estado: {
           in: ['APROBADO', 'RESERVA_PAGADA'],
@@ -521,12 +532,12 @@ export async function GET(request: NextRequest) {
       ? (((commissionStats._sum.comision || 0) - (commissionsLastMonth._sum.comision || 0)) / (commissionsLastMonth._sum.comision || 0)) * 100
       : 0
 
-    // Get monthly reservations for the last 6 months
+    // Get monthly reservations for the last 5 months (ending in selected month)
     const monthlyReservations = []
     const monthNames = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre']
 
     for (let i = 4; i >= 0; i--) {
-      const targetDate = new Date(currentYear, currentMonth - i, 1)
+      const targetDate = new Date(selectedYear, selectedMonth - 1 - i, 1)
       const monthStart = new Date(targetDate.getFullYear(), targetDate.getMonth(), 1)
       const monthEnd = new Date(targetDate.getFullYear(), targetDate.getMonth() + 1, 0, 23, 59, 59)
 
@@ -579,7 +590,7 @@ export async function GET(request: NextRequest) {
       .filter((data) => data.soldUnits > 0)
       .sort((a, b) => b.soldUnits - a.soldUnits)
 
-    // Get reservations by broker per month (last 4 months)
+    // Get reservations by broker per month (last 4 months ending in selected month)
     const brokerMonthlyReservations = []
     const colors = [
       'hsl(210, 100%, 50%)',  // Blue
@@ -594,8 +605,8 @@ export async function GET(request: NextRequest) {
       'hsl(240, 100%, 50%)',  // Indigo
     ]
 
-    // Get all brokers who have had sales in the last 4 months
-    const fourMonthsAgo = new Date(currentYear, currentMonth - 3, 1)
+    // Get all brokers who have had sales in the last 4 months (ending in selected month)
+    const fourMonthsAgo = new Date(selectedYear, selectedMonth - 4, 1)
     const brokersWithSales = await prisma.user.findMany({
       where: {
         role: 'BROKER',
@@ -626,7 +637,7 @@ export async function GET(request: NextRequest) {
       const monthlyData = []
 
       for (let i = 3; i >= 0; i--) {
-        const targetDate = new Date(currentYear, currentMonth - i, 1)
+        const targetDate = new Date(selectedYear, selectedMonth - 1 - i, 1)
         const monthStart = new Date(targetDate.getFullYear(), targetDate.getMonth(), 1)
         const monthEnd = new Date(targetDate.getFullYear(), targetDate.getMonth() + 1, 0, 23, 59, 59)
 
@@ -753,9 +764,20 @@ function getLeadActivityType(estado: string, isNew: boolean): string {
       case 'RESERVA_PAGADA':
         return 'Nueva Reserva'
       case 'ENTREGADO':
+      case 'DEPARTAMENTO_ENTREGADO': // Support both old and new states
         return 'Nuevo Lead'
       case 'RECHAZADO':
         return 'Lead Rechazado'
+      case 'INGRESADO':
+        return 'Lead Ingresado'
+      case 'EN_EVALUACION':
+        return 'Lead en Evaluación'
+      case 'OBSERVADO':
+        return 'Lead Observado'
+      case 'CONTRATO_FIRMADO':
+        return 'Contrato Firmado'
+      case 'CONTRATO_PAGADO':
+        return 'Contrato Pagado'
       default:
         return 'Nuevo Lead'
     }
@@ -766,9 +788,20 @@ function getLeadActivityType(estado: string, isNew: boolean): string {
       case 'RESERVA_PAGADA':
         return 'Lead → Reserva Pagada'
       case 'ENTREGADO':
+      case 'DEPARTAMENTO_ENTREGADO': // Support both old and new states
         return 'Lead → Entregado'
       case 'RECHAZADO':
         return 'Lead → Rechazado'
+      case 'INGRESADO':
+        return 'Lead → Ingresado'
+      case 'EN_EVALUACION':
+        return 'Lead → En Evaluación'
+      case 'OBSERVADO':
+        return 'Lead → Observado'
+      case 'CONTRATO_FIRMADO':
+        return 'Lead → Contrato Firmado'
+      case 'CONTRATO_PAGADO':
+        return 'Lead → Contrato Pagado'
       default:
         return 'Lead Actualizado'
     }

@@ -159,12 +159,14 @@ export default function UsuariosPage() {
 
     try {
       const updateData: {
+        email: string
         nombre: string
         rut: string
         telefono?: string
         birthDate?: string
         password?: string
       } = {
+        email: formData.email,
         nombre: formData.nombre,
         rut: formData.rut,
         telefono: formData.telefono || undefined,
@@ -569,10 +571,10 @@ export default function UsuariosPage() {
                 id="edit-email"
                 type="email"
                 value={formData.email}
-                disabled
-                className="bg-muted"
+                onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
+                required
               />
-              <p className="text-xs text-muted-foreground">El email no se puede modificar</p>
+              <p className="text-xs text-muted-foreground">Como administrador, puedes cambiar el email</p>
             </div>
             <div className="space-y-2">
               <Label htmlFor="edit-telefono">Teléfono</Label>

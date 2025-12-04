@@ -57,6 +57,7 @@ export async function GET(
       nombre: empresa.nombre,
       rut: empresa.rut,
       razonSocial: empresa.razonSocial,
+      tipoEntidad: empresa.tipoEntidad,
       direccion: empresa.direccion,
       telefono: empresa.telefono,
       email: empresa.email,
@@ -107,18 +108,27 @@ export async function PUT(
       nombre,
       rut,
       razonSocial,
+      tipoEntidad,
       direccion,
       telefono,
       email,
       activa
     } = body
 
-    console.log('📝 Datos a actualizar:', { nombre, rut, razonSocial, direccion, telefono, email, activa })
+    console.log('📝 Datos a actualizar:', { nombre, rut, razonSocial, tipoEntidad, direccion, telefono, email, activa })
 
     // Validaciones básicas
     if (!nombre || !rut || !razonSocial) {
       return NextResponse.json(
         { error: 'Nombre, RUT y razón social son requeridos' },
+        { status: 400 }
+      )
+    }
+
+    // Validar tipoEntidad si se proporciona
+    if (tipoEntidad && !['COMPANY', 'INVESTOR'].includes(tipoEntidad)) {
+      return NextResponse.json(
+        { error: 'Tipo de entidad inválido. Debe ser COMPANY o INVESTOR' },
         { status: 400 }
       )
     }
@@ -192,6 +202,7 @@ export async function PUT(
         nombre,
         rut,
         razonSocial,
+        ...(tipoEntidad && { tipoEntidad }),
         direccion: direccion || null,
         telefono: telefono || null,
         email: email || null,

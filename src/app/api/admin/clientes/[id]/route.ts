@@ -34,9 +34,22 @@ export async function GET(
             rut: true
           }
         },
-        _count: {
+        leads: {
           select: {
-            leads: true // BD field name, but we'll map to totalLeads
+            id: true,
+            codigoUnidad: true,
+            totalLead: true,
+            montoUf: true,
+            estado: true,
+            edificio: {
+              select: {
+                nombre: true
+              }
+            },
+            createdAt: true
+          },
+          orderBy: {
+            createdAt: 'desc'
           }
         }
       }
@@ -58,7 +71,7 @@ export async function GET(
       direccion: cliente.direccion,
       fechaNacimiento: cliente.fechaNacimiento?.toISOString(),
       broker: cliente.broker,
-      totalLeads: cliente._count.leads, // BD field name, mapped to totalLeads
+      leads: cliente.leads,
       createdAt: cliente.createdAt.toISOString(),
       updatedAt: cliente.updatedAt.toISOString()
     }
@@ -104,9 +117,9 @@ export async function PUT(
     console.log('📝 Datos a actualizar:', { nombre, rut, email, telefono, direccion, fechaNacimiento, brokerId })
 
     // Validaciones básicas
-    if (!nombre || !rut || !brokerId) {
+    if (!nombre || !telefono) {
       return NextResponse.json(
-        { error: 'Nombre, RUT y broker son requeridos' },
+        { error: 'Nombre y teléfono (WhatsApp) son requeridos' },
         { status: 400 }
       )
     }
@@ -123,19 +136,21 @@ export async function PUT(
       )
     }
 
-    // Verificar que no hay otro cliente con el mismo RUT (excluyendo el actual)
-    const duplicateCliente = await prisma.cliente.findFirst({
-      where: {
-        rut,
-        id: { not: id }
-      }
-    })
+    // Verificar que no hay otro cliente con el mismo RUT (solo si se proporciona RUT y es diferente)
+    if (rut && rut !== existingCliente.rut) {
+      const duplicateCliente = await prisma.cliente.findFirst({
+        where: {
+          rut,
+          id: { not: id }
+        }
+      })
 
-    if (duplicateCliente) {
-      return NextResponse.json(
-        { error: 'Ya existe otro cliente con este RUT' },
-        { status: 400 }
-      )
+      if (duplicateCliente) {
+        return NextResponse.json(
+          { error: 'Ya existe otro cliente con este RUT' },
+          { status: 400 }
+        )
+      }
     }
 
     // Verificar que el broker existe

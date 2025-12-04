@@ -8,35 +8,40 @@ datasource db {
 }
 
 model User {
-  id             String        @id @default(cuid())
-  email          String        @unique
-  password       String
-  nombre         String
-  rut            String        @unique
-  telefono       String?
-  birthDate      DateTime?
-  role           Role          @default(BROKER)
-  activo         Boolean       @default(true)
-  createdAt      DateTime      @default(now())
-  updatedAt      DateTime      @updatedAt
-  clientes       Cliente[]     @relation("ClienteBroker")
-  leads          Lead[]
-  metasMensuales MetaMensual[]
+  id                 String        @id @default(cuid())
+  email              String        @unique
+  password           String
+  nombre             String
+  rut                String        @unique
+  telefono           String?
+  role               Role          @default(BROKER)
+  activo             Boolean       @default(true)
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+  birthDate          DateTime?
+  lastPasswordChange DateTime?
+  mustChangePassword Boolean       @default(false)
+  resetToken         String?
+  resetTokenExpiry   DateTime?
+  clientes           Cliente[]     @relation("ClienteBroker")
+  leads              Lead[]
+  metasMensuales     MetaMensual[]
 
   @@map("users")
 }
 
 model Empresa {
-  id          String     @id @default(cuid())
+  id          String      @id @default(cuid())
   nombre      String
-  rut         String     @unique
+  rut         String      @unique
   razonSocial String
   direccion   String?
   telefono    String?
   email       String?
-  activa      Boolean    @default(true)
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
+  activa      Boolean     @default(true)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  tipoEntidad TipoEntidad @default(COMPANY)
   edificios   Edificio[]
 
   @@map("empresas")
@@ -46,40 +51,40 @@ model Edificio {
   id                 String                     @id @default(cuid())
   nombre             String
   direccion          String
-  comuna             String
-  ciudad             String
-  region             String
-  codigoPostal       String?
-  urlGoogleMaps      String?
-  telefono           String?
-  email              String?
   descripcion        String?
-  empresaId          String
   comisionId         String
   createdAt          DateTime                   @default(now())
   updatedAt          DateTime                   @updatedAt
+  email              String?
+  empresaId          String
+  telefono           String?
+  urlGoogleMaps      String?
+  ciudad             String
+  codigoPostal       String?
+  comuna             String
+  region             String
   cambiosProgramados CambioComisionProgramado[]
-  empresa            Empresa                    @relation(fields: [empresaId], references: [id])
+  caracteristicas    CaracteristicaEdificio[]
   comision           Comision                   @relation(fields: [comisionId], references: [id])
+  empresa            Empresa                    @relation(fields: [empresaId], references: [id])
+  imagenes           ImagenEdificio[]
   leads              Lead[]                     @relation("LeadEdificio")
   tiposUnidad        TipoUnidadEdificio[]
   unidades           Unidad[]
-  imagenes           ImagenEdificio[]
-  caracteristicas    CaracteristicaEdificio[]
 
   @@map("edificios")
 }
 
 model ImagenEdificio {
-  id          String         @id @default(cuid())
+  id          String        @id @default(cuid())
   edificioId  String
   url         String
   descripcion String?
-  orden       Int            @default(0)
-  imageType   TipoImagenUrl  @default(URL)
-  createdAt   DateTime       @default(now())
-  updatedAt   DateTime       @updatedAt
-  edificio    Edificio       @relation(fields: [edificioId], references: [id], onDelete: Cascade)
+  orden       Int           @default(0)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  imageType   TipoImagenUrl @default(URL)
+  edificio    Edificio      @relation(fields: [edificioId], references: [id], onDelete: Cascade)
 
   @@map("imagenes_edificio")
 }
@@ -113,32 +118,24 @@ model CaracteristicaEdificio {
   @@map("caracteristicas_edificio")
 }
 
-enum TipoIcono {
-  LUCIDE
-  URL
-  UPLOAD
-}
-
-enum TipoImagenUrl {
-  URL
-  UPLOAD
-}
-
 model TipoUnidadEdificio {
-  id                 String                     @id @default(cuid())
-  nombre             String
-  codigo             String
-  bedrooms           Int?
-  bathrooms          Int?
-  comisionId         String?
-  createdAt          DateTime                   @default(now())
-  updatedAt          DateTime                   @updatedAt
-  edificioId         String
-  cambiosProgramados CambioComisionProgramado[]
-  comision           Comision?                  @relation("TipoUnidadComision", fields: [comisionId], references: [id])
-  edificio           Edificio                   @relation(fields: [edificioId], references: [id], onDelete: Cascade)
-  unidades           Unidad[]
-  leads              Lead[]                     @relation("LeadTipoUnidad")
+  id                String                  @id @default(cuid())
+  nombre            String
+  codigo            String
+  bedrooms          Int?
+  bathrooms         Int?
+  activo            Boolean                 @default(true)
+  descripcion       String?
+  comisionId        String?
+  edificioId        String
+  plantillaOrigenId String?
+  createdAt         DateTime                @default(now())
+  updatedAt         DateTime                @updatedAt
+  comision          Comision?               @relation("TipoUnidadComision", fields: [comisionId], references: [id])
+  edificio          Edificio                @relation(fields: [edificioId], references: [id], onDelete: Cascade)
+  plantillaOrigen   PlantillaTipoUnidad?    @relation(fields: [plantillaOrigenId], references: [id], onDelete: SetNull)
+  unidades          Unidad[]
+  leads             Lead[]                  @relation("LeadTipoUnidad")
 
   @@unique([edificioId, codigo])
   @@map("tipos_unidad_edificio")
@@ -168,11 +165,11 @@ model Cliente {
   rut             String    @unique
   email           String?
   telefono        String?
-  direccion       String?
-  fechaNacimiento DateTime?
   brokerId        String?
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
+  direccion       String?
+  fechaNacimiento DateTime?
   broker          User?     @relation("ClienteBroker", fields: [brokerId], references: [id])
   leads           Lead[]
 
@@ -185,7 +182,7 @@ model Lead {
   totalLead            Float
   montoUf              Float?
   comision             Float
-  estado               EstadoLead          @default(ENTREGADO)
+  estado               EstadoLead          @default(INGRESADO)
   fechaPagoReserva     DateTime?
   fechaPagoLead        DateTime?
   fechaCheckin         DateTime?
@@ -207,8 +204,8 @@ model Lead {
   comisionBase         Comision?           @relation("LeadComisionBase", fields: [comisionId], references: [id])
   edificio             Edificio            @relation("LeadEdificio", fields: [edificioId], references: [id])
   reglaComision        ReglaComision?      @relation(fields: [reglaComisionId], references: [id])
-  unidad               Unidad?             @relation(fields: [unidadId], references: [id])
   tipoUnidadEdificio   TipoUnidadEdificio? @relation("LeadTipoUnidad", fields: [tipoUnidadEdificioId], references: [id])
+  unidad               Unidad?             @relation(fields: [unidadId], references: [id])
 
   @@map("leads")
 }
@@ -245,37 +242,17 @@ model ReglaComision {
 }
 
 model CambioComisionProgramado {
-  id                   String              @id @default(cuid())
-  fechaCambio          DateTime
-  comisionId           String
-  edificioId           String
-  tipoUnidadEdificioId String?
-  ejecutado            Boolean             @default(false)
-  createdAt            DateTime            @default(now())
-  updatedAt            DateTime            @updatedAt
-  comision             Comision            @relation(fields: [comisionId], references: [id], onDelete: Cascade)
-  edificio             Edificio            @relation(fields: [edificioId], references: [id], onDelete: Cascade)
-  tipoUnidadEdificio   TipoUnidadEdificio? @relation(fields: [tipoUnidadEdificioId], references: [id])
+  id          String   @id @default(cuid())
+  fechaCambio DateTime
+  comisionId  String
+  edificioId  String
+  ejecutado   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  comision    Comision @relation(fields: [comisionId], references: [id], onDelete: Cascade)
+  edificio    Edificio @relation(fields: [edificioId], references: [id], onDelete: Cascade)
 
   @@map("cambios_comision_programados")
-}
-
-enum Role {
-  ADMIN
-  BROKER
-}
-
-enum EstadoUnidad {
-  DISPONIBLE
-  RESERVADA
-  VENDIDA
-}
-
-enum EstadoLead {
-  ENTREGADO
-  RESERVA_PAGADA
-  APROBADO
-  RECHAZADO
 }
 
 model MetaMensual {
@@ -290,4 +267,60 @@ model MetaMensual {
 
   @@unique([brokerId, mes, anio])
   @@map("metas_mensuales")
+}
+
+model PlantillaTipoUnidad {
+  id                 String                 @id @default(cuid())
+  nombre             String                 @unique
+  codigo             String                 @unique
+  bedrooms           Int?
+  bathrooms          Int?
+  descripcion        String?
+  activo             Boolean                @default(true)
+  createdAt          DateTime               @default(now())
+  updatedAt          DateTime               @updatedAt
+  tiposUnidadCreados TipoUnidadEdificio[]
+
+  @@map("plantillas_tipo_unidad")
+}
+
+enum TipoIcono {
+  LUCIDE
+  URL
+  UPLOAD
+}
+
+enum TipoImagenUrl {
+  URL
+  UPLOAD
+}
+
+enum Role {
+  ADMIN
+  BROKER
+}
+
+enum TipoEntidad {
+  COMPANY
+  INVESTOR
+}
+
+enum EstadoUnidad {
+  DISPONIBLE
+  RESERVADA
+  VENDIDA
+}
+
+enum EstadoLead {
+  INGRESADO
+  ENTREGADO
+  EN_EVALUACION
+  OBSERVADO
+  APROBADO
+  RESERVA_PAGADA
+  CONTRATO_FIRMADO
+  CONTRATO_PAGADO
+  DEPARTAMENTO_ENTREGADO
+  RECHAZADO
+  CANCELADO
 }

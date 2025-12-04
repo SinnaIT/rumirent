@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -32,6 +33,7 @@ import {
 } from '@/components/ui/alert-dialog'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
   Building,
   Plus,
@@ -44,15 +46,20 @@ import {
   Building2,
   RefreshCw,
   CheckCircle2,
-  XCircle
+  XCircle,
+  Users,
+  FolderOpen
 } from 'lucide-react'
 import { toast } from 'sonner'
+
+type TipoEntidad = 'COMPANY' | 'INVESTOR'
 
 interface Empresa {
   id: string
   nombre: string
   rut: string
   razonSocial: string
+  tipoEntidad: TipoEntidad
   direccion: string | null
   telefono: string | null
   email: string | null
@@ -66,6 +73,7 @@ interface EmpresaFormData {
   nombre: string
   rut: string
   razonSocial: string
+  tipoEntidad: TipoEntidad
   direccion: string
   telefono: string
   email: string
@@ -73,9 +81,11 @@ interface EmpresaFormData {
 }
 
 export default function EmpresasPage() {
+  const router = useRouter()
   const [empresas, setEmpresas] = useState<Empresa[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
+  const [activeTab, setActiveTab] = useState<TipoEntidad>('COMPANY')
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
   const [editingEmpresa, setEditingEmpresa] = useState<Empresa | null>(null)
@@ -83,6 +93,7 @@ export default function EmpresasPage() {
     nombre: '',
     rut: '',
     razonSocial: '',
+    tipoEntidad: 'COMPANY',
     direccion: '',
     telefono: '',
     email: '',
@@ -126,7 +137,7 @@ export default function EmpresasPage() {
         throw new Error(data.error || 'Error al crear empresa')
       }
 
-      toast.success('Empresa creada exitosamente')
+      toast.success(`${formData.tipoEntidad === 'COMPANY' ? 'Empresa' : 'Inversionista'} creado exitosamente`)
       setIsCreateModalOpen(false)
       resetForm()
       fetchEmpresas()
@@ -154,7 +165,7 @@ export default function EmpresasPage() {
         throw new Error(data.error || 'Error al actualizar empresa')
       }
 
-      toast.success('Empresa actualizada exitosamente')
+      toast.success(`${formData.tipoEntidad === 'COMPANY' ? 'Empresa' : 'Inversionista'} actualizado exitosamente`)
       setIsEditModalOpen(false)
       setEditingEmpresa(null)
       resetForm()
@@ -178,12 +189,27 @@ export default function EmpresasPage() {
         throw new Error(data.error || 'Error al eliminar empresa')
       }
 
-      toast.success('Empresa eliminada exitosamente')
+      toast.success('Registro eliminado exitosamente')
       fetchEmpresas()
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Error desconocido'
       toast.error(message)
     }
+  }
+
+  // Abrir modal de creación con tipo predefinido
+  const openCreateModal = (tipo: TipoEntidad) => {
+    setFormData({
+      nombre: '',
+      rut: '',
+      razonSocial: '',
+      tipoEntidad: tipo,
+      direccion: '',
+      telefono: '',
+      email: '',
+      activa: true
+    })
+    setIsCreateModalOpen(true)
   }
 
   // Abrir modal de edición
@@ -193,6 +219,7 @@ export default function EmpresasPage() {
       nombre: empresa.nombre,
       rut: empresa.rut,
       razonSocial: empresa.razonSocial,
+      tipoEntidad: empresa.tipoEntidad,
       direccion: empresa.direccion || '',
       telefono: empresa.telefono || '',
       email: empresa.email || '',
@@ -207,6 +234,7 @@ export default function EmpresasPage() {
       nombre: '',
       rut: '',
       razonSocial: '',
+      tipoEntidad: activeTab,
       direccion: '',
       telefono: '',
       email: '',
@@ -238,17 +266,191 @@ export default function EmpresasPage() {
     setFormData({ ...formData, rut: formatted })
   }
 
-  // Filtrar empresas por búsqueda
-  const filteredEmpresas = empresas.filter(empresa =>
-    empresa.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    empresa.rut.includes(searchTerm) ||
-    empresa.razonSocial.toLowerCase().includes(searchTerm.toLowerCase())
-  )
+  // Filtrar empresas por tipo y búsqueda
+  const filteredEmpresas = empresas
+    .filter(empresa => empresa.tipoEntidad === activeTab)
+    .filter(empresa =>
+      empresa.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      empresa.rut.includes(searchTerm) ||
+      empresa.razonSocial.toLowerCase().includes(searchTerm.toLowerCase())
+    )
 
-  // Estadísticas
-  const totalEmpresas = empresas.length
-  const empresasActivas = empresas.filter(e => e.activa).length
-  const totalEdificios = empresas.reduce((sum, e) => sum + e.totalEdificios, 0)
+  // Estadísticas por tipo
+  const empresasCompany = empresas.filter(e => e.tipoEntidad === 'COMPANY')
+  const empresasInvestor = empresas.filter(e => e.tipoEntidad === 'INVESTOR')
+
+  const getStats = (tipo: TipoEntidad) => {
+    const filtered = tipo === 'COMPANY' ? empresasCompany : empresasInvestor
+    return {
+      total: filtered.length,
+      activas: filtered.filter(e => e.activa).length,
+      edificios: filtered.reduce((sum, e) => sum + e.totalEdificios, 0)
+    }
+  }
+
+  const currentStats = getStats(activeTab)
+
+  const renderTable = () => {
+    if (filteredEmpresas.length === 0) {
+      return (
+        <div className="text-center py-12">
+          {activeTab === 'COMPANY' ? (
+            <Building className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+          ) : (
+            <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+          )}
+          <h3 className="text-lg font-medium text-foreground mb-2">
+            {searchTerm
+              ? `No se encontraron ${activeTab === 'COMPANY' ? 'empresas' : 'inversionistas'}`
+              : `No hay ${activeTab === 'COMPANY' ? 'empresas' : 'inversionistas'}`
+            }
+          </h3>
+          <p className="text-muted-foreground mb-4">
+            {searchTerm
+              ? 'Intenta con otros términos de búsqueda'
+              : `Comienza creando tu primer${activeTab === 'INVESTOR' ? ' inversionista' : 'a empresa'}`
+            }
+          </p>
+          {!searchTerm && (
+            <Button onClick={() => openCreateModal(activeTab)}>
+              <Plus className="w-4 h-4 mr-2" />
+              {activeTab === 'COMPANY' ? 'Crear Primera Empresa' : 'Crear Primer Inversionista'}
+            </Button>
+          )}
+        </div>
+      )
+    }
+
+    return (
+      <div className="overflow-x-auto">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>{activeTab === 'COMPANY' ? 'Empresa' : 'Inversionista'}</TableHead>
+              <TableHead>RUT</TableHead>
+              <TableHead>Razón Social</TableHead>
+              <TableHead>Contacto</TableHead>
+              <TableHead>Edificios</TableHead>
+              <TableHead>Estado</TableHead>
+              <TableHead className="text-right">Acciones</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {filteredEmpresas.map((empresa) => (
+              <TableRow key={empresa.id}>
+                <TableCell>
+                  <div className="font-medium">{empresa.nombre}</div>
+                  {empresa.direccion && (
+                    <div className="text-sm text-muted-foreground flex items-center mt-1">
+                      <MapPin className="w-3 h-3 mr-1" />
+                      {empresa.direccion}
+                    </div>
+                  )}
+                </TableCell>
+                <TableCell className="font-mono text-sm">
+                  {empresa.rut}
+                </TableCell>
+                <TableCell>{empresa.razonSocial}</TableCell>
+                <TableCell>
+                  <div className="space-y-1">
+                    {empresa.email && (
+                      <div className="text-sm flex items-center text-muted-foreground">
+                        <Mail className="w-3 h-3 mr-1" />
+                        {empresa.email}
+                      </div>
+                    )}
+                    {empresa.telefono && (
+                      <div className="text-sm flex items-center text-muted-foreground">
+                        <Phone className="w-3 h-3 mr-1" />
+                        {empresa.telefono}
+                      </div>
+                    )}
+                    {!empresa.email && !empresa.telefono && (
+                      <span className="text-sm text-muted-foreground">Sin contacto</span>
+                    )}
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <div className="text-center">
+                    <span className="font-medium">{empresa.totalEdificios}</span>
+                  </div>
+                </TableCell>
+                <TableCell>
+                  {empresa.activa ? (
+                    <Badge variant="default" className="bg-green-600">
+                      <CheckCircle2 className="w-3 h-3 mr-1" />
+                      Activa
+                    </Badge>
+                  ) : (
+                    <Badge variant="secondary">
+                      <XCircle className="w-3 h-3 mr-1" />
+                      Inactiva
+                    </Badge>
+                  )}
+                </TableCell>
+                <TableCell className="text-right">
+                  <div className="flex items-center justify-end space-x-2">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => router.push(`/admin/proyectos?empresaId=${empresa.id}`)}
+                      disabled={empresa.totalEdificios === 0}
+                      title={empresa.totalEdificios > 0 ? `Ver ${empresa.totalEdificios} proyecto(s)` : 'Sin proyectos'}
+                      className="flex items-center gap-1"
+                    >
+                      <FolderOpen className="w-4 h-4" />
+                      {empresa.totalEdificios > 0 && (
+                        <Badge variant="secondary" className="h-5 px-1.5 text-xs">
+                          {empresa.totalEdificios}
+                        </Badge>
+                      )}
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => openEditModal(empresa)}
+                    >
+                      <Edit className="w-4 h-4" />
+                    </Button>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-destructive hover:text-destructive"
+                          disabled={empresa.totalEdificios > 0}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>¿Eliminar {activeTab === 'COMPANY' ? 'empresa' : 'inversionista'}?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            Esta acción eliminará permanentemente {activeTab === 'COMPANY' ? 'la empresa' : 'el inversionista'} &quot;{empresa.nombre}&quot;.
+                            Esta acción no se puede deshacer.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                          <AlertDialogAction
+                            onClick={() => handleDeleteEmpresa(empresa.id)}
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                          >
+                            Eliminar
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  </div>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+    )
+  }
 
   if (loading) {
     return (
@@ -266,245 +468,140 @@ export default function EmpresasPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Gestión de Empresas</h1>
+          <h1 className="text-2xl font-bold text-foreground">Gestión de Empresas e Inversionistas</h1>
           <p className="text-muted-foreground">
-            Administra las empresas del sistema
+            Administra las empresas e inversionistas del sistema
           </p>
         </div>
-        <div className="flex space-x-2">
-          <Button
-            variant="outline"
-            onClick={fetchEmpresas}
-            disabled={loading}
-          >
-            <RefreshCw className="w-4 h-4 mr-2" />
-            Actualizar
-          </Button>
-          <Button onClick={() => setIsCreateModalOpen(true)}>
-            <Plus className="w-4 h-4 mr-2" />
-            Nueva Empresa
-          </Button>
-        </div>
+        <Button
+          variant="outline"
+          onClick={fetchEmpresas}
+          disabled={loading}
+        >
+          <RefreshCw className="w-4 h-4 mr-2" />
+          Actualizar
+        </Button>
       </div>
 
-      {/* Stats Cards */}
-      {empresas.length > 0 && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Total Empresas</p>
-                  <p className="text-2xl font-bold">{totalEmpresas}</p>
-                </div>
-                <Building className="h-8 w-8 text-muted-foreground" />
-              </div>
-            </CardContent>
-          </Card>
+      {/* Tabs */}
+      <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as TipoEntidad)} className="space-y-6">
+        <TabsList className="grid w-full max-w-md grid-cols-2">
+          <TabsTrigger value="COMPANY" className="flex items-center gap-2">
+            <Building className="w-4 h-4" />
+            Empresas
+          </TabsTrigger>
+          <TabsTrigger value="INVESTOR" className="flex items-center gap-2">
+            <Users className="w-4 h-4" />
+            Inversionistas
+          </TabsTrigger>
+        </TabsList>
 
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Empresas Activas</p>
-                  <p className="text-2xl font-bold">{empresasActivas}</p>
-                </div>
-                <CheckCircle2 className="h-8 w-8 text-green-600" />
-              </div>
-            </CardContent>
-          </Card>
+        <TabsContent value={activeTab} className="space-y-6">
+          {/* Stats Cards */}
+          {empresas.length > 0 && (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <Card>
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-muted-foreground">
+                        Total {activeTab === 'COMPANY' ? 'Empresas' : 'Inversionistas'}
+                      </p>
+                      <p className="text-2xl font-bold">{currentStats.total}</p>
+                    </div>
+                    {activeTab === 'COMPANY' ? (
+                      <Building className="h-8 w-8 text-muted-foreground" />
+                    ) : (
+                      <Users className="h-8 w-8 text-muted-foreground" />
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
 
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Total Edificios</p>
-                  <p className="text-2xl font-bold">{totalEdificios}</p>
-                </div>
-                <Building2 className="h-8 w-8 text-blue-600" />
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      )}
+              <Card>
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-muted-foreground">Activos</p>
+                      <p className="text-2xl font-bold">{currentStats.activas}</p>
+                    </div>
+                    <CheckCircle2 className="h-8 w-8 text-green-600" />
+                  </div>
+                </CardContent>
+              </Card>
 
-      {/* Search Bar */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Empresas Registradas</CardTitle>
-          <CardDescription>
-            Lista de todas las empresas del sistema
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="mb-4">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-              <Input
-                placeholder="Buscar por nombre, RUT o razón social..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
-              />
-            </div>
-          </div>
-
-          {/* Table */}
-          {filteredEmpresas.length === 0 ? (
-            <div className="text-center py-12">
-              <Building className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-foreground mb-2">
-                {searchTerm ? 'No se encontraron empresas' : 'No hay empresas'}
-              </h3>
-              <p className="text-muted-foreground mb-4">
-                {searchTerm ? 'Intenta con otros términos de búsqueda' : 'Comienza creando tu primera empresa'}
-              </p>
-              {!searchTerm && (
-                <Button onClick={() => setIsCreateModalOpen(true)}>
-                  <Plus className="w-4 h-4 mr-2" />
-                  Crear Primera Empresa
-                </Button>
-              )}
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Empresa</TableHead>
-                    <TableHead>RUT</TableHead>
-                    <TableHead>Razón Social</TableHead>
-                    <TableHead>Contacto</TableHead>
-                    <TableHead>Edificios</TableHead>
-                    <TableHead>Estado</TableHead>
-                    <TableHead className="text-right">Acciones</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredEmpresas.map((empresa) => (
-                    <TableRow key={empresa.id}>
-                      <TableCell>
-                        <div className="font-medium">{empresa.nombre}</div>
-                        {empresa.direccion && (
-                          <div className="text-sm text-muted-foreground flex items-center mt-1">
-                            <MapPin className="w-3 h-3 mr-1" />
-                            {empresa.direccion}
-                          </div>
-                        )}
-                      </TableCell>
-                      <TableCell className="font-mono text-sm">
-                        {empresa.rut}
-                      </TableCell>
-                      <TableCell>{empresa.razonSocial}</TableCell>
-                      <TableCell>
-                        <div className="space-y-1">
-                          {empresa.email && (
-                            <div className="text-sm flex items-center text-muted-foreground">
-                              <Mail className="w-3 h-3 mr-1" />
-                              {empresa.email}
-                            </div>
-                          )}
-                          {empresa.telefono && (
-                            <div className="text-sm flex items-center text-muted-foreground">
-                              <Phone className="w-3 h-3 mr-1" />
-                              {empresa.telefono}
-                            </div>
-                          )}
-                          {!empresa.email && !empresa.telefono && (
-                            <span className="text-sm text-muted-foreground">Sin contacto</span>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="text-center">
-                          <span className="font-medium">{empresa.totalEdificios}</span>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        {empresa.activa ? (
-                          <Badge variant="default" className="bg-green-600">
-                            <CheckCircle2 className="w-3 h-3 mr-1" />
-                            Activa
-                          </Badge>
-                        ) : (
-                          <Badge variant="secondary">
-                            <XCircle className="w-3 h-3 mr-1" />
-                            Inactiva
-                          </Badge>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex items-center justify-end space-x-2">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => openEditModal(empresa)}
-                          >
-                            <Edit className="w-4 h-4" />
-                          </Button>
-                          <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="text-destructive hover:text-destructive"
-                                disabled={empresa.totalEdificios > 0}
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                              <AlertDialogHeader>
-                                <AlertDialogTitle>¿Eliminar empresa?</AlertDialogTitle>
-                                <AlertDialogDescription>
-                                  Esta acción eliminará permanentemente la empresa &quot;{empresa.nombre}&quot;.
-                                  Esta acción no se puede deshacer.
-                                </AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter>
-                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                <AlertDialogAction
-                                  onClick={() => handleDeleteEmpresa(empresa.id)}
-                                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                                >
-                                  Eliminar
-                                </AlertDialogAction>
-                              </AlertDialogFooter>
-                            </AlertDialogContent>
-                          </AlertDialog>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+              <Card>
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-muted-foreground">Total Edificios</p>
+                      <p className="text-2xl font-bold">{currentStats.edificios}</p>
+                    </div>
+                    <Building2 className="h-8 w-8 text-blue-600" />
+                  </div>
+                </CardContent>
+              </Card>
             </div>
           )}
-        </CardContent>
-      </Card>
 
-      {/* Modal Crear Empresa */}
+          {/* Search and Table */}
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+              <div>
+                <CardTitle>{activeTab === 'COMPANY' ? 'Empresas' : 'Inversionistas'} Registrados</CardTitle>
+                <CardDescription>
+                  Lista de todos los {activeTab === 'COMPANY' ? 'empresas' : 'inversionistas'} del sistema
+                </CardDescription>
+              </div>
+              <Button onClick={() => openCreateModal(activeTab)}>
+                <Plus className="w-4 h-4 mr-2" />
+                {activeTab === 'COMPANY' ? 'Nueva Empresa' : 'Nuevo Inversionista'}
+              </Button>
+            </CardHeader>
+            <CardContent>
+              <div className="mb-4">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+                  <Input
+                    placeholder="Buscar por nombre, RUT o razón social..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
+              </div>
+
+              {renderTable()}
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
+
+      {/* Modal Crear */}
       <Dialog open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen}>
         <DialogContent className="sm:max-w-[600px]">
           <DialogHeader>
             <DialogTitle className="flex items-center">
-              <Building className="w-5 h-5 mr-2" />
-              Nueva Empresa
+              {formData.tipoEntidad === 'COMPANY' ? (
+                <><Building className="w-5 h-5 mr-2" />Nueva Empresa</>
+              ) : (
+                <><Users className="w-5 h-5 mr-2" />Nuevo Inversionista</>
+              )}
             </DialogTitle>
             <DialogDescription>
-              Crea una nueva empresa en el sistema
+              Crea {formData.tipoEntidad === 'COMPANY' ? 'una nueva empresa' : 'un nuevo inversionista'} en el sistema
             </DialogDescription>
           </DialogHeader>
 
           <form onSubmit={handleCreateEmpresa} className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="col-span-2">
-                <Label htmlFor="nombre">Nombre de la Empresa *</Label>
+                <Label htmlFor="nombre">Nombre *</Label>
                 <Input
                   id="nombre"
                   value={formData.nombre}
                   onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
-                  placeholder="ej: Inmobiliaria ABC"
+                  placeholder={formData.tipoEntidad === 'COMPANY' ? 'ej: Inmobiliaria ABC' : 'ej: Juan Pérez'}
                   required
                 />
               </div>
@@ -526,7 +623,7 @@ export default function EmpresasPage() {
                   id="razonSocial"
                   value={formData.razonSocial}
                   onChange={(e) => setFormData({ ...formData, razonSocial: e.target.value })}
-                  placeholder="ej: Inmobiliaria ABC SpA"
+                  placeholder={formData.tipoEntidad === 'COMPANY' ? 'ej: Inmobiliaria ABC SpA' : 'ej: Juan Pérez García'}
                   required
                 />
               </div>
@@ -575,35 +672,35 @@ export default function EmpresasPage() {
                 Cancelar
               </Button>
               <Button type="submit">
-                Crear Empresa
+                Crear {formData.tipoEntidad === 'COMPANY' ? 'Empresa' : 'Inversionista'}
               </Button>
             </div>
           </form>
         </DialogContent>
       </Dialog>
 
-      {/* Modal Editar Empresa */}
+      {/* Modal Editar */}
       <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
         <DialogContent className="sm:max-w-[600px]">
           <DialogHeader>
             <DialogTitle className="flex items-center">
               <Edit className="w-5 h-5 mr-2" />
-              Editar Empresa
+              Editar {formData.tipoEntidad === 'COMPANY' ? 'Empresa' : 'Inversionista'}
             </DialogTitle>
             <DialogDescription>
-              Modifica los datos de la empresa
+              Modifica los datos {formData.tipoEntidad === 'COMPANY' ? 'de la empresa' : 'del inversionista'}
             </DialogDescription>
           </DialogHeader>
 
           <form onSubmit={handleEditEmpresa} className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="col-span-2">
-                <Label htmlFor="edit-nombre">Nombre de la Empresa *</Label>
+                <Label htmlFor="edit-nombre">Nombre *</Label>
                 <Input
                   id="edit-nombre"
                   value={formData.nombre}
                   onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
-                  placeholder="ej: Inmobiliaria ABC"
+                  placeholder={formData.tipoEntidad === 'COMPANY' ? 'ej: Inmobiliaria ABC' : 'ej: Juan Pérez'}
                   required
                 />
               </div>
@@ -625,7 +722,7 @@ export default function EmpresasPage() {
                   id="edit-razonSocial"
                   value={formData.razonSocial}
                   onChange={(e) => setFormData({ ...formData, razonSocial: e.target.value })}
-                  placeholder="ej: Inmobiliaria ABC SpA"
+                  placeholder={formData.tipoEntidad === 'COMPANY' ? 'ej: Inmobiliaria ABC SpA' : 'ej: Juan Pérez García'}
                   required
                 />
               </div>
@@ -671,7 +768,7 @@ export default function EmpresasPage() {
                     className="h-4 w-4"
                   />
                   <Label htmlFor="edit-activa" className="cursor-pointer">
-                    Empresa activa
+                    {formData.tipoEntidad === 'COMPANY' ? 'Empresa activa' : 'Inversionista activo'}
                   </Label>
                 </div>
               </div>
@@ -690,7 +787,7 @@ export default function EmpresasPage() {
                 Cancelar
               </Button>
               <Button type="submit">
-                Actualizar Empresa
+                Actualizar {formData.tipoEntidad === 'COMPANY' ? 'Empresa' : 'Inversionista'}
               </Button>
             </div>
           </form>

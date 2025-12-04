@@ -229,6 +229,72 @@ export async function PUT(
       )
     }
 
+    // Calculate commission if estado is changing to DEPARTAMENTO_ENTREGADO
+    let calculatedComision = comision ? parseFloat(comision) : 0
+    const calculatedReglaComisionId = reglaComisionId || null
+    let calculatedComisionId = comisionId || null
+
+    if (estado === 'DEPARTAMENTO_ENTREGADO' && existingLead.estado !== 'DEPARTAMENTO_ENTREGADO') {
+      // Only recalculate if we're transitioning TO DEPARTAMENTO_ENTREGADO
+      const leadWithRelations = await prisma.lead.findUnique({
+        where: { id },
+        include: {
+          unidad: {
+            include: {
+              tipoUnidadEdificio: {
+                include: {
+                  comision: true
+                }
+              }
+            }
+          },
+          edificio: {
+            include: {
+              comision: true
+            }
+          },
+          tipoUnidadEdificio: {
+            include: {
+              comision: true
+            }
+          }
+        }
+      })
+
+      if (leadWithRelations) {
+        const totalLeadAmount = parseFloat(totalLead)
+        let comisionPorcentaje = 0
+        let selectedComisionId = null
+
+        // Priority 1: TipoUnidadEdificio commission (direct from lead)
+        if (leadWithRelations.tipoUnidadEdificio?.comision) {
+          comisionPorcentaje = leadWithRelations.tipoUnidadEdificio.comision.porcentaje
+          selectedComisionId = leadWithRelations.tipoUnidadEdificio.comision.id
+        }
+        // Priority 2: Unidad's TipoUnidadEdificio commission
+        else if (leadWithRelations.unidad?.tipoUnidadEdificio?.comision) {
+          comisionPorcentaje = leadWithRelations.unidad.tipoUnidadEdificio.comision.porcentaje
+          selectedComisionId = leadWithRelations.unidad.tipoUnidadEdificio.comision.id
+        }
+        // Priority 3: Edificio commission
+        else if (leadWithRelations.edificio?.comision) {
+          comisionPorcentaje = leadWithRelations.edificio.comision.porcentaje
+          selectedComisionId = leadWithRelations.edificio.comision.id
+        }
+
+        // Calculate commission amount
+        calculatedComision = totalLeadAmount * comisionPorcentaje
+        calculatedComisionId = selectedComisionId
+
+        console.log('💰 Comisión calculada automáticamente:', {
+          totalLead: totalLeadAmount,
+          porcentaje: comisionPorcentaje,
+          comision: calculatedComision,
+          comisionId: selectedComisionId
+        })
+      }
+    }
+
     // Actualizar lead
     const updatedLead = await prisma.lead.update({
       where: { id },
@@ -236,8 +302,8 @@ export async function PUT(
         codigoUnidad: codigoUnidad || null,
         totalLead: parseFloat(totalLead),
         montoUf: parseFloat(montoUf),
-        comision: parseFloat(comision) || 0,
-        estado: estado || 'ENTREGADO',
+        comision: calculatedComision,
+        estado: estado || 'INGRESADO',
         fechaPagoReserva: fechaPagoReserva ? new Date(fechaPagoReserva) : null,
         fechaPagoLead: fechaPagoLead ? new Date(fechaPagoLead) : null,
         fechaCheckin: fechaCheckin ? new Date(fechaCheckin) : null,
@@ -246,8 +312,8 @@ export async function PUT(
         conciliado: conciliado || false,
         brokerId,
         clienteId,
-        reglaComisionId: reglaComisionId || null,
-        comisionId: comisionId || null
+        reglaComisionId: calculatedReglaComisionId,
+        comisionId: calculatedComisionId
       },
       include: {
         broker: {

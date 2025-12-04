@@ -131,10 +131,10 @@ export async function GET(request: NextRequest) {
       updatedAt: lead.updatedAt.toISOString()
     }))
 
-    // Calcular estadísticas
+    // Calcular estadísticas (con soporte para estados antiguos y nuevos)
     const stats = {
       totalLeads: leads.length,
-      entregados: leads.filter(c => c.estado === 'ENTREGADO').length,
+      entregados: leads.filter(c => c.estado === 'ENTREGADO' || c.estado === 'DEPARTAMENTO_ENTREGADO').length,
       reservaPagada: leads.filter(c => c.estado === 'RESERVA_PAGADA').length,
       aprobados: leads.filter(c => c.estado === 'APROBADO').length,
       rechazados: leads.filter(c => c.estado === 'RECHAZADO').length,

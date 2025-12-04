@@ -28,7 +28,8 @@ export async function GET(
       include: {
         _count: {
           select: {
-            unidades: true
+            unidades: true,
+            tiposUnidad: true
           }
         },
         unidades: {
@@ -103,6 +104,7 @@ export async function GET(
       comision: edificio.comision,
       empresa: edificio.empresa,
       totalUnidades: edificio._count.unidades,
+      totalTiposUnidad: edificio._count.tiposUnidad,
       unidadesDisponibles,
       unidadesVendidas,
       unidadesReservadas,
@@ -239,19 +241,7 @@ export async function PUT(
     }
 
     // Actualizar edificio
-    const updateData: {
-      nombre: string
-      direccion: string
-      comuna: string
-      ciudad: string
-      region: string
-      codigoPostal: string | null
-      descripcion?: string | null
-      fechaInicio?: Date | null
-      fechaEntrega?: Date | null
-      estado?: string
-      empresaId?: string
-    } = {
+    const updateData: any = {
       nombre,
       direccion,
       comuna,

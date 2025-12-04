@@ -111,23 +111,25 @@ export async function POST(request: NextRequest) {
     console.log('📝 Datos recibidos:', { nombre, rut, email, telefono, direccion, fechaNacimiento, brokerId })
 
     // Validaciones
-    if (!nombre || !rut || !brokerId) {
+    if (!nombre || !telefono) {
       return NextResponse.json(
-        { success: false, error: 'Nombre, RUT y broker son requeridos' },
+        { success: false, error: 'Nombre y teléfono (WhatsApp) son requeridos' },
         { status: 400 }
       )
     }
 
-    // Verificar si el RUT ya existe
-    const existingCliente = await prisma.cliente.findUnique({
-      where: { rut }
-    })
+    // Verificar si el RUT ya existe (solo si se proporciona)
+    if (rut) {
+      const existingCliente = await prisma.cliente.findUnique({
+        where: { rut }
+      })
 
-    if (existingCliente) {
-      return NextResponse.json(
-        { success: false, error: 'Ya existe un cliente con este RUT' },
-        { status: 400 }
-      )
+      if (existingCliente) {
+        return NextResponse.json(
+          { success: false, error: 'Ya existe un cliente con este RUT' },
+          { status: 400 }
+        )
+      }
     }
 
     // Verificar que el broker existe

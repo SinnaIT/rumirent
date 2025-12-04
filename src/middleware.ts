@@ -17,8 +17,26 @@ export async function middleware(request: NextRequest) {
   }
 
   // Public routes that don't require authentication
-  const publicRoutes = ['/login', '/register', '/api/auth/login', '/api/auth/register']
+  const publicRoutes = [
+    '/login',
+    '/register',
+    '/forgot-password',
+    '/reset-password',
+    '/api/auth/login',
+    '/api/auth/register',
+    '/api/auth/forgot-password',
+    '/api/auth/reset-password'
+  ]
+
+  // Routes that require authentication but bypass other checks
+  const authOnlyRoutes = [
+    '/change-password',
+    '/api/auth/change-password',
+    '/api/auth/me'
+  ]
+
   const isPublicRoute = publicRoutes.some(route => pathname.startsWith(route))
+  const isAuthOnlyRoute = authOnlyRoutes.some(route => pathname.startsWith(route))
 
   // Get auth token from cookies
   const token = request.cookies.get('auth-token')?.value
@@ -51,6 +69,12 @@ export async function middleware(request: NextRequest) {
         const response = NextResponse.redirect(new URL('/login', request.url))
         response.cookies.delete('auth-token')
         return response
+      }
+
+      // Allow access to auth-only routes (like change-password) for authenticated users
+      if (isAuthOnlyRoute) {
+        console.log(`[MIDDLEWARE] Permitiendo acceso a ruta auth-only: ${pathname}`)
+        return NextResponse.next()
       }
 
       // Strict role-based access control - users can ONLY access their role prefix

@@ -20,6 +20,7 @@ async function main() {
   await prisma.empresa.deleteMany({})
   await prisma.user.deleteMany({})
   await prisma.comision.deleteMany({})
+  await prisma.plantillaTipoUnidad.deleteMany({})
 
   // 1. Crear tipos de características
   console.log('🏷️ Creando tipos de características...')
@@ -109,13 +110,84 @@ async function main() {
     }
   })
 
-  // 2. Crear empresas
+  // 2. Crear plantillas de tipos de unidad
+  console.log('📋 Creando plantillas de tipos de unidad...')
+  const plantillaStudio = await prisma.plantillaTipoUnidad.create({
+    data: {
+      nombre: 'Studio',
+      codigo: 'STU',
+      bedrooms: 0,
+      bathrooms: 1,
+      descripcion: 'Departamento tipo studio sin dormitorios separados',
+      activo: true
+    }
+  })
+
+  const plantilla1D = await prisma.plantillaTipoUnidad.create({
+    data: {
+      nombre: '1 Dormitorio',
+      codigo: '1D',
+      bedrooms: 1,
+      bathrooms: 1,
+      descripcion: 'Departamento de 1 dormitorio y 1 baño',
+      activo: true
+    }
+  })
+
+  const plantilla2D = await prisma.plantillaTipoUnidad.create({
+    data: {
+      nombre: '2 Dormitorios',
+      codigo: '2D',
+      bedrooms: 2,
+      bathrooms: 2,
+      descripcion: 'Departamento de 2 dormitorios y 2 baños',
+      activo: true
+    }
+  })
+
+  const plantilla3D = await prisma.plantillaTipoUnidad.create({
+    data: {
+      nombre: '3 Dormitorios',
+      codigo: '3D',
+      bedrooms: 3,
+      bathrooms: 2,
+      descripcion: 'Departamento de 3 dormitorios y 2 baños',
+      activo: true
+    }
+  })
+
+  const plantillaPenthouse = await prisma.plantillaTipoUnidad.create({
+    data: {
+      nombre: 'Penthouse',
+      codigo: 'PH',
+      bedrooms: 3,
+      bathrooms: 3,
+      descripcion: 'Penthouse de lujo con 3 dormitorios y 3 baños',
+      activo: true
+    }
+  })
+
+  const plantillaLoft = await prisma.plantillaTipoUnidad.create({
+    data: {
+      nombre: 'Loft',
+      codigo: 'LOFT',
+      bedrooms: 1,
+      bathrooms: 1,
+      descripcion: 'Loft de concepto abierto',
+      activo: true
+    }
+  })
+
+  console.log(`✅ Creadas ${6} plantillas de tipos de unidad`)
+
+  // 3. Crear empresas e inversionistas
   console.log('🏢 Creando empresas...')
   const empresaPrincipal = await prisma.empresa.create({
     data: {
       nombre: 'Inmobiliaria Principal',
       rut: '76123456-7',
       razonSocial: 'Inmobiliaria Principal S.A.',
+      tipoEntidad: 'COMPANY',
       direccion: 'Av. Apoquindo 3000, Las Condes, Santiago',
       telefono: '+56912345678',
       email: 'contacto@inmobiliariaprincipal.cl',
@@ -128,9 +200,24 @@ async function main() {
       nombre: 'Desarrolladora Costa',
       rut: '76654321-0',
       razonSocial: 'Desarrolladora Costa Limitada',
+      tipoEntidad: 'COMPANY',
       direccion: 'Av. del Mar 1500, Viña del Mar',
       telefono: '+56987654321',
       email: 'contacto@desarrolladoracosta.cl',
+      activa: true
+    }
+  })
+
+  console.log('💼 Creando inversionistas...')
+  const inversionista1 = await prisma.empresa.create({
+    data: {
+      nombre: 'Carlos Mendoza',
+      rut: '15234567-8',
+      razonSocial: 'Carlos Mendoza Inversiones',
+      tipoEntidad: 'INVESTOR',
+      direccion: 'Los Leones 1234, Providencia, Santiago',
+      telefono: '+56987654320',
+      email: 'cmendoza@inversiones.cl',
       activa: true
     }
   })

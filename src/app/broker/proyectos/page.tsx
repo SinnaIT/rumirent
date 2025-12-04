@@ -25,6 +25,15 @@ interface Comision {
   activa: boolean
 }
 
+interface TipoUnidad {
+  id: string
+  nombre: string
+  codigo: string
+  bedrooms?: number
+  bathrooms?: number
+  comision: Comision | null
+}
+
 interface Unidad {
   id: string
   numero: string
@@ -75,6 +84,7 @@ interface Proyecto {
   unidadesDisponibles: number
   imagenes: Imagen[]
   caracteristicas: Caracteristica[]
+  tiposUnidad: TipoUnidad[]
   unidades: Unidad[]
   createdAt: string
   updatedAt: string
@@ -231,7 +241,7 @@ export default function BrokerProyectosPage() {
                 <Building2 className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
                 <h3 className="text-lg font-medium text-foreground mb-2">No hay proyectos disponibles</h3>
                 <p className="text-muted-foreground">
-                  Actualmente no hay proyectos con unidades disponibles para la venta
+                  Actualmente no hay proyectos configurados para la venta
                 </p>
               </div>
             </CardContent>
@@ -341,12 +351,16 @@ export default function BrokerProyectosPage() {
                     <Button
                       className="flex-1"
                       onClick={() => {
-                        if (proyecto.unidades.length > 0) {
-                          handleGenerarLead(proyecto.unidades[0].id)
+                        // Si tiene unidades físicas disponibles, usar la primera
+                        const unidadDisponible = proyecto.unidades.find(u => u.estado === 'DISPONIBLE')
+                        if (unidadDisponible) {
+                          handleGenerarLead(unidadDisponible.id)
                         } else {
-                          toast.error('No hay unidades disponibles')
+                          // Si no tiene unidades físicas pero tiene tipos de unidad, ir a generar lead con el proyecto
+                          router.push(`/broker/generar-lead?proyectoId=${proyecto.id}`)
                         }
                       }}
+                      disabled={proyecto.tiposUnidad.length === 0}
                     >
                       <Plus className="h-4 w-4 mr-2" />
                       Lead

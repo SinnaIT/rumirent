@@ -50,7 +50,8 @@ export async function POST(request: NextRequest) {
         id: user.id,
         email: user.email,
         nombre: user.nombre,
-        role: user.role
+        role: user.role,
+        mustChangePassword: user.mustChangePassword
       },
       token: token // Also return token for manual cookie setting
     })

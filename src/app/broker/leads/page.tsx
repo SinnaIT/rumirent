@@ -1,17 +1,10 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
 import {
   Table,
   TableBody,
@@ -21,7 +14,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { toast } from 'sonner'
-import { Users, Edit, Search, Mail, Phone, MapPin, Calendar } from 'lucide-react'
+import { Users, Eye, Search, Mail, Phone, MapPin, Calendar, MessageCircle } from 'lucide-react'
 
 interface Cliente {
   id: string
@@ -36,37 +29,14 @@ interface Cliente {
 }
 
 export default function LeadsPage() {
+  const router = useRouter()
   const [clientes, setClientes] = useState<Cliente[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
-  const [editingCliente, setEditingCliente] = useState<Cliente | null>(null)
-  const [showEditDialog, setShowEditDialog] = useState(false)
-  const [saving, setSaving] = useState(false)
-
-  // Form state para edición
-  const [formData, setFormData] = useState({
-    telefono: '',
-    email: '',
-    direccion: '',
-    fechaNacimiento: ''
-  })
 
   useEffect(() => {
     fetchClientes()
   }, [])
-
-  useEffect(() => {
-    if (editingCliente) {
-      setFormData({
-        telefono: editingCliente.telefono || '',
-        email: editingCliente.email || '',
-        direccion: editingCliente.direccion || '',
-        fechaNacimiento: editingCliente.fechaNacimiento
-          ? new Date(editingCliente.fechaNacimiento).toISOString().split('T')[0]
-          : ''
-      })
-    }
-  }, [editingCliente])
 
   const fetchClientes = async () => {
     try {
@@ -94,56 +64,13 @@ export default function LeadsPage() {
     }
   }
 
-  const handleEdit = (cliente: Cliente) => {
-    setEditingCliente(cliente)
-    setShowEditDialog(true)
+  const handleViewDetail = (clienteId: string) => {
+    router.push(`/broker/leads/${clienteId}`)
   }
 
-  const handleCloseDialog = () => {
-    setShowEditDialog(false)
-    setEditingCliente(null)
-    setFormData({
-      telefono: '',
-      email: '',
-      direccion: '',
-      fechaNacimiento: ''
-    })
-  }
-
-  const handleSave = async () => {
-    if (!editingCliente) return
-
-    try {
-      setSaving(true)
-
-      const response = await fetch(`/api/broker/clientes/${editingCliente.id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          telefono: formData.telefono.trim() || null,
-          email: formData.email.trim() || null,
-          direccion: formData.direccion.trim() || null,
-          fechaNacimiento: formData.fechaNacimiento || null
-        })
-      })
-
-      const data = await response.json()
-
-      if (data.success) {
-        toast.success('Lead actualizado exitosamente')
-        fetchClientes()
-        handleCloseDialog()
-      } else {
-        toast.error(data.error || 'Error al actualizar lead')
-      }
-    } catch (error) {
-      console.error('Error:', error)
-      toast.error('Error de conexión')
-    } finally {
-      setSaving(false)
-    }
+  const handleSendWhatsApp = (telefono: string) => {
+    const phoneNumber = telefono.replace(/\D/g, '')
+    window.open(`https://wa.me/${phoneNumber}`, '_blank')
   }
 
   const filteredClientes = clientes.filter(cliente =>
@@ -301,14 +228,26 @@ export default function LeadsPage() {
                         )}
                       </TableCell>
                       <TableCell className="text-right">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleEdit(cliente)}
-                        >
-                          <Edit className="h-4 w-4 mr-1" />
-                          Editar
-                        </Button>
+                        <div className="flex justify-end gap-2">
+                          {cliente.telefono && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="bg-green-50 hover:bg-green-100 text-green-700 border-green-200"
+                              onClick={() => handleSendWhatsApp(cliente.telefono!)}
+                            >
+                              <MessageCircle className="h-4 w-4" />
+                            </Button>
+                          )}
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleViewDetail(cliente.id)}
+                          >
+                            <Eye className="h-4 w-4 mr-1" />
+                            Ver
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))
@@ -318,107 +257,6 @@ export default function LeadsPage() {
           </div>
         </CardContent>
       </Card>
-
-      {/* Dialog de Edición */}
-      <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>Editar Lead</DialogTitle>
-            <DialogDescription>
-              Actualiza la información de contacto del lead. Los campos nombre y RUT no son editables.
-            </DialogDescription>
-          </DialogHeader>
-
-          {editingCliente && (
-            <div className="space-y-4 py-4">
-              {/* Información no editable */}
-              <div className="grid grid-cols-2 gap-4 p-4 bg-muted/50 rounded-lg">
-                <div>
-                  <Label className="text-xs text-muted-foreground">Nombre</Label>
-                  <p className="font-medium">{editingCliente.nombre}</p>
-                </div>
-                <div>
-                  <Label className="text-xs text-muted-foreground">RUT</Label>
-                  <p className="font-medium font-mono">{editingCliente.rut}</p>
-                </div>
-              </div>
-
-              {/* Campos editables */}
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="email">
-                    <Mail className="h-4 w-4 inline mr-1" />
-                    Email
-                  </Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    value={formData.email}
-                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                    placeholder="email@ejemplo.com"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="telefono">
-                    <Phone className="h-4 w-4 inline mr-1" />
-                    Teléfono
-                  </Label>
-                  <Input
-                    id="telefono"
-                    value={formData.telefono}
-                    onChange={(e) => setFormData({ ...formData, telefono: e.target.value })}
-                    placeholder="+56 9 1234 5678"
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="direccion">
-                  <MapPin className="h-4 w-4 inline mr-1" />
-                  Dirección
-                </Label>
-                <Input
-                  id="direccion"
-                  value={formData.direccion}
-                  onChange={(e) => setFormData({ ...formData, direccion: e.target.value })}
-                  placeholder="Calle 123, Comuna, Ciudad"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="fechaNacimiento">
-                  <Calendar className="h-4 w-4 inline mr-1" />
-                  Fecha de Nacimiento
-                </Label>
-                <Input
-                  id="fechaNacimiento"
-                  type="date"
-                  value={formData.fechaNacimiento}
-                  onChange={(e) => setFormData({ ...formData, fechaNacimiento: e.target.value })}
-                />
-              </div>
-
-              {/* Botones de acción */}
-              <div className="flex justify-end space-x-2 pt-4">
-                <Button
-                  variant="outline"
-                  onClick={handleCloseDialog}
-                  disabled={saving}
-                >
-                  Cancelar
-                </Button>
-                <Button
-                  onClick={handleSave}
-                  disabled={saving}
-                >
-                  {saving ? 'Guardando...' : 'Guardar Cambios'}
-                </Button>
-              </div>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
     </div>
   )
 }

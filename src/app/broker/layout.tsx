@@ -6,18 +6,19 @@ import { Button } from '@/components/ui/button'
 import {
   Menu,
   X,
-  Building2,
   Home,
   BarChart3,
   Calculator,
   LogOut,
   User,
   Plus,
-  DollarSign
+  DollarSign,
+  Building2
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/lib/hooks/use-auth'
 import { ThemeToggle } from '@/components/theme-toggle'
+import { Logo } from '@/components/logo'
 
 const menuItems = [
   { icon: Home, label: 'Dashboard', href: '/broker' },
@@ -79,12 +80,7 @@ export default function BrokerLayout({
         <div className="flex flex-col h-full">
           {/* Logo/Header */}
           <div className="flex items-center justify-between p-4 border-b border-sidebar-border">
-            <div className="flex items-center space-x-2">
-              <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-                <Building2 className="w-5 h-5 text-primary-foreground" />
-              </div>
-              <h2 className="text-xl font-semibold text-sidebar-foreground">RumiRent</h2>
-            </div>
+            <Logo size="sm" showText={true} className="text-sidebar-foreground" />
             <Button
               variant="ghost"
               size="sm"

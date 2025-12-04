@@ -25,8 +25,13 @@ export async function GET(request: NextRequest) {
 
     console.log('✅ Usuario autorizado, consultando empresas...')
 
+    // Get tipo filter from query params
+    const { searchParams } = new URL(request.url)
+    const tipoParam = searchParams.get('tipo')
+
     // Obtener empresas con estadísticas de edificios
     const empresas = await prisma.empresa.findMany({
+      where: tipoParam ? { tipoEntidad: tipoParam as 'CONSTRUCTORA' | 'INMOBILIARIA' | 'GESTORA' } : undefined,
       include: {
         _count: {
           select: {
@@ -47,6 +52,7 @@ export async function GET(request: NextRequest) {
       nombre: empresa.nombre,
       rut: empresa.rut,
       razonSocial: empresa.razonSocial,
+      tipoEntidad: empresa.tipoEntidad,
       direccion: empresa.direccion,
       telefono: empresa.telefono,
       email: empresa.email,
@@ -95,6 +101,7 @@ export async function POST(request: NextRequest) {
       nombre,
       rut,
       razonSocial,
+      tipoEntidad = 'COMPANY',
       direccion,
       telefono,
       email,
@@ -105,6 +112,14 @@ export async function POST(request: NextRequest) {
     if (!nombre || !rut || !razonSocial) {
       return NextResponse.json(
         { error: 'Nombre, RUT y razón social son requeridos' },
+        { status: 400 }
+      )
+    }
+
+    // Validar tipoEntidad
+    if (tipoEntidad && !['COMPANY', 'INVESTOR'].includes(tipoEntidad)) {
+      return NextResponse.json(
+        { error: 'Tipo de entidad inválido. Debe ser COMPANY o INVESTOR' },
         { status: 400 }
       )
     }
@@ -159,6 +174,7 @@ export async function POST(request: NextRequest) {
         nombre,
         rut,
         razonSocial,
+        tipoEntidad,
         direccion: direccion || null,
         telefono: telefono || null,
         email: email || null,

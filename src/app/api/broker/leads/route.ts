@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { getAuthenticatedUser } from '@/lib/auth'
+import { commissionRulesCache, formatYearMonth } from '@/lib/cache/commission-rules-cache'
 
 // El middleware ya validó que el usuario es BROKER
 export async function POST(request: NextRequest) {
@@ -22,6 +23,8 @@ export async function POST(request: NextRequest) {
       totalLead,
       montoUf,
       comision,
+      comisionId,
+      reglaComisionId,
       fechaPagoReserva,
       fechaPagoLead,
       fechaCheckin,
@@ -34,14 +37,14 @@ export async function POST(request: NextRequest) {
     // Validaciones básicas - la unidad ahora es completamente opcional
     if (!clienteId || !totalLead || !edificioId) {
       return NextResponse.json(
-        { error: 'Cliente, edificio y montos son requeridos' },
+        { error: 'Cliente, edificio y total del arriendo son requeridos' },
         { status: 400 }
       )
     }
 
     if (totalLead <= 0) {
       return NextResponse.json(
-        { error: 'Los montos deben ser mayor a 0' },
+        { error: 'El total del arriendo debe ser mayor a 0' },
         { status: 400 }
       )
     }
@@ -91,6 +94,36 @@ export async function POST(request: NextRequest) {
 
     // Crear el lead en una transacción
     const resultado = await prisma.$transaction(async (tx) => {
+      let finalUnidadId = unidadId
+
+      // Si se proporciona código manual sin unidadId, crear la unidad automáticamente
+      if (!unidadId && codigoUnidad && tipoUnidadEdificioId) {
+        // Verificar que no exista una unidad con el mismo número en el edificio
+        const existingUnit = await tx.unidad.findFirst({
+          where: {
+            numero: codigoUnidad,
+            edificioId: edificioId
+          }
+        })
+
+        if (existingUnit) {
+          throw new Error(`Ya existe una unidad con el código "${codigoUnidad}" en este proyecto`)
+        }
+
+        // Crear la nueva unidad
+        const nuevaUnidad = await tx.unidad.create({
+          data: {
+            numero: codigoUnidad,
+            edificioId: edificioId,
+            tipoUnidadEdificioId: tipoUnidadEdificioId,
+            estado: 'RESERVADA',
+            descripcion: `Unidad creada automáticamente desde generación de lead`
+          }
+        })
+
+        finalUnidadId = nuevaUnidad.id
+      }
+
       // Crear lead
       const nuevoLead = await tx.lead.create({
         data: {
@@ -98,19 +131,21 @@ export async function POST(request: NextRequest) {
           totalLead,
           montoUf,
           comision,
-          estado: estado || 'ENTREGADO',
+          comisionId: comisionId || null,
+          reglaComisionId: reglaComisionId || null,
+          estado: estado || 'INGRESADO', // Changed from 'ENTREGADO' to 'INGRESADO' (new default)
           fechaPagoReserva: fechaPagoReserva ? new Date(fechaPagoReserva) : null,
           fechaPagoLead: fechaPagoLead ? new Date(fechaPagoLead) : null,
           fechaCheckin: fechaCheckin ? new Date(fechaCheckin) : null,
           observaciones: observaciones || undefined,
           brokerId: user.userId,
           clienteId,
-          unidadId: unidadId || null,
+          unidadId: finalUnidadId || null,
           edificioId,
           tipoUnidadEdificioId: tipoUnidadEdificioId || null
         },
         include: {
-          unidad: unidadId ? {
+          unidad: finalUnidadId ? {
             include: {
               edificio: {
                 select: {
@@ -134,10 +169,11 @@ export async function POST(request: NextRequest) {
         }
       })
 
-      // Actualizar estado de la unidad a RESERVADA solo si hay unidadId
-      if (unidadId) {
+      // Actualizar estado de la unidad a RESERVADA solo si era una unidad preexistente
+      if (finalUnidadId && unidadId) {
+        // Solo actualizar si era una unidad seleccionada del dropdown (no la que acabamos de crear)
         await tx.unidad.update({
-          where: { id: unidadId },
+          where: { id: finalUnidadId },
           data: { estado: 'RESERVADA' }
         })
       }
@@ -173,6 +209,13 @@ export async function POST(request: NextRequest) {
       updatedAt: resultado.updatedAt.toISOString()
     }
 
+    // Invalidate commission rules cache for this broker and month
+    if (resultado.fechaPagoReserva) {
+      const yearMonth = formatYearMonth(new Date(resultado.fechaPagoReserva))
+      commissionRulesCache.invalidateBrokerMonth(user.userId, yearMonth)
+      console.log(`[LeadCreation] Cache invalidated for broker ${user.userId}, month ${yearMonth}`)
+    }
+
     return NextResponse.json({
       success: true,
       message: 'Lead generado exitosamente',
@@ -181,6 +224,15 @@ export async function POST(request: NextRequest) {
 
   } catch (error) {
     console.error('Error al crear lead:', error)
+
+    // Proporcionar mensajes de error más específicos
+    if (error instanceof Error) {
+      return NextResponse.json(
+        { error: error.message },
+        { status: 400 }
+      )
+    }
+
     return NextResponse.json(
       { error: 'Error interno del servidor' },
       { status: 500 }

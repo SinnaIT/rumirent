@@ -12,6 +12,7 @@ import {
   CheckSquare,
   ChevronLeft,
   ChevronRight,
+  Trophy,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
@@ -35,6 +36,20 @@ interface DashboardMetrics {
   }
 }
 
+interface BrokerRanking {
+  brokerId: string
+  posicion: number
+  totalReservas: number
+  montoTotalComisiones: number
+}
+
+interface RumiRacePosition {
+  posicion: number
+  totalBrokers: number
+  totalReservas: number
+  montoTotalComisiones: number
+}
+
 const meses = [
   'Enero',
   'Febrero',
@@ -54,6 +69,7 @@ export default function BrokerDashboard() {
   const [metrics, setMetrics] = useState<DashboardMetrics | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [rumiRacePosition, setRumiRacePosition] = useState<RumiRacePosition | null>(null)
 
   // Obtener mes y año actual
   const today = new Date()
@@ -62,6 +78,7 @@ export default function BrokerDashboard() {
 
   useEffect(() => {
     fetchMetrics()
+    fetchRumiRacePosition()
   }, [selectedMes, selectedAnio])
 
   const fetchMetrics = async () => {
@@ -83,6 +100,50 @@ export default function BrokerDashboard() {
       setError('Error al cargar las métricas del dashboard')
     } finally {
       setLoading(false)
+    }
+  }
+
+  const fetchRumiRacePosition = async () => {
+    try {
+      // Fetch the full ranking
+      const response = await fetch(
+        `/api/admin/reportes/rumi-race?mes=${selectedMes}&anio=${selectedAnio}`
+      )
+
+      if (!response.ok) {
+        console.error('Error fetching RumiRace ranking')
+        return
+      }
+
+      const data = await response.json()
+
+      // Find current user's position in the ranking
+      const userResponse = await fetch('/api/auth/me')
+      if (!userResponse.ok) return
+
+      const userData = await userResponse.json()
+      const userId = userData.user.id
+
+      const myPosition = data.ranking.find((r: BrokerRanking) => r.brokerId === userId)
+
+      if (myPosition) {
+        setRumiRacePosition({
+          posicion: myPosition.posicion,
+          totalBrokers: data.totales.totalBrokers,
+          totalReservas: myPosition.totalReservas,
+          montoTotalComisiones: myPosition.montoTotalComisiones,
+        })
+      } else {
+        // Not in ranking this month
+        setRumiRacePosition({
+          posicion: 0,
+          totalBrokers: data.totales.totalBrokers,
+          totalReservas: 0,
+          montoTotalComisiones: 0,
+        })
+      }
+    } catch (error) {
+      console.error('Error fetching RumiRace position:', error)
     }
   }
 
@@ -209,6 +270,65 @@ export default function BrokerDashboard() {
           >
             <ChevronRight className="h-4 w-4" />
           </Button>
+        </div>
+      </div>
+
+      {/* Quick Actions - Moved to top */}
+      <div className="bg-card border border-border rounded-xl p-6 shadow-sm hover:shadow-md transition-shadow duration-300">
+        <div className="mb-6">
+          <h3 className="text-xl font-bold text-card-foreground mb-2">
+            Acciones Rápidas
+          </h3>
+          <p className="text-sm text-muted-foreground">
+            Gestiona tus ventas y comisiones
+          </p>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+          <button
+            onClick={() => (window.location.href = '/broker/proyectos')}
+            className="group p-6 text-left bg-gradient-to-br from-primary/10 to-primary/5 hover:from-primary/20 hover:to-primary/10 rounded-xl transition-all duration-300 border border-primary/10 hover:border-primary/30 hover:scale-[1.02]"
+          >
+            <div className="flex items-center justify-between mb-4">
+              <Home className="h-7 w-7 text-primary group-hover:scale-110 transition-transform" />
+              <div className="w-2 h-2 bg-primary/30 rounded-full"></div>
+            </div>
+            <p className="text-base font-bold text-foreground mb-2">
+              Ver Proyectos
+            </p>
+            <p className="text-sm text-muted-foreground">
+              Explorar proyectos disponibles
+            </p>
+          </button>
+          <button
+            onClick={() => (window.location.href = '/broker/generar-lead')}
+            className="group p-6 text-left bg-gradient-to-br from-success/10 to-success/5 hover:from-success/20 hover:to-success/10 rounded-xl transition-all duration-300 border border-success/10 hover:border-success/30 hover:scale-[1.02]"
+          >
+            <div className="flex items-center justify-between mb-4">
+              <DollarSign className="h-7 w-7 text-success group-hover:scale-110 transition-transform" />
+              <div className="w-2 h-2 bg-success/30 rounded-full"></div>
+            </div>
+            <p className="text-base font-bold text-foreground mb-2">
+              Generar Lead
+            </p>
+            <p className="text-sm text-muted-foreground">
+              Agregar nueva oportunidad
+            </p>
+          </button>
+          <button
+            onClick={() => (window.location.href = '/broker/reportes')}
+            className="group p-6 text-left bg-gradient-to-br from-secondary/10 to-secondary/5 hover:from-secondary/20 hover:to-secondary/10 rounded-xl transition-all duration-300 border border-secondary/10 hover:border-secondary/30 hover:scale-[1.02]"
+          >
+            <div className="flex items-center justify-between mb-4">
+              <TrendingUp className="h-7 w-7 text-secondary group-hover:scale-110 transition-transform" />
+              <div className="w-2 h-2 bg-secondary/30 rounded-full"></div>
+            </div>
+            <p className="text-base font-bold text-foreground mb-2">
+              Ver Reportes
+            </p>
+            <p className="text-sm text-muted-foreground">
+              Revisar rendimiento
+            </p>
+          </button>
         </div>
       </div>
 
@@ -367,65 +487,73 @@ export default function BrokerDashboard() {
             </div>
           </div>
         </div>
-      </div>
 
-      {/* Quick Actions - Mantener las acciones rápidas originales */}
-      <div className="bg-card border border-border rounded-xl p-6 shadow-sm hover:shadow-md transition-shadow duration-300">
-        <div className="mb-6">
-          <h3 className="text-xl font-bold text-card-foreground mb-2">
-            Acciones Rápidas
-          </h3>
-          <p className="text-sm text-muted-foreground">
-            Gestiona tus ventas y comisiones
-          </p>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-          <button
-            onClick={() => (window.location.href = '/broker/proyectos')}
-            className="group p-6 text-left bg-gradient-to-br from-primary/10 to-primary/5 hover:from-primary/20 hover:to-primary/10 rounded-xl transition-all duration-300 border border-primary/10 hover:border-primary/30 hover:scale-[1.02]"
-          >
-            <div className="flex items-center justify-between mb-4">
-              <Home className="h-7 w-7 text-primary group-hover:scale-110 transition-transform" />
-              <div className="w-2 h-2 bg-primary/30 rounded-full"></div>
+        {/* RumiRace Widget */}
+        {rumiRacePosition && (
+          <div className="group bg-gradient-to-br from-yellow-50 to-orange-50 dark:from-yellow-950/20 dark:to-orange-950/20 border-2 border-yellow-400/50 dark:border-yellow-600/50 rounded-xl p-6 shadow-sm hover:shadow-xl hover:shadow-yellow-500/20 transition-all duration-300 cursor-pointer">
+            <div className="flex items-start justify-between mb-4">
+              <div className="space-y-2 flex-1">
+                <div className="flex items-center gap-2">
+                  <Trophy className="h-5 w-5 text-yellow-600 dark:text-yellow-500" />
+                  <p className="text-sm font-bold text-yellow-800 dark:text-yellow-400 uppercase tracking-wider">
+                    RumiRace - Ranking Mensual
+                  </p>
+                </div>
+                {rumiRacePosition.posicion > 0 ? (
+                  <>
+                    <div className="flex items-baseline gap-2">
+                      <p className="text-4xl font-black text-yellow-600 dark:text-yellow-500 tracking-tight">
+                        #{rumiRacePosition.posicion}
+                      </p>
+                      <span className="text-sm text-muted-foreground">de {rumiRacePosition.totalBrokers}</span>
+                    </div>
+                    <p className="text-xs text-muted-foreground font-medium">
+                      Tu posición en el ranking
+                    </p>
+                  </>
+                ) : (
+                  <div className="space-y-1">
+                    <p className="text-lg font-bold text-muted-foreground">Sin ranking</p>
+                    <p className="text-xs text-muted-foreground">
+                      Genera leads este mes para participar
+                    </p>
+                  </div>
+                )}
+              </div>
+              <div className="p-3 rounded-xl bg-yellow-500/20 group-hover:scale-110 transition-transform duration-300">
+                <Trophy className="h-7 w-7 text-yellow-600 dark:text-yellow-500" />
+              </div>
             </div>
-            <p className="text-base font-bold text-foreground mb-2">
-              Ver Proyectos
-            </p>
-            <p className="text-sm text-muted-foreground">
-              Explorar proyectos disponibles
-            </p>
-          </button>
-          <button
-            onClick={() => (window.location.href = '/broker/generar-lead')}
-            className="group p-6 text-left bg-gradient-to-br from-success/10 to-success/5 hover:from-success/20 hover:to-success/10 rounded-xl transition-all duration-300 border border-success/10 hover:border-success/30 hover:scale-[1.02]"
-          >
-            <div className="flex items-center justify-between mb-4">
-              <DollarSign className="h-7 w-7 text-success group-hover:scale-110 transition-transform" />
-              <div className="w-2 h-2 bg-success/30 rounded-full"></div>
-            </div>
-            <p className="text-base font-bold text-foreground mb-2">
-              Generar Lead
-            </p>
-            <p className="text-sm text-muted-foreground">
-              Agregar nueva oportunidad
-            </p>
-          </button>
-          <button
-            onClick={() => (window.location.href = '/broker/reportes')}
-            className="group p-6 text-left bg-gradient-to-br from-secondary/10 to-secondary/5 hover:from-secondary/20 hover:to-secondary/10 rounded-xl transition-all duration-300 border border-secondary/10 hover:border-secondary/30 hover:scale-[1.02]"
-          >
-            <div className="flex items-center justify-between mb-4">
-              <TrendingUp className="h-7 w-7 text-secondary group-hover:scale-110 transition-transform" />
-              <div className="w-2 h-2 bg-secondary/30 rounded-full"></div>
-            </div>
-            <p className="text-base font-bold text-foreground mb-2">
-              Ver Reportes
-            </p>
-            <p className="text-sm text-muted-foreground">
-              Revisar rendimiento
-            </p>
-          </button>
-        </div>
+
+            {rumiRacePosition.posicion > 0 && (
+              <div className="space-y-3 pt-3 border-t border-yellow-400/30">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-muted-foreground">Reservas:</span>
+                  <span className="text-sm font-bold text-yellow-700 dark:text-yellow-500">
+                    {rumiRacePosition.totalReservas}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-muted-foreground">Comisiones:</span>
+                  <span className="text-sm font-bold text-yellow-700 dark:text-yellow-500">
+                    {formatCurrency(rumiRacePosition.montoTotalComisiones)}
+                  </span>
+                </div>
+
+                {/* Medals for top 3 */}
+                {rumiRacePosition.posicion <= 3 && (
+                  <div className="pt-2 text-center">
+                    <span className="inline-flex items-center gap-1 px-3 py-1 bg-yellow-500 text-white text-xs font-bold rounded-full">
+                      {rumiRacePosition.posicion === 1 && '🥇 1er Lugar'}
+                      {rumiRacePosition.posicion === 2 && '🥈 2do Lugar'}
+                      {rumiRacePosition.posicion === 3 && '🥉 3er Lugar'}
+                    </span>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   )

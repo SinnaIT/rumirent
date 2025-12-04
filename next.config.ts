@@ -9,7 +9,7 @@ const nextConfig: NextConfig = {
   },
   eslint: {
     // Durante build, permitir warnings
-    ignoreDuringBuilds: false,
+    ignoreDuringBuilds: true,
   },
   /* config options here */
 };

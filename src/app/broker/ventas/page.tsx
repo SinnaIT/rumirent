@@ -9,15 +9,13 @@ import { Badge } from '@/components/ui/badge'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { toast } from 'sonner'
 import {
   Calculator,
   RefreshCw,
   Plus,
-  Building2,
   MapPin,
-  Calendar,
   DollarSign,
   TrendingUp,
   CheckCircle,
@@ -25,7 +23,13 @@ import {
   XCircle,
   Filter,
   Edit,
-  Search
+  Search,
+  ChevronDown,
+  ChevronRight,
+  User,
+  CreditCard,
+  Building2,
+  MessageCircle
 } from 'lucide-react'
 
 interface Comision {
@@ -87,7 +91,7 @@ interface Lead {
   totalLead: number
   montoUf: number
   comision: number
-  estado: 'ENTREGADO' | 'RESERVA_PAGADA' | 'APROBADO' | 'RECHAZADO'
+  estado: 'INGRESADO' | 'EN_EVALUACION' | 'OBSERVADO' | 'APROBADO' | 'RESERVA_PAGADA' | 'CONTRATO_FIRMADO' | 'CONTRATO_PAGADO' | 'DEPARTAMENTO_ENTREGADO' | 'RECHAZADO' | 'ENTREGADO' // Include ENTREGADO for backward compatibility
   fechaPagoReserva?: string
   fechaPagoLead?: string
   fechaCheckin?: string
@@ -105,6 +109,14 @@ interface Lead {
   updatedAt: string
 }
 
+interface ClienteAgrupado {
+  cliente: Cliente
+  leads: Lead[]
+  totalReservas: number
+  totalMonto: number
+  totalComisiones: number
+}
+
 interface Estadisticas {
   totalLeads: number
   entregados: number
@@ -116,10 +128,16 @@ interface Estadisticas {
 }
 
 const ESTADOS_CONTRATO = [
-  { value: 'ENTREGADO', label: 'Entregado', color: 'bg-blue-100 text-blue-800', icon: Clock },
-  { value: 'RESERVA_PAGADA', label: 'Reserva Pagada', color: 'bg-yellow-100 text-yellow-800', icon: Calendar },
-  { value: 'APROBADO', label: 'Aprobado', color: 'bg-green-100 text-green-800', icon: CheckCircle },
-  { value: 'RECHAZADO', label: 'Rechazado', color: 'bg-red-100 text-red-800', icon: XCircle }
+  { value: 'INGRESADO', label: 'Ingresado', color: 'bg-gray-100 text-gray-800 border-gray-200', icon: Clock },
+  { value: 'EN_EVALUACION', label: 'En Evaluación', color: 'bg-blue-100 text-blue-800 border-blue-200', icon: Clock },
+  { value: 'OBSERVADO', label: 'Observado', color: 'bg-orange-100 text-orange-800 border-orange-200', icon: Clock },
+  { value: 'APROBADO', label: 'Aprobado', color: 'bg-green-100 text-green-800 border-green-200', icon: CheckCircle },
+  { value: 'RESERVA_PAGADA', label: 'Reserva Pagada', color: 'bg-yellow-100 text-yellow-800 border-yellow-200', icon: Clock },
+  { value: 'CONTRATO_FIRMADO', label: 'Contrato Firmado', color: 'bg-indigo-100 text-indigo-800 border-indigo-200', icon: CheckCircle },
+  { value: 'CONTRATO_PAGADO', label: 'Contrato Pagado', color: 'bg-purple-100 text-purple-800 border-purple-200', icon: CheckCircle },
+  { value: 'DEPARTAMENTO_ENTREGADO', label: 'Departamento Entregado', color: 'bg-emerald-100 text-emerald-800 border-emerald-200', icon: CheckCircle },
+  { value: 'ENTREGADO', label: 'Entregado (Legacy)', color: 'bg-emerald-100 text-emerald-800 border-emerald-200', icon: CheckCircle }, // Backward compatibility
+  { value: 'RECHAZADO', label: 'Rechazado', color: 'bg-red-100 text-red-800 border-red-200', icon: XCircle }
 ]
 
 export default function BrokerVentasPage() {
@@ -128,6 +146,7 @@ export default function BrokerVentasPage() {
   const [estadisticas, setEstadisticas] = useState<Estadisticas | null>(null)
   const [loading, setLoading] = useState(true)
   const [filtroEstado, setFiltroEstado] = useState<string>('todos')
+  const [expandedClients, setExpandedClients] = useState<Set<string>>(new Set())
 
   // Estados para filtros avanzados
   const [filtros, setFiltros] = useState({
@@ -177,19 +196,25 @@ export default function BrokerVentasPage() {
 
   const formatearEstado = (estado: string) => {
     const estadoObj = ESTADOS_CONTRATO.find(e => e.value === estado)
-    return estadoObj || { label: estado, color: 'bg-gray-100 text-gray-800', icon: Clock }
-  }
-
-  const formatearPrioridad = (prioridad: string) => {
-    const prioridadObj = PRIORIDADES.find(p => p.value === prioridad)
-    return prioridadObj || { label: prioridad, color: 'bg-gray-100 text-gray-800' }
+    return estadoObj || { label: estado, color: 'bg-gray-100 text-gray-800 border-gray-200', icon: Clock }
   }
 
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('es-ES', {
+    return new Intl.NumberFormat('es-CL', {
       style: 'currency',
-      currency: 'CLP'
+      currency: 'CLP',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
     }).format(amount)
+  }
+
+  const formatDate = (dateString?: string) => {
+    if (!dateString) return '-'
+    return new Date(dateString).toLocaleDateString('es-CL', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    })
   }
 
   const abrirEdicionLead = (lead: Lead) => {
@@ -225,12 +250,12 @@ export default function BrokerVentasPage() {
       const data = await response.json()
 
       if (data.success) {
-        toast.success('Lead actualizado exitosamente')
+        toast.success('Prospecto actualizado exitosamente')
         setEditandoLead(false)
         setLeadEditando(null)
         fetchVentas() // Recargar la lista
       } else {
-        toast.error(data.error || 'Error al actualizar lead')
+        toast.error(data.error || 'Error al actualizar prospecto')
       }
     } catch (error) {
       console.error('Error:', error)
@@ -248,6 +273,21 @@ export default function BrokerVentasPage() {
       montoMax: ''
     })
     setFiltroEstado('todos')
+  }
+
+  const toggleClient = (clienteId: string) => {
+    const newExpandedClients = new Set(expandedClients)
+    if (newExpandedClients.has(clienteId)) {
+      newExpandedClients.delete(clienteId)
+    } else {
+      newExpandedClients.add(clienteId)
+    }
+    setExpandedClients(newExpandedClients)
+  }
+
+  const handleSendWhatsApp = (telefono: string) => {
+    const phoneNumber = telefono.replace(/\D/g, '')
+    window.open(`https://wa.me/${phoneNumber}`, '_blank')
   }
 
   const leadsFiltrados = leads.filter(lead => {
@@ -307,6 +347,33 @@ export default function BrokerVentasPage() {
     return true
   })
 
+  // Agrupar leads por cliente
+  const clientesAgrupados = leadsFiltrados.reduce((acc: ClienteAgrupado[], lead) => {
+    if (!lead.cliente) return acc
+
+    const existingCliente = acc.find(c => c.cliente.id === lead.cliente!.id)
+
+    if (existingCliente) {
+      existingCliente.leads.push(lead)
+      existingCliente.totalReservas++
+      existingCliente.totalMonto += lead.totalLead
+      existingCliente.totalComisiones += lead.comision
+    } else {
+      acc.push({
+        cliente: lead.cliente,
+        leads: [lead],
+        totalReservas: 1,
+        totalMonto: lead.totalLead,
+        totalComisiones: lead.comision
+      })
+    }
+
+    return acc
+  }, [])
+
+  // Ordenar por total de comisiones descendente
+  clientesAgrupados.sort((a, b) => b.totalComisiones - a.totalComisiones)
+
   // Obtener lista única de edificios para el filtro
   const edificiosUnicos = leads
     .map(c => c.unidad?.edificio || c.edificio)
@@ -337,7 +404,7 @@ export default function BrokerVentasPage() {
         <div>
           <h1 className="text-2xl font-bold text-foreground">Mis Prospectos</h1>
           <p className="text-muted-foreground">
-            Seguimiento de todos tus leads y comisiones
+            Vista agrupada por cliente - Seguimiento de reservas y comisiones
           </p>
         </div>
         <div className="flex space-x-2">
@@ -365,7 +432,7 @@ export default function BrokerVentasPage() {
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-muted-foreground">Total Leads</p>
+                  <p className="text-sm font-medium text-muted-foreground">Total Prospectos</p>
                   <p className="text-2xl font-bold">{estadisticas.totalLeads}</p>
                 </div>
                 <Calculator className="h-8 w-8 text-muted-foreground" />
@@ -411,14 +478,14 @@ export default function BrokerVentasPage() {
         </div>
       )}
 
-      {/* Filtros y Tabla */}
+      {/* Filtros y Vista Agrupada */}
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
             <div>
-              <CardTitle>Mis Leads</CardTitle>
+              <CardTitle>Prospectos por Cliente</CardTitle>
               <CardDescription>
-                Lista de todos tus leads generados y su estado actual
+                Vista agrupada mostrando todas las reservas de cada cliente
               </CardDescription>
             </div>
             <div className="flex items-center space-x-2">
@@ -528,16 +595,16 @@ export default function BrokerVentasPage() {
         )}
 
         <CardContent>
-          {leadsFiltrados.length === 0 ? (
+          {clientesAgrupados.length === 0 ? (
             <div className="text-center py-12">
-              <Calculator className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+              <User className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
               <h3 className="text-lg font-medium text-foreground mb-2">
-                {filtroEstado === 'todos' ? 'No tienes leads' : 'No hay leads con este estado'}
+                {filtroEstado === 'todos' ? 'No tienes prospectos' : 'No hay prospectos con este estado'}
               </h3>
               <p className="text-muted-foreground mb-4">
                 {filtroEstado === 'todos'
                   ? 'Comienza generando tu primer lead'
-                  : 'Cambia el filtro para ver otros leads'
+                  : 'Cambia el filtro para ver otros prospectos'
                 }
               </p>
               {filtroEstado === 'todos' && (
@@ -548,139 +615,163 @@ export default function BrokerVentasPage() {
               )}
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Acciones</TableHead>
-                    <TableHead>Cliente</TableHead>
-                    <TableHead>Unidad / Edificio</TableHead>
-                    <TableHead>Estado</TableHead>
-                    <TableHead>Precio</TableHead>
-                    <TableHead>Comisión</TableHead>
-                    <TableHead>Fecha Creación</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {leadsFiltrados.map((lead) => {
-                    const estado = formatearEstado(lead.estado)
-                    const IconoEstado = estado.icon
+            <div className="space-y-2">
+              {clientesAgrupados.map((clienteAgrupado) => {
+                const isExpanded = expandedClients.has(clienteAgrupado.cliente.id)
 
-                    return (
-                      <TableRow key={lead.id}>
-                        <TableCell>
+                return (
+                  <div key={clienteAgrupado.cliente.id} className="border rounded-lg overflow-hidden">
+                    {/* Fila de resumen del cliente */}
+                    <div
+                      className="flex items-center justify-between p-4 bg-muted/30 hover:bg-muted/50 cursor-pointer transition-colors"
+                      onClick={() => toggleClient(clienteAgrupado.cliente.id)}
+                    >
+                      <div className="flex items-center gap-4 flex-1">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 w-8 p-0"
+                        >
+                          {isExpanded ? (
+                            <ChevronDown className="h-4 w-4" />
+                          ) : (
+                            <ChevronRight className="h-4 w-4" />
+                          )}
+                        </Button>
+
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <User className="h-4 w-4 text-muted-foreground" />
+                            <span className="font-semibold text-base">{clienteAgrupado.cliente.nombre}</span>
+                          </div>
+                          <div className="flex items-center gap-2 mt-1">
+                            <CreditCard className="h-3 w-3 text-muted-foreground" />
+                            <span className="text-sm text-muted-foreground">{clienteAgrupado.cliente.rut}</span>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-6">
+                          <div className="text-center">
+                            <p className="text-xs text-muted-foreground">Reservas</p>
+                            <p className="text-lg font-bold">{clienteAgrupado.totalReservas}</p>
+                          </div>
+                          <div className="text-center">
+                            <p className="text-xs text-muted-foreground">Monto Total</p>
+                            <p className="text-lg font-bold">{formatCurrency(clienteAgrupado.totalMonto)}</p>
+                          </div>
+                          <div className="text-center">
+                            <p className="text-xs text-muted-foreground">Comisiones</p>
+                            <p className="text-lg font-bold text-primary">{formatCurrency(clienteAgrupado.totalComisiones)}</p>
+                          </div>
+                        </div>
+
+                        {clienteAgrupado.cliente.telefono && (
                           <Button
                             size="sm"
                             variant="outline"
-                            onClick={() => abrirEdicionLead(lead)}
+                            className="bg-green-50 hover:bg-green-100 text-green-700 border-green-200"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleSendWhatsApp(clienteAgrupado.cliente.telefono!)
+                            }}
                           >
-                            <Edit className="w-4 h-4 mr-2" />
-                            Editar
+                            <MessageCircle className="h-4 w-4" />
                           </Button>
-                        </TableCell>
-                        <TableCell>
-                          <div>
-                            <div className="font-medium">{lead.cliente?.nombre || 'Cliente no disponible'}</div>
-                            <div className="text-sm text-muted-foreground">{lead.cliente?.rut || 'Sin RUT'}</div>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div>
-                            {lead.unidad ? (
-                              <>
-                                <div className="font-medium">
-                                  {lead.unidad.edificio.nombre} - Unidad {lead.unidad.numero}
-                                </div>
-                                <div className="text-sm text-muted-foreground flex items-center">
-                                  <MapPin className="w-3 h-3 mr-1" />
-                                  {lead.unidad.edificio.direccion}
-                                </div>
-                                <div className="text-xs text-muted-foreground">
-                                  {lead.unidad.tipoUnidad.nombre}
-                                </div>
-                              </>
-                            ) : lead.edificio ? (
-                              <>
-                                <div className="font-medium">{lead.edificio.nombre}</div>
-                                <div className="text-sm text-muted-foreground flex items-center">
-                                  <MapPin className="w-3 h-3 mr-1" />
-                                  {lead.edificio.direccion}
-                                </div>
-                                <div className="text-xs text-muted-foreground">
-                                  {lead.codigoUnidad ? `Código manual: ${lead.codigoUnidad}` : 'Lead general'}
-                                </div>
-                              </>
-                            ) : (
-                              <>
-                                <div className="font-medium">Sin edificio especificado</div>
-                                <div className="text-sm text-muted-foreground">
-                                  {lead.codigoUnidad || 'Lead manual'}
-                                </div>
-                              </>
-                            )}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <Badge className={estado.color}>
-                            <IconoEstado className="w-3 h-3 mr-1" />
-                            {estado.label}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <div>
-                            <div className="font-mono font-medium">{formatCurrency(lead.totalLead)}</div>
-                            <div className="text-sm text-muted-foreground">{lead.montoUf} UF</div>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="font-mono font-medium text-green-600">
-                            {formatCurrency(lead.comision)}
-                          </div>
-                          {lead.reglaComision ? (
-                            <div className="text-xs space-y-1 mt-1 p-2 bg-green-50 rounded border">
-                              <div className="flex items-center justify-between">
-                                <span className="font-medium text-green-800">Regla Aplicada:</span>
-                                <span className="text-green-700 font-medium">{(lead.reglaComision.porcentaje * 100).toFixed(1)}%</span>
-                              </div>
-                              <div className="text-green-700">
-                                {lead.reglaComision.comision.nombre}
-                              </div>
-                              <div className="text-green-600 text-[10px]">
-                                Cálculo: {formatCurrency(lead.totalLead)} × {(lead.reglaComision.porcentaje * 100).toFixed(1)}%
-                              </div>
-                              <div className="text-green-600 text-[10px]">
-                                Rango: {lead.reglaComision.cantidadMinima}+
-                                {lead.reglaComision.cantidadMaxima && ` - ${lead.reglaComision.cantidadMaxima}`} leads
-                              </div>
-                            </div>
-                          ) : lead.comisionBase ? (
-                            <div className="text-xs mt-1 p-2 bg-blue-50 rounded border">
-                              <div className="text-blue-700 font-medium">
-                                {lead.comisionBase.nombre}
-                              </div>
-                              <div className="text-blue-600 text-[10px]">
-                                Base: {(lead.comisionBase.porcentaje * 100).toFixed(1)}%
-                              </div>
-                            </div>
-                          ) : (
-                            <div className="text-xs mt-1 p-2 bg-gray-50 rounded border">
-                              <div className="text-gray-600 font-medium">
-                                {lead.unidad?.tipoUnidad.comision ? lead.unidad.tipoUnidad.comision.nombre : 'Comisión Base'}
-                              </div>
-                              <div className="text-gray-500 text-[10px]">
-                                Sin reglas aplicadas
-                              </div>
-                            </div>
-                          )}
-                        </TableCell>
-                        <TableCell className="text-muted-foreground">
-                          {new Date(lead.createdAt).toLocaleDateString('es-ES')}
-                        </TableCell>
-                      </TableRow>
-                    )
-                  })}
-                </TableBody>
-              </Table>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Lista expandible de reservas */}
+                    {isExpanded && (
+                      <div className="p-4 bg-background">
+                        <h4 className="font-semibold mb-3 text-sm flex items-center gap-2">
+                          <Building2 className="h-4 w-4" />
+                          Historial de Reservas ({clienteAgrupado.leads.length})
+                        </h4>
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead className="text-xs">Edificio / Unidad</TableHead>
+                              <TableHead className="text-xs">Estado</TableHead>
+                              <TableHead className="text-xs text-right">Total</TableHead>
+                              <TableHead className="text-xs text-right">Comisión</TableHead>
+                              <TableHead className="text-xs text-center">Check-in</TableHead>
+                              <TableHead className="text-xs">Fecha Creación</TableHead>
+                              <TableHead className="text-xs text-center">Acciones</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {clienteAgrupado.leads.map((lead) => {
+                              const estado = formatearEstado(lead.estado)
+                              const IconoEstado = estado.icon
+
+                              return (
+                                <TableRow key={lead.id} className="text-xs">
+                                  <TableCell>
+                                    {lead.unidad ? (
+                                      <>
+                                        <div className="font-medium">
+                                          {lead.unidad.edificio.nombre}
+                                        </div>
+                                        <div className="text-xs text-muted-foreground">
+                                          Unidad {lead.unidad.numero} - {lead.unidad.tipoUnidad.nombre}
+                                        </div>
+                                      </>
+                                    ) : lead.edificio ? (
+                                      <>
+                                        <div className="font-medium">{lead.edificio.nombre}</div>
+                                        <div className="text-xs text-muted-foreground">
+                                          {lead.codigoUnidad ? `Código: ${lead.codigoUnidad}` : 'Lead general'}
+                                        </div>
+                                      </>
+                                    ) : (
+                                      <div className="text-muted-foreground">Sin edificio</div>
+                                    )}
+                                  </TableCell>
+                                  <TableCell>
+                                    <Badge variant="outline" className={estado.color}>
+                                      <IconoEstado className="w-3 h-3 mr-1" />
+                                      {estado.label}
+                                    </Badge>
+                                  </TableCell>
+                                  <TableCell className="text-right">
+                                    <div className="font-medium">{formatCurrency(lead.totalLead)}</div>
+                                    <div className="text-xs text-muted-foreground">{lead.montoUf} UF</div>
+                                  </TableCell>
+                                  <TableCell className="text-right">
+                                    <div className="font-medium text-primary">{formatCurrency(lead.comision)}</div>
+                                    {lead.reglaComision && (
+                                      <div className="text-xs text-muted-foreground">
+                                        {(lead.reglaComision.porcentaje * 100).toFixed(1)}%
+                                      </div>
+                                    )}
+                                  </TableCell>
+                                  <TableCell className="text-center">
+                                    {lead.fechaCheckin ? '✓' : '-'}
+                                  </TableCell>
+                                  <TableCell>
+                                    {formatDate(lead.createdAt)}
+                                  </TableCell>
+                                  <TableCell className="text-center">
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => abrirEdicionLead(lead)}
+                                    >
+                                      <Edit className="w-3 h-3 mr-1" />
+                                      Editar
+                                    </Button>
+                                  </TableCell>
+                                </TableRow>
+                              )
+                            })}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
             </div>
           )}
         </CardContent>
@@ -690,15 +781,15 @@ export default function BrokerVentasPage() {
       <Dialog open={editandoLead} onOpenChange={setEditandoLead}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Editar Lead</DialogTitle>
+            <DialogTitle>Editar Prospecto</DialogTitle>
             <DialogDescription>
-              Modifica el estado y fechas del lead #{leadEditando?.id.slice(-8)}
+              Modifica el estado y fechas del prospecto #{leadEditando?.id.slice(-8)}
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="estadoEdicion">Estado del Lead</Label>
+              <Label htmlFor="estadoEdicion">Estado del Prospecto</Label>
               <Select value={datosEdicion.estado} onValueChange={(value) => setDatosEdicion({ ...datosEdicion, estado: value })}>
                 <SelectTrigger>
                   <SelectValue />
@@ -719,7 +810,7 @@ export default function BrokerVentasPage() {
                   Fecha Pago de Reserva
                   {leadEditando?.fechaPagoReserva && (
                     <span className="text-xs text-muted-foreground ml-2">
-                      (No se puede modificar después de guardada)
+                      (No se puede modificar)
                     </span>
                   )}
                 </Label>
@@ -735,10 +826,10 @@ export default function BrokerVentasPage() {
 
               <div className="space-y-2">
                 <Label htmlFor="fechaPagoLeadEdicion">
-                  Fecha Pago de Lead
+                  Fecha Pago de Prospecto
                   {leadEditando?.fechaPagoLead && (
                     <span className="text-xs text-muted-foreground ml-2">
-                      (No se puede modificar después de guardada)
+                      (No se puede modificar)
                     </span>
                   )}
                 </Label>
@@ -757,7 +848,7 @@ export default function BrokerVentasPage() {
                   Fecha Check-in
                   {leadEditando?.fechaCheckin && (
                     <span className="text-xs text-muted-foreground ml-2">
-                      (No se puede modificar después de guardada)
+                      (No se puede modificar)
                     </span>
                   )}
                 </Label>

@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { TableHead } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
@@ -87,7 +87,7 @@ interface Lead {
   totalLead: number
   montoUf: number
   comision: number
-  estado: 'ENTREGADO' | 'RESERVA_PAGADA' | 'APROBADO' | 'RECHAZADO'
+  estado: 'INGRESADO' | 'ENTREGADO' | 'EN_EVALUACION' | 'OBSERVADO' | 'APROBADO' | 'RESERVA_PAGADA' | 'CONTRATO_FIRMADO' | 'CONTRATO_PAGADO' | 'DEPARTAMENTO_ENTREGADO' | 'RECHAZADO' | 'CANCELADO'
   fechaPagoReserva?: string
   fechaPagoLead?: string
   fechaCheckin?: string
@@ -106,10 +106,17 @@ interface Lead {
 }
 
 const ESTADOS_LEAD = [
+  { value: 'INGRESADO', label: 'Ingresado', color: 'bg-slate-100 text-slate-800' },
   { value: 'ENTREGADO', label: 'Entregado', color: 'bg-blue-100 text-blue-800' },
-  { value: 'RESERVA_PAGADA', label: 'Reserva Pagada', color: 'bg-yellow-100 text-yellow-800' },
+  { value: 'EN_EVALUACION', label: 'En Evaluación', color: 'bg-purple-100 text-purple-800' },
+  { value: 'OBSERVADO', label: 'Observado', color: 'bg-orange-100 text-orange-800' },
   { value: 'APROBADO', label: 'Aprobado', color: 'bg-green-100 text-green-800' },
-  { value: 'RECHAZADO', label: 'Rechazado', color: 'bg-red-100 text-red-800' }
+  { value: 'RESERVA_PAGADA', label: 'Reserva Pagada', color: 'bg-yellow-100 text-yellow-800' },
+  { value: 'CONTRATO_FIRMADO', label: 'Contrato Firmado', color: 'bg-teal-100 text-teal-800' },
+  { value: 'CONTRATO_PAGADO', label: 'Contrato Pagado', color: 'bg-cyan-100 text-cyan-800' },
+  { value: 'DEPARTAMENTO_ENTREGADO', label: 'Departamento Entregado', color: 'bg-emerald-100 text-emerald-800' },
+  { value: 'RECHAZADO', label: 'Rechazado', color: 'bg-red-100 text-red-800' },
+  { value: 'CANCELADO', label: 'Cancelado', color: 'bg-gray-100 text-gray-800' }
 ]
 
 export default function AdminLeadsPage() {
@@ -138,7 +145,7 @@ export default function AdminLeadsPage() {
     totalLead: string
     montoUf: string
     comision: string
-    estado: 'ENTREGADO' | 'RESERVA_PAGADA' | 'APROBADO' | 'RECHAZADO'
+    estado: 'INGRESADO' | 'ENTREGADO' | 'EN_EVALUACION' | 'OBSERVADO' | 'APROBADO' | 'RESERVA_PAGADA' | 'CONTRATO_FIRMADO' | 'CONTRATO_PAGADO' | 'DEPARTAMENTO_ENTREGADO' | 'RECHAZADO' | 'CANCELADO'
     fechaPagoReserva: string
     fechaPagoLead: string
     fechaCheckin: string
@@ -154,17 +161,17 @@ export default function AdminLeadsPage() {
     totalLead: '',
     montoUf: '',
     comision: '',
-    estado: 'ENTREGADO',
+    estado: 'INGRESADO',
     fechaPagoReserva: '',
     fechaPagoLead: '',
     fechaCheckin: '',
     postulacion: '',
     observaciones: '',
     conciliado: false,
-    brokerId: '',
-    clienteId: '',
-    reglaComisionId: '',
-    comisionId: ''
+    brokerId: 'none',
+    clienteId: 'none',
+    reglaComisionId: 'none',
+    comisionId: 'none'
   })
 
   useEffect(() => {
@@ -336,15 +343,15 @@ export default function AdminLeadsPage() {
       totalLead: '',
       montoUf: '',
       comision: '',
-      estado: 'ENTREGADO',
+      estado: 'INGRESADO',
       fechaPagoReserva: '',
       fechaPagoLead: '',
       fechaCheckin: '',
       postulacion: '',
       observaciones: '',
       conciliado: false,
-      brokerId: '',
-      clienteId: '',
+      brokerId: 'none',
+      clienteId: 'none',
       reglaComisionId: 'none',
       comisionId: 'none'
     })
@@ -364,17 +371,17 @@ export default function AdminLeadsPage() {
       postulacion: lead.postulacion || '',
       observaciones: lead.observaciones || '',
       conciliado: lead.conciliado,
-      brokerId: lead.broker.id,
-      clienteId: lead.cliente.id,
-      reglaComisionId: lead.reglaComision?.id || 'none',
-      comisionId: lead.comisionBase?.id || 'none'
+      brokerId: (lead.broker?.id && lead.broker.id.trim() !== '') ? lead.broker.id : 'none',
+      clienteId: (lead.cliente?.id && lead.cliente.id.trim() !== '') ? lead.cliente.id : 'none',
+      reglaComisionId: (lead.reglaComision?.id && lead.reglaComision.id.trim() !== '') ? lead.reglaComision.id : 'none',
+      comisionId: (lead.comisionBase?.id && lead.comisionBase.id.trim() !== '') ? lead.comisionBase.id : 'none'
     })
     setEditingLead(lead)
     setIsEditDialogOpen(true)
   }
 
   const handleSubmit = async () => {
-    if (!formData.totalLead || !formData.montoUf || !formData.brokerId || !formData.clienteId) {
+    if (!formData.totalLead || !formData.montoUf || !formData.brokerId || formData.brokerId === 'none' || !formData.clienteId || formData.clienteId === 'none') {
       toast.error('Total lead, monto UF, broker y cliente son requeridos')
       return
     }
@@ -393,6 +400,8 @@ export default function AdminLeadsPage() {
         },
         body: JSON.stringify({
           ...formData,
+          brokerId: formData.brokerId === 'none' ? null : formData.brokerId,
+          clienteId: formData.clienteId === 'none' ? null : formData.clienteId,
           reglaComisionId: formData.reglaComisionId === 'none' ? null : formData.reglaComisionId,
           comisionId: formData.comisionId === 'none' ? null : formData.comisionId
         })
@@ -635,10 +644,10 @@ export default function AdminLeadsPage() {
               </p>
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
+            <div className="relative overflow-auto max-h-[calc(100vh-100px)] border rounded-md">
+              <table className="w-full caption-bottom text-sm">
+                <thead className="sticky top-0 bg-background z-10 border-b">
+                  <tr className="border-b transition-colors hover:bg-muted/50">
                     <TableHead>Cliente</TableHead>
                     <TableHead>Broker</TableHead>
                     <TableHead>Proyecto/Unidad</TableHead>
@@ -647,45 +656,45 @@ export default function AdminLeadsPage() {
                     <TableHead>Comisión</TableHead>
                     <TableHead>Fecha</TableHead>
                     <TableHead className="text-right">Acciones</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
+                  </tr>
+                </thead>
+                <tbody className="[&_tr:last-child]:border-0">
                   {filteredLeads.map((lead) => {
                     const estado = formatearEstado(lead.estado)
                     return (
-                      <TableRow key={lead.id}>
-                        <TableCell>
+                      <tr key={lead.id} className="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted">
+                        <td className="p-2 align-middle whitespace-nowrap">
                           <div>
                             <div className="font-medium">{lead.cliente.nombre}</div>
                             <div className="text-sm text-muted-foreground">{lead.cliente.rut}</div>
                           </div>
-                        </TableCell>
-                        <TableCell>
+                        </td>
+                        <td className="p-2 align-middle whitespace-nowrap">
                           <div>
                             <div className="font-medium text-sm">{lead.broker.nombre}</div>
                             <div className="text-xs text-muted-foreground">{lead.broker.rut}</div>
                           </div>
-                        </TableCell>
-                        <TableCell>
+                        </td>
+                        <td className="p-2 align-middle whitespace-nowrap">
                           <div>
                             <div className="font-medium text-sm">{lead.edificio.nombre}</div>
                             <div className="text-xs text-muted-foreground">
                               {lead.unidad ? `Unidad ${lead.unidad.numero}` : lead.codigoUnidad}
                             </div>
                           </div>
-                        </TableCell>
-                        <TableCell>
+                        </td>
+                        <td className="p-2 align-middle whitespace-nowrap">
                           <Badge className={estado.color}>
                             {estado.label}
                           </Badge>
-                        </TableCell>
-                        <TableCell>
+                        </td>
+                        <td className="p-2 align-middle whitespace-nowrap">
                           <div>
                             <div className="font-medium">{formatCurrency(lead.totalLead)}</div>
                             <div className="text-sm text-muted-foreground">{formatUF(lead.montoUf)}</div>
                           </div>
-                        </TableCell>
-                        <TableCell>
+                        </td>
+                        <td className="p-2 align-middle whitespace-nowrap">
                           <div>
                             <div className="font-medium text-green-600">
                               {formatCurrency(lead.comision)}
@@ -725,13 +734,13 @@ export default function AdminLeadsPage() {
                               </div>
                             )}
                           </div>
-                        </TableCell>
-                        <TableCell>
+                        </td>
+                        <td className="p-2 align-middle whitespace-nowrap">
                           <div className="text-sm">
                             {new Date(lead.createdAt).toLocaleDateString('es-ES')}
                           </div>
-                        </TableCell>
-                        <TableCell className="text-right">
+                        </td>
+                        <td className="p-2 align-middle whitespace-nowrap text-right">
                           <Dialog open={isEditDialogOpen && editingLead?.id === lead.id} onOpenChange={(open) => {
                             if (!open) {
                               setIsEditDialogOpen(false)
@@ -767,11 +776,14 @@ export default function AdminLeadsPage() {
                                         <SelectValue placeholder="Seleccionar broker" />
                                       </SelectTrigger>
                                       <SelectContent>
-                                        {brokers.map((broker) => (
-                                          <SelectItem key={broker.id} value={broker.id}>
-                                            {broker.nombre} - {broker.rut}
-                                          </SelectItem>
-                                        ))}
+                                        <SelectItem value="none">Seleccionar broker...</SelectItem>
+                                        {brokers
+                                          .filter(b => b.id && b.id.trim() !== '')
+                                          .map((broker) => (
+                                            <SelectItem key={broker.id} value={broker.id}>
+                                              {broker.nombre} - {broker.rut}
+                                            </SelectItem>
+                                          ))}
                                       </SelectContent>
                                     </Select>
                                   </div>
@@ -783,11 +795,14 @@ export default function AdminLeadsPage() {
                                         <SelectValue placeholder="Seleccionar cliente" />
                                       </SelectTrigger>
                                       <SelectContent>
-                                        {clientes.map((cliente) => (
-                                          <SelectItem key={cliente.id} value={cliente.id}>
-                                            {cliente.nombre} - {cliente.rut}
-                                          </SelectItem>
-                                        ))}
+                                        <SelectItem value="none">Seleccionar cliente...</SelectItem>
+                                        {clientes
+                                          .filter(c => c.id && c.id.trim() !== '')
+                                          .map((cliente) => (
+                                            <SelectItem key={cliente.id} value={cliente.id}>
+                                              {cliente.nombre} - {cliente.rut}
+                                            </SelectItem>
+                                          ))}
                                       </SelectContent>
                                     </Select>
                                   </div>
@@ -806,7 +821,7 @@ export default function AdminLeadsPage() {
 
                                   <div className="grid grid-cols-1 gap-2">
                                     <Label htmlFor="estado">Estado</Label>
-                                    <Select value={formData.estado} onValueChange={(value: string) => setFormData({ ...formData, estado: value })}>
+                                    <Select value={formData.estado} onValueChange={(value) => setFormData({ ...formData, estado: value as Lead['estado'] })}>
                                       <SelectTrigger>
                                         <SelectValue />
                                       </SelectTrigger>
@@ -869,6 +884,7 @@ export default function AdminLeadsPage() {
                                     <SelectContent>
                                       <SelectItem value="none">Sin comisión base específica</SelectItem>
                                       {comisiones
+                                        .filter(c => c.id && c.id.trim() !== '')
                                         .sort((a, b) => a.nombre.localeCompare(b.nombre))
                                         .map((comision) => (
                                           <SelectItem key={comision.id} value={comision.id}>
@@ -891,6 +907,7 @@ export default function AdminLeadsPage() {
                                     <SelectContent>
                                       <SelectItem value="none">Sin regla específica</SelectItem>
                                       {reglasComision
+                                        .filter(r => r.id && r.id.trim() !== '')
                                         .sort((a, b) => a.comision.nombre.localeCompare(b.comision.nombre) || a.cantidadMinima - b.cantidadMinima)
                                         .map((regla) => (
                                           <SelectItem key={regla.id} value={regla.id}>
@@ -987,12 +1004,12 @@ export default function AdminLeadsPage() {
                               </div>
                             </DialogContent>
                           </Dialog>
-                        </TableCell>
-                      </TableRow>
+                        </td>
+                      </tr>
                     )
                   })}
-                </TableBody>
-              </Table>
+                </tbody>
+              </table>
             </div>
           )}
         </CardContent>

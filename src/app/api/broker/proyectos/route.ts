@@ -13,15 +13,8 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    // Obtener proyectos con unidades disponibles
+    // Obtener todos los proyectos sin importar si tienen tipos de unidad o unidades físicas configuradas
     const proyectos = await prisma.edificio.findMany({
-      where: {
-        unidades: {
-          some: {
-            estado: 'DISPONIBLE'
-          }
-        }
-      },
       include: {
         comision: {
           select: {
@@ -38,9 +31,6 @@ export async function GET(request: NextRequest) {
           }
         },
         unidades: {
-          where: {
-            estado: 'DISPONIBLE'
-          },
           include: {
             tipoUnidadEdificio: {
               include: {
@@ -86,7 +76,7 @@ export async function GET(request: NextRequest) {
       email: proyecto.email,
       comision: proyecto.comision,
       totalUnidades: proyecto._count.unidades,
-      unidadesDisponibles: proyecto.unidades.length,
+      unidadesDisponibles: proyecto.unidades.filter(u => u.estado === 'DISPONIBLE').length,
       imagenes: proyecto.imagenes.map(img => ({
         id: img.id,
         url: img.url,

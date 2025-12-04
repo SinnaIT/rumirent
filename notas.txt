@@ -1,0 +1,179 @@
+necesito que actualicemos las entidades del la app estas serian las entidades que quiero cambiar y en las que te vas a basar para cambiar las funcionalidades haz un plan de cambios y ejecutalo paso a paso segun veas necesario:
+model TipoUnidad {
+  id        String   @id @default(cuid())
+  edificioId   String   // Edificio al que se aplicará el cambio
+  comisionId   String  
+  nombre     String  
+  codigo     String  
+  comision Comision @relation(fields: [comisionId], references: [id], onDelete: Cascade)
+  edificio Edificio @relation(fields: [edificioId], references: [id], onDelete: Cascade)
+}
+
+model CambioComisionProgramado {
+  id           String   @id @default(cuid())
+  fechaCambio  DateTime
+  comisionId   String   // Nueva comisión a asignar
+  edificioId   String   // Edificio al que se aplicará el cambio
+  tipoUnidadId String  //este campo debe ser opcional
+  ejecutado    Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relations
+  comision Comision @relation(fields: [comisionId], references: [id], onDelete: Cascade)
+  edificio Edificio @relation(fields: [edificioId], references: [id], onDelete: Cascade)
+  tipoUnidad TipoUnidad @relation(fields: [tipoUnidadId], references: [id], onDelete: Cascade)
+
+  @@map("cambios_comision_programados")
+}
+
+model Unidad {
+  id          String         @id @default(cuid())
+  numero      String
+  tipoUnidadId String
+  estado      EstadoUnidad   @default(DISPONIBLE)
+  tipoUnidad TipoUnidad @relation(fields: [tipoUnidadId], references: [id], onDelete: Cascade)
+  }
+
+y por ultimo para la entidad del lead basate en esta informacion sacada de un excel:
+NO.	PROYECTO,	PRIORIDAD,	RUT CLIENTE	POSTULACION,	NOMBRE DEL CLIENTE,	PESOS,	UF,	COMISIÓN ASESOR, 	ESTADO,	FECHA PAGO DE RESERVA,	FECHA PAGO DE CONTRATO,	FECHA Checkin
+
+
+
+siguen habiendo detalles arreglalos 1 a 1 esta seria la lista:
+- la pagina de brokers esta dando erro al obtenert los datos, tambien pureba que se creen y modifiquen bien
+- en las comisiones quita el apartado de asignacion ya no es necesario con los nuevos cambios
+- en la pantalla de los proyectos recuerda agregar el campo para la comision que se usara por proyecto 
+- en la pantalla de los proyectos agrega un apartado para gestionar los tipos de unidades que se tendran por proyecto
+- en la pantalla de los proyectos agrega soporte para que por proyecto se puedan agregar de manera opcional las unidades
+
+valida cuando el jwt no se a valido o el usuario haya sido borado de la db que envie al login denuevo 
+
+
+
+ok en este caso hay varios cambios:
+- el monto de la comision debe ser solo un campo que sera calculado por el sistema
+- agrega las siguientes fechas FECHA PAGO DE RESERVA,FECHA PAGO DE CONTRATO,FECHA Checkin
+- debe tener los siguientes campos de monto PESOS(totalLead)	UF(MontoUf)
+- agrega un campo de estado que el broker va a ir cambiando usa un enum de esto (Entregado, Reserva Pagada, Aprobado, Rechazada)
+- el cliente agregalo como una entidad asi que aqui solo guarda el id
+- la unidad es opcional 
+- agrega el edificio
+- agrega un campo de codigo de unidad (para casos manuales donde no exista la unidad en la DB)
+- agrega un campo de postulacion 
+
+
+notas rumirent:
+
+--- quitar estado del proyecto LISTO
+--- en comision agregar reglas de comisiones por cantidad de leads generados del mismo tipo de comision
+--- en el lead si intento crear un cliente que me indique si ya otro vendedor lo esta manejando y que la bsuqueda funcione al quitar el cursosr del campo.
+--- crear ventana de clientes . LISTO
+--- crear ventana de leads en el panel admin y que se pueda modificar cualquier campo.
+--- al momento de que un broker actualice alguna de las fechas esta no se debe poder modificarse despues de que se guarde.
+--- error al crear broker con mismo rut.
+--- ventana para gestionar usuarios admin
+
+cambiar nomesclaturas:
+--lead → lead
+--menu: mis prospectos → prospectos
+
+Regla de comision:
+cantidad minima 
+cantidad maxima (opcional)
+porcentaje
+comisionId 
+
+
+--- la fecha de reserva controla la prioridad (el calculo de la comosion por la regla de canidades)
+-(revisar) la fecha del checkin es la que indica el periodo de la comision
+--- hacer un proceso que recalcule las comisiones degun las regla nuevas de comisiones
+- en los reportes tambien agregar el codigo de la comision(prioridad)
+- ventana nueva para Empresa a Cargo
+Assetplan
+BlueHome
+Kodu
+Irentup
+- proceso de importacion de clientes
+- agregar modo oscuro
+- deploy
+
+
+
+
+
+
+
+
+
+
+cat > /opt/rumirent-app/.env << 'EOF'
+POSTGRES_USER=rumirent_prod
+POSTGRES_PASSWORD=4zsAlcmlGUn9y3XgFQx2wgpjIgRKNUrCYdTu8H8CP3g=
+POSTGRES_DB=rumirent_db
+DATABASE_URL=postgresql://rumirent_prod:4zsAlcmlGUn9y3XgFQx2wgpjIgRKNUrCYdTu8H8CP3g=@db:5432/rumirent_db
+JWT_SECRET=AYzOIAVNilLOq2NT64uJdcDmfBLSqPZvVNzVpJ1/1ug=
+JWT_EXPIRES_IN=7d
+NEXTAUTH_URL=http://213.202.211.136:3000
+GITHUB_REPOSITORY=fgonzalezsinnait/rumirent
+NODE_ENV=production
+NEXT_TELEMETRY_DISABLED=1
+EOF
+
+
+
+
+
+aplicar lib de envio de correos
+
+
+panel admin 
+  proyectos 
+    las imagenes de los proyectos no se cargan bien en el servidor de production
+    los tipos de unidades deben ser bidirecionales y un bonton de agregado rapido
+    en el detalle del proyecto faltan los campso de la direccion para 
+  brokers
+    --que permita cambiar el correo del usuario
+  admin user 
+    --no permite modificar el usuario actual
+  leads 
+    el boton de editar no sirve debe ser una pagina aparte donde se pueda ir agregando(cosas futuras) o modificando la informacion actual
+    agregar un boton de enviar correo 
+    agregar un boton de enviar whatsapp
+    el rut debe ser un campo opcional el que deberia ser obligatorio es el whatsapp y modificable todos los campos
+    en el buscador que se elija el campo por el que se va a filtrar
+  prospectos
+    agregar soporte a los estados nuevos
+    verificar las fechas y la funcion de cada una min 30/38 del video mas o menos 
+    permitir editar el proyecto
+  agendas
+    programar las agendas de los procesos programados que se ejecutan cada tantas horas (calcul ode comision y planificacion de cambios de % o prioridades)
+  conciliacion
+    agregar soporte al archivo que mandaron
+  reporte
+    reporte mensual brokers 
+      no esta contabilizando las reservas
+    validar los montos de los reportes(en cada uno que tenga sumatorias agregar un detalle para poder validar mas facil la data)
+
+panel broker 
+    lor proyectos no salen en las paginas si no tienen unidades (dar soporte para que salgan asi no tenga unidad con que tengan solo tipo de unidad debe ser suficiente)
+  dashboard 
+    tambien poner las acciones rapidas de primero
+  proyectos
+    en vez de card que las unidades de vean en una tabla por que si son muchas en card sera dificil verlas bien 
+  mis leads
+    -que puedan editar todos los datos del lead
+    -tambien agregar un vizualizador como en el de admin donde este un resumen general y si se agrega mas info a los leads que se vizuelicen ahi mismo 
+    agregar tambien boton de link a whatsapp
+  mis prospectos 
+    que sea resumen por lead y cuando se le de click despliegue el historial o el detalle de todas sus reservas y la opcion de modificarlos y gestionarlos 
+  generar lead 
+    -agregar un indicador de si hay alguna regla de comision adicional por mas cantidades diga cuantas faltan y si aplcia alguna regla que la aplique directamente al generar el lead 
+    - cuando se seleccione el tipo de unidad y se agregue en nro de unidad manualmente que se cree la unidad en el proyecto de manera automatica 
+
+
+
+
+
+Hay que pedir el SSL 
+

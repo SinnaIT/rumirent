@@ -35,7 +35,8 @@ export async function GET(request: NextRequest) {
         },
         leads: {
           select: {
-            comision: true
+            comision: true,
+            estado:true
           }
         }
       },
@@ -54,7 +55,7 @@ export async function GET(request: NextRequest) {
       birthDate: broker.birthDate?.toISOString(),
       activo: broker.activo,
       ventasRealizadas: broker._count.leads,
-      comisionesTotales: broker.leads.reduce((total, lead) => total + (lead.comision || 0), 0),
+      comisionesTotales: broker.leads.reduce((total, lead) => lead.estado !== 'RECHAZADO' ? total + (lead.comision || 0) : total, 0),
       createdAt: broker.createdAt.toISOString()
     }))
 
@@ -138,7 +139,9 @@ export async function POST(request: NextRequest) {
         birthDate: birthDate ? new Date(birthDate) : undefined,
         password: hashedPassword,
         role: 'BROKER',
-        activo: true
+        activo: true,
+        mustChangePassword: true,
+        lastPasswordChange: null
       },
       select: {
         id: true,

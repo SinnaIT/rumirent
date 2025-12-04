@@ -29,7 +29,8 @@ import {
   CheckCircle,
   XCircle,
   Upload,
-  Link
+  Link,
+  Copy
 } from 'lucide-react'
 import { IconPicker } from '@/components/admin/icon-picker'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -118,6 +119,10 @@ interface EdificioDetail {
   id: string
   nombre: string
   direccion: string
+  ciudad: string
+  comuna: string
+  region: string
+  codigoPostal?: string
   urlGoogleMaps?: string
   telefono?: string
   email?: string
@@ -156,6 +161,10 @@ export default function ProyectoDetailPage() {
   const [infoFormData, setInfoFormData] = useState({
     nombre: '',
     direccion: '',
+    ciudad: '',
+    comuna: '',
+    region: '',
+    codigoPostal: '',
     telefono: '',
     email: '',
     urlGoogleMaps: '',
@@ -168,6 +177,14 @@ export default function ProyectoDetailPage() {
   const [isCreateTipoUnidadDialogOpen, setIsCreateTipoUnidadDialogOpen] = useState(false)
   const [editingTipoUnidad, setEditingTipoUnidad] = useState<TipoUnidadDetail | null>(null)
   const [loadingTiposUnidad, setLoadingTiposUnidad] = useState(false)
+
+  // Plantillas state
+  const [plantillas, setPlantillas] = useState<any[]>([])
+  const [isPlantillasDialogOpen, setIsPlantillasDialogOpen] = useState(false)
+  const [selectedPlantillas, setSelectedPlantillas] = useState<string[]>([])
+  const [plantillaComisionId, setPlantillaComisionId] = useState<string>('none')
+  const [loadingPlantillas, setLoadingPlantillas] = useState(false)
+  const [applyingPlantillas, setApplyingPlantillas] = useState(false)
 
 
   // Form state for unidades
@@ -269,6 +286,10 @@ export default function ProyectoDetailPage() {
         setInfoFormData({
           nombre: data.edificio.nombre || '',
           direccion: data.edificio.direccion || '',
+          ciudad: data.edificio.ciudad || '',
+          comuna: data.edificio.comuna || '',
+          region: data.edificio.region || '',
+          codigoPostal: data.edificio.codigoPostal || '',
           telefono: data.edificio.telefono || '',
           email: data.edificio.email || '',
           urlGoogleMaps: data.edificio.urlGoogleMaps || '',
@@ -632,6 +653,80 @@ export default function ProyectoDetailPage() {
 
 
 
+  // Plantillas functions
+  const fetchPlantillas = async () => {
+    try {
+      setLoadingPlantillas(true)
+      const response = await fetch('/api/admin/plantillas-tipo-unidad?activeOnly=true')
+      const data = await response.json()
+
+      if (data.success) {
+        setPlantillas(data.templates)
+      } else {
+        console.error('Error al cargar plantillas')
+      }
+    } catch (error) {
+      console.error('Error:', error)
+    } finally {
+      setLoadingPlantillas(false)
+    }
+  }
+
+  const handleOpenPlantillasDialog = () => {
+    setSelectedPlantillas([])
+    setPlantillaComisionId('none')
+    fetchPlantillas()
+    setIsPlantillasDialogOpen(true)
+  }
+
+  const handleTogglePlantilla = (plantillaId: string) => {
+    setSelectedPlantillas(prev => {
+      if (prev.includes(plantillaId)) {
+        return prev.filter(id => id !== plantillaId)
+      } else {
+        return [...prev, plantillaId]
+      }
+    })
+  }
+
+  const handleApplyPlantillas = async () => {
+    if (selectedPlantillas.length === 0) {
+      toast.error('Selecciona al menos una plantilla')
+      return
+    }
+
+    try {
+      setApplyingPlantillas(true)
+      const response = await fetch(`/api/admin/edificios/${params.id}/tipos-unidad/bulk-create`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          plantillaIds: selectedPlantillas,
+          comisionId: plantillaComisionId === 'none' ? undefined : plantillaComisionId
+        })
+      })
+
+      const data = await response.json()
+
+      if (data.success) {
+        toast.success(`${data.summary.created} tipos creados, ${data.summary.updated} actualizados`)
+        setIsPlantillasDialogOpen(false)
+        setSelectedPlantillas([])
+        fetchTiposUnidadDetalle()
+        fetchEdificio()
+      } else {
+        toast.error(data.error || 'Error al aplicar plantillas')
+      }
+    } catch (error) {
+      console.error('Error:', error)
+      toast.error('Error de conexión')
+    } finally {
+      setApplyingPlantillas(false)
+    }
+  }
+
   // Tipo Unidad management functions
   const resetTipoUnidadForm = () => {
     setTipoUnidadFormData({
@@ -847,6 +942,10 @@ export default function ProyectoDetailPage() {
       setInfoFormData({
         nombre: edificio.nombre || '',
         direccion: edificio.direccion || '',
+        ciudad: edificio.ciudad || '',
+        comuna: edificio.comuna || '',
+        region: edificio.region || '',
+        codigoPostal: edificio.codigoPostal || '',
         telefono: edificio.telefono || '',
         email: edificio.email || '',
         urlGoogleMaps: edificio.urlGoogleMaps || '',
@@ -862,6 +961,10 @@ export default function ProyectoDetailPage() {
       setInfoFormData({
         nombre: edificio.nombre || '',
         direccion: edificio.direccion || '',
+        ciudad: edificio.ciudad || '',
+        comuna: edificio.comuna || '',
+        region: edificio.region || '',
+        codigoPostal: edificio.codigoPostal || '',
         telefono: edificio.telefono || '',
         email: edificio.email || '',
         urlGoogleMaps: edificio.urlGoogleMaps || '',
@@ -873,6 +976,11 @@ export default function ProyectoDetailPage() {
   const handleSaveInfo = async () => {
     if (!infoFormData.nombre.trim() || !infoFormData.direccion.trim()) {
       toast.error('Nombre y dirección son requeridos')
+      return
+    }
+
+    if (!infoFormData.ciudad.trim() || !infoFormData.comuna.trim() || !infoFormData.region.trim()) {
+      toast.error('Ciudad, comuna y región son requeridos')
       return
     }
 
@@ -1067,14 +1175,86 @@ export default function ProyectoDetailPage() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="direccion">Dirección *</Label>
+                    <Label htmlFor="direccion">Dirección (Calle y Número) *</Label>
                     <Input
                       id="direccion"
                       value={isEditingInfo ? infoFormData.direccion : (edificio?.direccion || '')}
                       onChange={(e) => setInfoFormData({ ...infoFormData, direccion: e.target.value })}
                       disabled={!isEditingInfo}
                       className={!isEditingInfo ? "bg-muted" : ""}
+                      placeholder={isEditingInfo ? "ej: Av. Apoquindo 1234" : ""}
                     />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="ciudad">Ciudad *</Label>
+                    <Input
+                      id="ciudad"
+                      value={isEditingInfo ? infoFormData.ciudad : (edificio?.ciudad || '')}
+                      onChange={(e) => setInfoFormData({ ...infoFormData, ciudad: e.target.value })}
+                      disabled={!isEditingInfo}
+                      className={!isEditingInfo ? "bg-muted" : ""}
+                      placeholder={isEditingInfo ? "ej: Santiago" : "No especificado"}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="comuna">Comuna *</Label>
+                    <Input
+                      id="comuna"
+                      value={isEditingInfo ? infoFormData.comuna : (edificio?.comuna || '')}
+                      onChange={(e) => setInfoFormData({ ...infoFormData, comuna: e.target.value })}
+                      disabled={!isEditingInfo}
+                      className={!isEditingInfo ? "bg-muted" : ""}
+                      placeholder={isEditingInfo ? "ej: Las Condes" : "No especificado"}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="region">Región *</Label>
+                    <Input
+                      id="region"
+                      value={isEditingInfo ? infoFormData.region : (edificio?.region || '')}
+                      onChange={(e) => setInfoFormData({ ...infoFormData, region: e.target.value })}
+                      disabled={!isEditingInfo}
+                      className={!isEditingInfo ? "bg-muted" : ""}
+                      placeholder={isEditingInfo ? "ej: Región Metropolitana" : "No especificado"}
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="codigoPostal">Código Postal</Label>
+                    <Input
+                      id="codigoPostal"
+                      value={isEditingInfo ? infoFormData.codigoPostal : (edificio?.codigoPostal || '')}
+                      onChange={(e) => setInfoFormData({ ...infoFormData, codigoPostal: e.target.value })}
+                      disabled={!isEditingInfo}
+                      className={!isEditingInfo ? "bg-muted" : ""}
+                      placeholder={isEditingInfo ? "ej: 7550000" : "No especificado"}
+                    />
+                  </div>
+                  <div className="space-y-2 md:col-span-2">
+                    <Label htmlFor="urlGoogleMaps">URL Google Maps</Label>
+                    <div className="flex gap-2">
+                      <Input
+                        id="urlGoogleMaps"
+                        value={isEditingInfo ? infoFormData.urlGoogleMaps : (edificio?.urlGoogleMaps || '')}
+                        onChange={(e) => setInfoFormData({ ...infoFormData, urlGoogleMaps: e.target.value })}
+                        disabled={!isEditingInfo}
+                        className={!isEditingInfo ? "bg-muted flex-1" : "flex-1"}
+                        placeholder={isEditingInfo ? "https://maps.google.com/..." : "No especificado"}
+                      />
+                      {!isEditingInfo && edificio?.urlGoogleMaps && (
+                        <Button
+                          variant="outline"
+                          onClick={() => window.open(edificio.urlGoogleMaps, '_blank')}
+                        >
+                          <MapPin className="w-4 h-4" />
+                        </Button>
+                      )}
+                    </div>
                   </div>
                 </div>
 
@@ -1101,28 +1281,6 @@ export default function ProyectoDetailPage() {
                       className={!isEditingInfo ? "bg-muted" : ""}
                       placeholder={isEditingInfo ? "ej: contacto@proyecto.cl" : "No especificado"}
                     />
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="urlGoogleMaps">URL Google Maps</Label>
-                  <div className="flex gap-2">
-                    <Input
-                      id="urlGoogleMaps"
-                      value={isEditingInfo ? infoFormData.urlGoogleMaps : (edificio?.urlGoogleMaps || '')}
-                      onChange={(e) => setInfoFormData({ ...infoFormData, urlGoogleMaps: e.target.value })}
-                      disabled={!isEditingInfo}
-                      className={!isEditingInfo ? "bg-muted flex-1" : "flex-1"}
-                      placeholder={isEditingInfo ? "https://maps.google.com/..." : "No especificado"}
-                    />
-                    {!isEditingInfo && edificio?.urlGoogleMaps && (
-                      <Button
-                        variant="outline"
-                        onClick={() => window.open(edificio.urlGoogleMaps, '_blank')}
-                      >
-                        <MapPin className="w-4 h-4" />
-                      </Button>
-                    )}
                   </div>
                 </div>
 
@@ -1657,14 +1815,19 @@ export default function ProyectoDetailPage() {
                     Gestiona los tipos de unidades disponibles en este proyecto
                   </CardDescription>
                 </div>
-                <Dialog open={isCreateTipoUnidadDialogOpen} onOpenChange={setIsCreateTipoUnidadDialogOpen}>
-                  <DialogTrigger asChild>
-                    <Button onClick={handleOpenCreateTipoUnidadDialog}>
-                      <Plus className="w-4 h-4 mr-2" />
-                      Nuevo Tipo
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent className="sm:max-w-[500px]">
+                <div className="flex gap-2">
+                  <Button variant="outline" onClick={handleOpenPlantillasDialog}>
+                    <Copy className="w-4 h-4 mr-2" />
+                    Aplicar Plantillas
+                  </Button>
+                  <Dialog open={isCreateTipoUnidadDialogOpen} onOpenChange={setIsCreateTipoUnidadDialogOpen}>
+                    <DialogTrigger asChild>
+                      <Button onClick={handleOpenCreateTipoUnidadDialog}>
+                        <Plus className="w-4 h-4 mr-2" />
+                        Nuevo Tipo
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="sm:max-w-[500px]">
                     <DialogHeader>
                       <DialogTitle>
                         {editingTipoUnidad ? 'Editar Tipo de Unidad' : 'Nuevo Tipo de Unidad'}
@@ -1736,8 +1899,9 @@ export default function ProyectoDetailPage() {
                         {saving ? 'Guardando...' : (editingTipoUnidad ? 'Actualizar' : 'Crear')}
                       </Button>
                     </div>
-                  </DialogContent>
-                </Dialog>
+                    </DialogContent>
+                  </Dialog>
+                </div>
               </div>
             </CardHeader>
             <CardContent>
@@ -1861,6 +2025,134 @@ export default function ProyectoDetailPage() {
               )}
             </CardContent>
           </Card>
+
+          {/* Dialog para aplicar plantillas */}
+          <Dialog open={isPlantillasDialogOpen} onOpenChange={setIsPlantillasDialogOpen}>
+            <DialogContent className="sm:max-w-[700px]">
+              <DialogHeader>
+                <DialogTitle>Aplicar Plantillas de Tipos de Unidad</DialogTitle>
+                <DialogDescription>
+                  Selecciona las plantillas que deseas aplicar a este proyecto. Si ya existe un tipo con el mismo código, se actualizará.
+                </DialogDescription>
+              </DialogHeader>
+
+              <ScrollArea className="max-h-[60vh] pr-4">
+                <div className="grid gap-4 py-4">
+                  <div className="grid grid-cols-1 gap-2">
+                    <Label>Comisión para tipos nuevos (opcional)</Label>
+                    <Select
+                      value={plantillaComisionId}
+                      onValueChange={(value: string) => setPlantillaComisionId(value)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Usar comisión del proyecto" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">Usar comisión del proyecto</SelectItem>
+                        {comisiones.map((comision) => (
+                          <SelectItem key={comision.id} value={comision.id}>
+                            {comision.nombre} ({(comision.porcentaje * 100).toFixed(1)}%)
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-muted-foreground">
+                      Solo se aplicará a los tipos que se creen nuevos. Los tipos existentes mantendrán su comisión actual.
+                    </p>
+                  </div>
+
+                  {loadingPlantillas ? (
+                    <div className="flex items-center justify-center py-8">
+                      <div className="text-center">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+                        <p className="mt-2 text-sm text-muted-foreground">Cargando plantillas...</p>
+                      </div>
+                    </div>
+                  ) : plantillas.length === 0 ? (
+                    <div className="text-center py-8 border rounded-lg bg-muted/50">
+                      <Settings className="h-12 w-12 text-muted-foreground mx-auto mb-2" />
+                      <p className="text-sm text-muted-foreground">
+                        No hay plantillas disponibles
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <Label>Plantillas Disponibles</Label>
+                      <div className="border rounded-lg divide-y">
+                        {plantillas.map((plantilla) => (
+                          <div
+                            key={plantilla.id}
+                            className="flex items-center justify-between p-3 hover:bg-muted/50 cursor-pointer"
+                            onClick={() => handleTogglePlantilla(plantilla.id)}
+                          >
+                            <div className="flex items-center space-x-3 flex-1">
+                              <Checkbox
+                                checked={selectedPlantillas.includes(plantilla.id)}
+                                onCheckedChange={() => handleTogglePlantilla(plantilla.id)}
+                              />
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2">
+                                  <p className="font-medium">{plantilla.nombre}</p>
+                                  <Badge variant="outline" className="text-xs">
+                                    {plantilla.codigo}
+                                  </Badge>
+                                </div>
+                                {(plantilla.bedrooms || plantilla.bathrooms || plantilla.descripcion) && (
+                                  <div className="flex gap-3 mt-1">
+                                    {plantilla.bedrooms && (
+                                      <p className="text-xs text-muted-foreground">
+                                        {plantilla.bedrooms} dorm.
+                                      </p>
+                                    )}
+                                    {plantilla.bathrooms && (
+                                      <p className="text-xs text-muted-foreground">
+                                        {plantilla.bathrooms} baños
+                                      </p>
+                                    )}
+                                    {plantilla.descripcion && (
+                                      <p className="text-xs text-muted-foreground">
+                                        {plantilla.descripcion}
+                                      </p>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                              {plantilla.usageCount > 0 && (
+                                <Badge variant="secondary" className="text-xs">
+                                  Usado {plantilla.usageCount}x
+                                </Badge>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                      {selectedPlantillas.length > 0 && (
+                        <p className="text-sm text-muted-foreground">
+                          {selectedPlantillas.length} plantilla{selectedPlantillas.length !== 1 ? 's' : ''} seleccionada{selectedPlantillas.length !== 1 ? 's' : ''}
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </ScrollArea>
+
+              <div className="flex justify-end space-x-2">
+                <Button
+                  variant="outline"
+                  onClick={() => setIsPlantillasDialogOpen(false)}
+                  disabled={applyingPlantillas}
+                >
+                  Cancelar
+                </Button>
+                <Button
+                  onClick={handleApplyPlantillas}
+                  disabled={applyingPlantillas || selectedPlantillas.length === 0}
+                >
+                  {applyingPlantillas ? 'Aplicando...' : `Aplicar${selectedPlantillas.length > 0 ? ` (${selectedPlantillas.length})` : ''}`}
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
         </TabsContent>
 
         <TabsContent value="unidades" className="space-y-4">

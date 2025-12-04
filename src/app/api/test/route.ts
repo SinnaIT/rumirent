@@ -14,8 +14,7 @@ export async function GET(request: NextRequest) {
       select: {
         id: true,
         nombre: true,
-        direccion: true,
-        estado: true
+        direccion: true
       }
     })
     console.log('🏢 Edificios simple query:', edificios)

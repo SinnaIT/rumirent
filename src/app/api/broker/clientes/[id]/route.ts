@@ -19,6 +19,28 @@ export async function GET(
       where: {
         id: params.id,
         brokerId: authResult.user.id // Solo puede ver sus propios clientes
+      },
+      include: {
+        leads: {
+          select: {
+            id: true,
+            codigoUnidad: true,
+            totalLead: true,
+            montoUf: true,
+            estado: true,
+            comision: true,
+            fechaCheckin: true,
+            createdAt: true,
+            edificio: {
+              select: {
+                nombre: true
+              }
+            }
+          },
+          orderBy: {
+            createdAt: 'desc'
+          }
+        }
       }
     })
 
@@ -29,9 +51,27 @@ export async function GET(
       )
     }
 
+    // Format response
+    const response = {
+      ...cliente,
+      leads: cliente.leads.map(lead => ({
+        id: lead.id,
+        clienteNombre: cliente.nombre,
+        clienteRut: cliente.rut,
+        edificioNombre: lead.edificio.nombre,
+        codigoUnidad: lead.codigoUnidad,
+        totalLead: lead.totalLead,
+        montoUf: lead.montoUf,
+        estado: lead.estado,
+        comision: lead.comision,
+        fechaCheckin: lead.fechaCheckin,
+        createdAt: lead.createdAt
+      }))
+    }
+
     return NextResponse.json({
       success: true,
-      cliente
+      cliente: response
     })
 
   } catch (error) {
@@ -72,16 +112,43 @@ export async function PUT(
     }
 
     const body = await request.json()
-    const { telefono, email, direccion, fechaNacimiento } = body
+    const { nombre, rut, telefono, email, direccion, fechaNacimiento } = body
 
-    // Actualizar solo los campos permitidos
+    // Validar campos requeridos
+    if (!nombre || !telefono) {
+      return NextResponse.json(
+        { success: false, error: 'Nombre y teléfono (WhatsApp) son requeridos' },
+        { status: 400 }
+      )
+    }
+
+    // Verificar duplicados de RUT si se proporciona y es diferente
+    if (rut && rut !== existingCliente.rut) {
+      const duplicateRut = await prisma.cliente.findFirst({
+        where: {
+          rut,
+          id: { not: params.id }
+        }
+      })
+
+      if (duplicateRut) {
+        return NextResponse.json(
+          { success: false, error: 'Ya existe un cliente con este RUT' },
+          { status: 400 }
+        )
+      }
+    }
+
+    // Actualizar cliente
     const clienteActualizado = await prisma.cliente.update({
       where: { id: params.id },
       data: {
-        telefono: telefono !== undefined ? telefono : undefined,
-        email: email !== undefined ? email : undefined,
-        direccion: direccion !== undefined ? direccion : undefined,
-        fechaNacimiento: fechaNacimiento ? new Date(fechaNacimiento) : undefined
+        nombre,
+        rut: rut || null,
+        telefono,
+        email: email || null,
+        direccion: direccion || null,
+        fechaNacimiento: fechaNacimiento ? new Date(fechaNacimiento) : null
       }
     })
 

@@ -17,7 +17,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Loader2, ChevronDown, ChevronRight } from "lucide-react";
 
 const MESES = [
   { value: "1", label: "Enero" },
@@ -34,6 +35,18 @@ const MESES = [
   { value: "12", label: "Diciembre" },
 ];
 
+interface LeadDetail {
+  id: string;
+  clienteNombre: string;
+  clienteRut: string;
+  edificioNombre: string;
+  codigoUnidad: string;
+  totalLead: number;
+  comision: number;
+  estado: string;
+  fechaCheckin: string | null;
+}
+
 interface BrokerData {
   brokerId: string;
   nombre: string;
@@ -44,6 +57,7 @@ interface BrokerData {
   anticipos: number;
   despAnticipo: number;
   liquido: number;
+  leads: LeadDetail[];
 }
 
 interface ReportData {
@@ -66,6 +80,7 @@ export default function ReporteBrokersMensual() {
   const [data, setData] = useState<ReportData | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
 
   // Generate years array (current year and 5 years back)
   const anios = Array.from({ length: 6 }, (_, i) => {
@@ -107,6 +122,16 @@ export default function ReporteBrokersMensual() {
       minimumFractionDigits: 0,
       maximumFractionDigits: 0,
     }).format(amount);
+  };
+
+  const toggleRow = (brokerId: string) => {
+    const newExpandedRows = new Set(expandedRows);
+    if (newExpandedRows.has(brokerId)) {
+      newExpandedRows.delete(brokerId);
+    } else {
+      newExpandedRows.add(brokerId);
+    }
+    setExpandedRows(newExpandedRows);
   };
 
   return (
@@ -187,6 +212,7 @@ export default function ReporteBrokersMensual() {
                 <Table>
                   <TableHeader>
                     <TableRow>
+                      <TableHead className="w-12"></TableHead>
                       <TableHead>Nombre</TableHead>
                       <TableHead>Mes</TableHead>
                       <TableHead className="text-right">Reservas</TableHead>
@@ -198,34 +224,109 @@ export default function ReporteBrokersMensual() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {data.brokers.map((broker) => (
-                      <TableRow key={broker.brokerId}>
-                        <TableCell className="font-medium">
-                          {broker.nombre}
-                        </TableCell>
-                        <TableCell>{broker.mes}</TableCell>
-                        <TableCell className="text-right">
-                          {broker.reservas}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          {broker.checkin}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          {formatCurrency(broker.montoBruto)}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          {formatCurrency(broker.anticipos)}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          {formatCurrency(broker.despAnticipo)}
-                        </TableCell>
-                        <TableCell className="text-right font-medium">
-                          {formatCurrency(broker.liquido)}
-                        </TableCell>
-                      </TableRow>
-                    ))}
+                    {data.brokers.map((broker) => {
+                      const isExpanded = expandedRows.has(broker.brokerId);
+                      return (
+                        <>
+                          <TableRow key={broker.brokerId} className="cursor-pointer hover:bg-muted/50">
+                            <TableCell>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => toggleRow(broker.brokerId)}
+                                className="h-8 w-8 p-0"
+                              >
+                                {isExpanded ? (
+                                  <ChevronDown className="h-4 w-4" />
+                                ) : (
+                                  <ChevronRight className="h-4 w-4" />
+                                )}
+                              </Button>
+                            </TableCell>
+                            <TableCell className="font-medium">
+                              {broker.nombre}
+                            </TableCell>
+                            <TableCell>{broker.mes}</TableCell>
+                            <TableCell className="text-right">
+                              {broker.reservas}
+                            </TableCell>
+                            <TableCell className="text-right">
+                              {broker.checkin}
+                            </TableCell>
+                            <TableCell className="text-right">
+                              {formatCurrency(broker.montoBruto)}
+                            </TableCell>
+                            <TableCell className="text-right">
+                              {formatCurrency(broker.anticipos)}
+                            </TableCell>
+                            <TableCell className="text-right">
+                              {formatCurrency(broker.despAnticipo)}
+                            </TableCell>
+                            <TableCell className="text-right font-medium">
+                              {formatCurrency(broker.liquido)}
+                            </TableCell>
+                          </TableRow>
+                          {isExpanded && (
+                            <TableRow key={`${broker.brokerId}-details`}>
+                              <TableCell colSpan={9} className="bg-muted/20 p-0">
+                                <div className="p-4">
+                                  <h4 className="font-semibold mb-2 text-sm">
+                                    Detalle de Prospectos ({broker.leads.length})
+                                  </h4>
+                                  <div className="border rounded-md">
+                                    <Table>
+                                      <TableHeader>
+                                        <TableRow>
+                                          <TableHead className="text-xs">Cliente</TableHead>
+                                          <TableHead className="text-xs">RUT</TableHead>
+                                          <TableHead className="text-xs">Edificio</TableHead>
+                                          <TableHead className="text-xs">Unidad</TableHead>
+                                          <TableHead className="text-xs">Estado</TableHead>
+                                          <TableHead className="text-xs text-right">Total</TableHead>
+                                          <TableHead className="text-xs text-right">Comisión</TableHead>
+                                          <TableHead className="text-xs text-center">Check-in</TableHead>
+                                        </TableRow>
+                                      </TableHeader>
+                                      <TableBody>
+                                        {broker.leads.map((lead) => (
+                                          <TableRow key={lead.id} className="text-xs">
+                                            <TableCell>{lead.clienteNombre}</TableCell>
+                                            <TableCell>{lead.clienteRut}</TableCell>
+                                            <TableCell>{lead.edificioNombre}</TableCell>
+                                            <TableCell>{lead.codigoUnidad}</TableCell>
+                                            <TableCell>
+                                              <span className={`px-2 py-1 rounded-full text-xs ${
+                                                lead.estado === 'ENTREGADO' ? 'bg-green-100 text-green-800' :
+                                                lead.estado === 'RESERVA_PAGADA' ? 'bg-blue-100 text-blue-800' :
+                                                lead.estado === 'APROBADO' ? 'bg-yellow-100 text-yellow-800' :
+                                                'bg-gray-100 text-gray-800'
+                                              }`}>
+                                                {lead.estado}
+                                              </span>
+                                            </TableCell>
+                                            <TableCell className="text-right">
+                                              {formatCurrency(lead.totalLead)}
+                                            </TableCell>
+                                            <TableCell className="text-right font-medium">
+                                              {formatCurrency(lead.comision)}
+                                            </TableCell>
+                                            <TableCell className="text-center">
+                                              {lead.fechaCheckin ? '✓' : '-'}
+                                            </TableCell>
+                                          </TableRow>
+                                        ))}
+                                      </TableBody>
+                                    </Table>
+                                  </div>
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          )}
+                        </>
+                      );
+                    })}
                     <TableRow className="bg-muted/50 font-bold">
-                      <TableCell colSpan={2}>TOTALES</TableCell>
+                      <TableCell colSpan={3}>TOTALES</TableCell>
                       <TableCell className="text-right">
                         {data.totales.reservas}
                       </TableCell>

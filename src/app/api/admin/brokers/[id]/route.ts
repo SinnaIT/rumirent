@@ -108,12 +108,12 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
 
     const { id } = await params
     const body = await request.json()
-    const { nombre, rut, telefono, birthDate, password } = body
+    const { email, nombre, rut, telefono, birthDate, password } = body
 
     // Validaciones básicas
-    if (!nombre || !rut) {
+    if (!nombre || !rut || !email) {
       return NextResponse.json(
-        { error: 'El nombre y RUT son requeridos' },
+        { error: 'El nombre, RUT y email son requeridos' },
         { status: 400 }
       )
     }
@@ -133,6 +133,20 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       )
     }
 
+    // Verificar si el email ya existe en otro usuario
+    if (email !== existingbroker.email) {
+      const existingEmail = await prisma.user.findUnique({
+        where: { email }
+      })
+
+      if (existingEmail) {
+        return NextResponse.json(
+          { error: 'Ya existe un usuario con este email' },
+          { status: 400 }
+        )
+      }
+    }
+
     // Verificar si el RUT ya existe en otro usuario
     if (rut !== existingbroker.rut) {
       const existingRut = await prisma.user.findUnique({
@@ -149,20 +163,23 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
 
     // Preparar datos de actualización
     const updateData: {
+      email: string
       nombre: string
       rut: string
       telefono: string | null
       birthDate: Date | null
-      email?: string
       password?: string
+      mustChangePassword?: boolean
+      lastPasswordChange?: Date
     } = {
+      email,
       nombre,
       rut,
       telefono: telefono || null,
       birthDate: birthDate ? new Date(birthDate) : null
     }
 
-    // Si se proporciona nueva contraseña, hashearla
+    // Si se proporciona nueva contraseña, hashearla y forzar cambio
     if (password) {
       if (password.length < 6) {
         return NextResponse.json(
@@ -171,6 +188,9 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
         )
       }
       updateData.password = await bcrypt.hash(password, 12)
+      // Cuando admin cambia password, forzar cambio en próximo login
+      updateData.mustChangePassword = true
+      updateData.lastPasswordChange = new Date()
     }
 
     // Actualizar broker

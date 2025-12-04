@@ -151,12 +151,14 @@ export default function BrokersPage() {
 
     try {
       const updateData: {
+        email: string
         nombre: string
         rut: string
         telefono?: string
         birthDate?: string
         password?: string
       } = {
+        email: formData.email,
         nombre: formData.nombre,
         rut: formData.rut,
         telefono: formData.telefono || undefined,
@@ -315,7 +317,7 @@ export default function BrokersPage() {
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Ventas Totales</CardTitle>
+            <CardTitle className="text-sm font-medium">Arriendos Totales</CardTitle>
             <Calendar className="h-4 w-4 text-accent" />
           </CardHeader>
           <CardContent>
@@ -354,7 +356,7 @@ export default function BrokersPage() {
                   <TableHead>Email</TableHead>
                   <TableHead>Teléfono</TableHead>
                   <TableHead>Estado</TableHead>
-                  <TableHead>Ventas</TableHead>
+                  <TableHead>Arriendos</TableHead>
                   <TableHead>Comisiones</TableHead>
                   <TableHead>Registro</TableHead>
                   <TableHead>Acciones</TableHead>
@@ -574,10 +576,10 @@ export default function BrokersPage() {
                 id="edit-email"
                 type="email"
                 value={formData.email}
-                disabled
-                className="bg-muted"
+                onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
+                required
               />
-              <p className="text-xs text-muted-foreground">El email no se puede modificar</p>
+              <p className="text-xs text-muted-foreground">Como administrador, puedes cambiar el email del broker</p>
             </div>
             <div className="space-y-2">
               <Label htmlFor="edit-telefono">Teléfono</Label>

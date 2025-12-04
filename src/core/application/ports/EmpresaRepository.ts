@@ -1,4 +1,5 @@
 import { Empresa } from '@/core/domain/entities/Empresa'
+import { TipoEntidad } from '@/core/domain/enums'
 
 /**
  * Port (Interface) para el repositorio de Empresa
@@ -23,7 +24,12 @@ export interface EmpresaRepository {
   /**
    * Obtiene todas las empresas
    */
-  findAll(options?: { activeOnly?: boolean }): Promise<Empresa[]>
+  findAll(options?: { activeOnly?: boolean; tipo?: TipoEntidad }): Promise<Empresa[]>
+
+  /**
+   * Busca empresas por tipo
+   */
+  findByTipo(tipo: TipoEntidad, options?: { activeOnly?: boolean }): Promise<Empresa[]>
 
   /**
    * Actualiza una empresa existente

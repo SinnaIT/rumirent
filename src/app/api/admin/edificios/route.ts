@@ -25,8 +25,17 @@ export async function GET(request: NextRequest) {
 
     console.log('✅ Usuario autorizado, consultando edificios...')
 
+    // Get empresaId filter from query params
+    const { searchParams } = new URL(request.url)
+    const empresaId = searchParams.get('empresaId')
+
+    if (empresaId) {
+      console.log(`🔍 Filtrando por empresa: ${empresaId}`)
+    }
+
     // Obtener edificios con estadísticas de unidades, comisión y empresa
     const edificios = await prisma.edificio.findMany({
+      where: empresaId ? { empresaId } : {},
       include: {
         _count: {
           select: {
