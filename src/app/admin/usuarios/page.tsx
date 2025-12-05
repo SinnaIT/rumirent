@@ -19,17 +19,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from '@/components/ui/alert-dialog'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { ScrollArea } from '@/components/ui/scroll-area'
@@ -38,7 +27,6 @@ import {
   Plus,
   Search,
   Edit,
-  Trash2,
   Mail,
   Phone,
   Calendar,
@@ -199,26 +187,6 @@ export default function UsuariosPage() {
     }
   }
 
-  // Eliminar usuario
-  const handleDeleteUsuario = async (id: string) => {
-    try {
-      const response = await fetch(`/api/admin/usuarios/${id}`, {
-        method: 'DELETE'
-      })
-
-      if (!response.ok) {
-        const error = await response.json()
-        throw new Error(error.error || error.message || 'Error al eliminar usuario')
-      }
-
-      toast.success('Usuario eliminado exitosamente')
-      fetchUsuarios()
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Error desconocido'
-      toast.error(message)
-    }
-  }
-
   // Toggle activo/inactivo
   const handleToggleStatus = async (id: string, currentStatus: boolean) => {
     try {
@@ -349,13 +317,13 @@ export default function UsuariosPage() {
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead>Acciones</TableHead>
                   <TableHead>Nombre</TableHead>
                   <TableHead>RUT</TableHead>
                   <TableHead>Email</TableHead>
                   <TableHead>Teléfono</TableHead>
                   <TableHead>Estado</TableHead>
                   <TableHead>Creado</TableHead>
-                  <TableHead>Acciones</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -368,6 +336,15 @@ export default function UsuariosPage() {
                 ) : (
                   filteredUsuarios.map((usuario) => (
                     <TableRow key={usuario.id}>
+                      <TableCell>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => openEditModal(usuario)}
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                      </TableCell>
                       <TableCell className="font-medium">{usuario.nombre}</TableCell>
                       <TableCell className="font-mono text-sm">{usuario.rut}</TableCell>
                       <TableCell>
@@ -399,42 +376,6 @@ export default function UsuariosPage() {
                       </TableCell>
                       <TableCell className="text-sm text-muted-foreground">
                         {new Date(usuario.createdAt).toLocaleDateString()}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => openEditModal(usuario)}
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                              <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive">
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                              <AlertDialogHeader>
-                                <AlertDialogTitle>¿Eliminar usuario admin?</AlertDialogTitle>
-                                <AlertDialogDescription>
-                                  Esta acción no se puede deshacer. Se eliminará permanentemente el usuario
-                                  <strong> {usuario.nombre}</strong> y perderá acceso al sistema.
-                                </AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter>
-                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                <AlertDialogAction
-                                  onClick={() => handleDeleteUsuario(usuario.id)}
-                                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                                >
-                                  Eliminar
-                                </AlertDialogAction>
-                              </AlertDialogFooter>
-                            </AlertDialogContent>
-                          </AlertDialog>
-                        </div>
                       </TableCell>
                     </TableRow>
                   ))

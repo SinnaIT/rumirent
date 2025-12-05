@@ -19,17 +19,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from '@/components/ui/alert-dialog'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import {
@@ -37,7 +26,6 @@ import {
   Plus,
   Search,
   Edit,
-  Trash2,
   Mail,
   Phone,
   Calendar,
@@ -191,26 +179,6 @@ export default function BrokersPage() {
     }
   }
 
-  // Eliminar broker
-  const handleDeleteBroker = async (id: string) => {
-    try {
-      const response = await fetch(`/api/admin/brokers/${id}`, {
-        method: 'DELETE'
-      })
-
-      if (!response.ok) {
-        const error = await response.json()
-        throw new Error(error.error || error.message || 'Error al eliminar broker')
-      }
-
-      toast.success('Broker eliminado exitosamente')
-      fetchBrokers()
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Error desconocido'
-      toast.error(message)
-    }
-  }
-
   // Toggle activo/inactivo
   const handleToggleStatus = async (id: string, currentStatus: boolean) => {
     try {
@@ -351,6 +319,7 @@ export default function BrokersPage() {
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead>Acciones</TableHead>
                   <TableHead>Nombre</TableHead>
                   <TableHead>RUT</TableHead>
                   <TableHead>Email</TableHead>
@@ -359,7 +328,6 @@ export default function BrokersPage() {
                   <TableHead>Arriendos</TableHead>
                   <TableHead>Comisiones</TableHead>
                   <TableHead>Registro</TableHead>
-                  <TableHead>Acciones</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -372,6 +340,15 @@ export default function BrokersPage() {
                 ) : (
                   filteredBrokers.map((broker) => (
                     <TableRow key={broker.id}>
+                      <TableCell>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => openEditModal(broker)}
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                      </TableCell>
                       <TableCell className="font-medium">{broker.nombre}</TableCell>
                       <TableCell className="font-mono text-sm">{broker.rut}</TableCell>
                       <TableCell>
@@ -407,42 +384,6 @@ export default function BrokersPage() {
                       </TableCell>
                       <TableCell className="text-sm text-muted-foreground">
                         {new Date(broker.createdAt).toLocaleDateString()}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => openEditModal(broker)}
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                              <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive">
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                              <AlertDialogHeader>
-                                <AlertDialogTitle>¿Eliminar broker?</AlertDialogTitle>
-                                <AlertDialogDescription>
-                                  Esta acción no se puede deshacer. Se eliminará permanentemente el broker
-                                  <strong> {broker.nombre}</strong> y toda su información asociada.
-                                </AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter>
-                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                <AlertDialogAction
-                                  onClick={() => handleDeleteBroker(broker.id)}
-                                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                                >
-                                  Eliminar
-                                </AlertDialogAction>
-                              </AlertDialogFooter>
-                            </AlertDialogContent>
-                          </AlertDialog>
-                        </div>
                       </TableCell>
                     </TableRow>
                   ))

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -81,6 +81,7 @@ export default function ProyectosPage() {
   const [filterField, setFilterField] = useState<FilterField>('all')
   const [searchTerm, setSearchTerm] = useState('')
   const [empresaIdFilter, setEmpresaIdFilter] = useState<string | null>(null)
+  const [urlFilters, setUrlFilters] = useState<Record<string, string>>({})
 
   // Form state
   const [formData, setFormData] = useState({
@@ -96,33 +97,33 @@ export default function ProyectosPage() {
   })
 
   useEffect(() => {
-    // Check for empresaId in URL params
+    // Check for empresaId in URL params and find the company name
     const empresaIdParam = searchParams.get('empresaId')
-    console.log('🔗 URL empresaId param:', empresaIdParam)
-    if (empresaIdParam) {
-      console.log('✅ Setting empresaIdFilter to:', empresaIdParam)
-      setEmpresaIdFilter(empresaIdParam)
-      setFilterField('empresa')
-    }
-  }, [searchParams])
 
-  useEffect(() => {
-    fetchEdificios()
-    fetchComisiones()
-    fetchEmpresas()
-  }, [empresaIdFilter])
+    if (empresaIdParam && empresas.length > 0) {
+      console.log('✅ empresaId from URL:', empresaIdParam)
+
+      // Find the empresa by ID
+      const empresa = empresas.find(e => e.id === empresaIdParam)
+
+      if (empresa) {
+        console.log('✅ Found empresa:', empresa.nombre)
+
+        // Set the search term to the company name
+        setSearchTerm(empresa.nombre)
+        setFilterField('empresa')
+        setEmpresaIdFilter(empresaIdParam)
+
+        // Store in urlFilters for the badge display
+        setUrlFilters({ empresaId: empresaIdParam })
+      }
+    }
+  }, [searchParams, empresas])
 
   const fetchEdificios = async () => {
     try {
       setLoading(true)
-      const url = empresaIdFilter
-        ? `/api/admin/edificios?empresaId=${empresaIdFilter}`
-        : '/api/admin/edificios'
-
-      console.log('🔍 Fetching edificios with URL:', url)
-      console.log('📊 empresaIdFilter:', empresaIdFilter)
-
-      const response = await fetch(url)
+      const response = await fetch('/api/admin/edificios')
       const data = await response.json()
 
       if (data.success) {
@@ -138,6 +139,13 @@ export default function ProyectosPage() {
       setLoading(false)
     }
   }
+
+  // Initial load
+  useEffect(() => {
+    fetchEdificios()
+    fetchComisiones()
+    fetchEmpresas()
+  }, [])
 
   const fetchComisiones = async () => {
     try {
@@ -279,7 +287,18 @@ export default function ProyectosPage() {
     setSearchTerm('')
     setFilterField('all')
     setEmpresaIdFilter(null)
+    setUrlFilters({})
     router.push('/admin/proyectos')
+  }
+
+  const clearSpecificFilter = (filterKey: string) => {
+    if (filterKey === 'empresaId') {
+      setSearchTerm('')
+      setFilterField('all')
+      setEmpresaIdFilter(null)
+      setUrlFilters({})
+      router.push('/admin/proyectos')
+    }
   }
 
   // Filter logic - only apply text search if there's a search term
@@ -509,35 +528,6 @@ export default function ProyectosPage() {
         </div>
       </div>
 
-      {/* Active filter badge */}
-      {activeEmpresaFilter && (
-        <Card className="bg-blue-50 border-blue-200">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Building2 className="h-5 w-5 text-blue-600" />
-                <div>
-                  <p className="text-sm font-medium text-blue-900">
-                    Filtrando por empresa
-                  </p>
-                  <p className="text-xs text-blue-700">
-                    {activeEmpresaFilter.nombre} ({activeEmpresaFilter.rut})
-                  </p>
-                </div>
-              </div>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={clearFilters}
-                className="text-blue-700 hover:text-blue-900 hover:bg-blue-100"
-              >
-                <X className="w-4 h-4 mr-1" />
-                Limpiar filtro
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      )}
 
       {/* Stats Cards */}
       {edificios.length > 0 && (
@@ -575,7 +565,7 @@ export default function ProyectosPage() {
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-muted-foreground">Unidades Vendidas</p>
+                  <p className="text-sm font-medium text-muted-foreground">Unidades Arrendadas</p>
                   <p className="text-2xl font-bold">
                     {filteredEdificios.reduce((sum, e) => sum + e.unidadesVendidas, 0)}
                   </p>
@@ -683,19 +673,70 @@ export default function ProyectosPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead className="w-[120px]">Acciones</TableHead>
                     <TableHead>Proyecto</TableHead>
                     <TableHead>Empresa</TableHead>
                     <TableHead>Comisión</TableHead>
                     <TableHead>Unidades</TableHead>
-                    <TableHead>Vendidas</TableHead>
+                    <TableHead>Arrendadas</TableHead>
                     <TableHead>Fecha Creación</TableHead>
-                    <TableHead className="text-right">Acciones</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {filteredEdificios.map((edificio) => {
                     return (
                       <TableRow key={edificio.id}>
+                        <TableCell>
+                          <div className="flex items-center space-x-1">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => router.push(`/admin/proyectos/${edificio.id}`)}
+                              title="Ver detalles"
+                            >
+                              <Eye className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleOpenEditDialog(edificio)}
+                              title="Editar"
+                            >
+                              <Edit className="w-4 h-4" />
+                            </Button>
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="text-destructive hover:text-destructive"
+                                  disabled={edificio.totalUnidades > 0}
+                                  title={edificio.totalUnidades > 0 ? "No se puede eliminar con unidades" : "Eliminar"}
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>¿Eliminar proyecto?</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    Esta acción eliminará permanentemente el proyecto &quot;{edificio.nombre}&quot;.
+                                    Esta acción no se puede deshacer.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                  <AlertDialogAction
+                                    onClick={() => handleDelete(edificio)}
+                                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                  >
+                                    Eliminar
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          </div>
+                        </TableCell>
                         <TableCell>
                           <div>
                             <div className="font-medium">{edificio.nombre}</div>
@@ -756,54 +797,6 @@ export default function ProyectosPage() {
                         </TableCell>
                         <TableCell className="text-muted-foreground">
                           {new Date(edificio.createdAt).toLocaleDateString('es-ES')}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex items-center justify-end space-x-2">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => router.push(`/admin/proyectos/${edificio.id}`)}
-                            >
-                              <Eye className="w-4 h-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleOpenEditDialog(edificio)}
-                            >
-                              <Edit className="w-4 h-4" />
-                            </Button>
-                            <AlertDialog>
-                              <AlertDialogTrigger asChild>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  className="text-destructive hover:text-destructive"
-                                  disabled={edificio.totalUnidades > 0}
-                                >
-                                  <Trash2 className="w-4 h-4" />
-                                </Button>
-                              </AlertDialogTrigger>
-                              <AlertDialogContent>
-                                <AlertDialogHeader>
-                                  <AlertDialogTitle>¿Eliminar proyecto?</AlertDialogTitle>
-                                  <AlertDialogDescription>
-                                    Esta acción eliminará permanentemente el proyecto &quot;{edificio.nombre}&quot;.
-                                    Esta acción no se puede deshacer.
-                                  </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                  <AlertDialogAction
-                                    onClick={() => handleDelete(edificio)}
-                                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                                  >
-                                    Eliminar
-                                  </AlertDialogAction>
-                                </AlertDialogFooter>
-                              </AlertDialogContent>
-                            </AlertDialog>
-                          </div>
                         </TableCell>
                       </TableRow>
                     )

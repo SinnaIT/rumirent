@@ -25,17 +25,68 @@ export async function GET(request: NextRequest) {
 
     console.log('✅ Usuario autorizado, consultando edificios...')
 
-    // Get empresaId filter from query params
+    // Get filter parameters from query params
     const { searchParams } = new URL(request.url)
     const empresaId = searchParams.get('empresaId')
+    const nombre = searchParams.get('nombre')
+    const direccion = searchParams.get('direccion')
+    const comuna = searchParams.get('comuna')
+    const ciudad = searchParams.get('ciudad')
+    const region = searchParams.get('region')
+
+    // Build where clause dynamically
+    const whereClause: any = {}
 
     if (empresaId) {
       console.log(`🔍 Filtrando por empresa: ${empresaId}`)
+      whereClause.empresaId = empresaId
     }
+
+    if (nombre) {
+      console.log(`🔍 Filtrando por nombre: ${nombre}`)
+      whereClause.nombre = {
+        contains: nombre,
+        mode: 'insensitive'
+      }
+    }
+
+    if (direccion) {
+      console.log(`🔍 Filtrando por direccion: ${direccion}`)
+      whereClause.direccion = {
+        contains: direccion,
+        mode: 'insensitive'
+      }
+    }
+
+    if (comuna) {
+      console.log(`🔍 Filtrando por comuna: ${comuna}`)
+      whereClause.comuna = {
+        contains: comuna,
+        mode: 'insensitive'
+      }
+    }
+
+    if (ciudad) {
+      console.log(`🔍 Filtrando por ciudad: ${ciudad}`)
+      whereClause.ciudad = {
+        contains: ciudad,
+        mode: 'insensitive'
+      }
+    }
+
+    if (region) {
+      console.log(`🔍 Filtrando por region: ${region}`)
+      whereClause.region = {
+        contains: region,
+        mode: 'insensitive'
+      }
+    }
+
+    console.log('📝 Where clause built:', JSON.stringify(whereClause, null, 2))
 
     // Obtener edificios con estadísticas de unidades, comisión y empresa
     const edificios = await prisma.edificio.findMany({
-      where: empresaId ? { empresaId } : {},
+      where: whereClause,
       include: {
         _count: {
           select: {
@@ -123,9 +174,11 @@ export async function GET(request: NextRequest) {
 
   } catch (error) {
     console.error('❌ Error al obtener edificios:', error)
-    console.error('Stack trace:', error.stack)
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+    const errorStack = error instanceof Error ? error.stack : undefined
+    console.error('Stack trace:', errorStack)
     return NextResponse.json(
-      { error: 'Error interno del servidor', details: error.message },
+      { error: 'Error interno del servidor', details: errorMessage },
       { status: 500 }
     )
   }
