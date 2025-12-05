@@ -78,7 +78,7 @@ export default function AdminReportesPage() {
   const fetchPerformanceData = async () => {
     setLoading(true)
     try {
-      let url = `/api/admin/reportes/performance-brokers?period=${selectedPeriod}`
+      let url = `/api/admin/reportes/performance-contratistas?period=${selectedPeriod}`
 
       if (selectedPeriod === 'mes') {
         url += `&mes=${selectedMonth}&year=${selectedYear}`
@@ -211,20 +211,20 @@ export default function AdminReportesPage() {
               <CardContent>
                 <div className="text-2xl font-bold">{performanceStats.totalBrokers}</div>
                 <p className="text-xs text-muted-foreground">
-                  Con ventas en el período
+                  Con arriendos en el período
                 </p>
               </CardContent>
             </Card>
 
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Total Ventas</CardTitle>
+                <CardTitle className="text-sm font-medium">Total Arriendos</CardTitle>
                 <BarChart3 className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">{performanceStats.totalVentasDelMes}</div>
                 <p className="text-xs text-muted-foreground">
-                  Leads cerrados
+                  Prospectos cerrados
                 </p>
               </CardContent>
             </Card>
@@ -246,13 +246,13 @@ export default function AdminReportesPage() {
 
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Mejor Vendedor</CardTitle>
+                <CardTitle className="text-sm font-medium">Mejor Broker</CardTitle>
                 <Trophy className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
                 <div className="text-lg font-bold">{performanceStats.mejorVendedor.nombre}</div>
                 <p className="text-xs text-muted-foreground">
-                  {performanceStats.mejorVendedor.ventas} ventas
+                  {performanceStats.mejorVendedor.ventas} arriendos
                 </p>
               </CardContent>
             </Card>
@@ -278,10 +278,10 @@ export default function AdminReportesPage() {
                     <TableRow>
                       <TableHead>Ranking</TableHead>
                       <TableHead>Broker</TableHead>
-                      <TableHead>Ventas</TableHead>
+                      <TableHead>Arriendos</TableHead>
                       <TableHead>Comisiones</TableHead>
                       <TableHead>Promedio/Mes</TableHead>
-                      <TableHead>Última Venta</TableHead>
+                      <TableHead>Último Arriendo</TableHead>
                       <TableHead>Performance</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -322,7 +322,7 @@ export default function AdminReportesPage() {
                               {new Date(broker.ultimaVenta).toLocaleDateString('es-CL')}
                             </div>
                           ) : (
-                            <span className="text-muted-foreground">Sin ventas</span>
+                            <span className="text-muted-foreground">Sin arriendos</span>
                           )}
                         </TableCell>
                         <TableCell>
@@ -352,7 +352,7 @@ export default function AdminReportesPage() {
           <div className="grid gap-6 md:grid-cols-2">
             <Card>
               <CardHeader>
-                <CardTitle>Análisis de Ventas</CardTitle>
+                <CardTitle>Análisis de Arriendos</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 {brokersPerformance.slice(0, 5).map((broker) => {
@@ -361,7 +361,7 @@ export default function AdminReportesPage() {
                     <div key={broker.id} className="space-y-2">
                       <div className="flex justify-between text-sm">
                         <span className="font-medium">{broker.nombre}</span>
-                        <span>{broker.totalVentas} ventas ({percentage.toFixed(1)}%)</span>
+                        <span>{broker.totalVentas} arriendos ({percentage.toFixed(1)}%)</span>
                       </div>
                       <Progress value={percentage} className="h-2" />
                     </div>
@@ -405,7 +405,7 @@ export default function AdminReportesPage() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Broker</TableHead>
-                    <TableHead>Tiempo Promedio Venta</TableHead>
+                    <TableHead>Tiempo Promedio Arriendo</TableHead>
                     <TableHead>Tasa de Conversión</TableHead>
                     <TableHead>Trend Mensual</TableHead>
                     <TableHead>Eficiencia</TableHead>

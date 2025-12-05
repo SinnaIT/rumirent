@@ -85,6 +85,15 @@ interface ComisionBase {
   porcentaje: number
 }
 
+interface TipoUnidadEdificio {
+  id: string
+  nombre: string
+  codigo: string
+  bedrooms?: number
+  bathrooms?: number
+  comision?: ComisionBase
+}
+
 interface Lead {
   id: string
   codigoUnidad?: string
@@ -103,6 +112,7 @@ interface Lead {
   cliente: Cliente
   unidad?: Unidad
   edificio: Edificio
+  tipoUnidadEdificio?: TipoUnidadEdificio
   reglaComision?: ReglaComision
   comisionBase?: ComisionBase
   createdAt: string
@@ -130,6 +140,8 @@ export default function AdminLeadsPage() {
   const [clientes, setClientes] = useState<Cliente[]>([])
   const [reglasComision, setReglasComision] = useState<ReglaComision[]>([])
   const [comisiones, setComisiones] = useState<ComisionBase[]>([])
+  const [edificios, setEdificios] = useState<Edificio[]>([])
+  const [tiposUnidad, setTiposUnidad] = useState<TipoUnidadEdificio[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [recalculando, setRecalculando] = useState(false)
@@ -159,6 +171,8 @@ export default function AdminLeadsPage() {
     conciliado: boolean
     brokerId: string
     clienteId: string
+    edificioId: string
+    tipoUnidadEdificioId: string
     reglaComisionId: string
     comisionId: string
   }>({
@@ -175,6 +189,8 @@ export default function AdminLeadsPage() {
     conciliado: false,
     brokerId: 'none',
     clienteId: 'none',
+    edificioId: 'none',
+    tipoUnidadEdificioId: 'none',
     reglaComisionId: 'none',
     comisionId: 'none'
   })
@@ -185,7 +201,18 @@ export default function AdminLeadsPage() {
     fetchClientes()
     fetchReglasComision()
     fetchComisiones()
+    fetchEdificios()
   }, [])
+
+  useEffect(() => {
+    // Fetch tipos de unidad when edificioId changes
+    if (formData.edificioId && formData.edificioId !== 'none') {
+      fetchTiposUnidad(formData.edificioId)
+    } else {
+      setTiposUnidad([])
+      setFormData(prev => ({ ...prev, tipoUnidadEdificioId: 'none' }))
+    }
+  }, [formData.edificioId])
 
   useEffect(() => {
     // Aplicar filtros
@@ -342,6 +369,38 @@ export default function AdminLeadsPage() {
     }
   }
 
+  const fetchEdificios = async () => {
+    try {
+      const response = await fetch('/api/admin/edificios')
+      const data = await response.json()
+
+      if (data.success) {
+        setEdificios(data.edificios)
+      } else {
+        console.error('Error al cargar edificios:', data.error)
+      }
+    } catch (error) {
+      console.error('Error:', error)
+    }
+  }
+
+  const fetchTiposUnidad = async (edificioId: string) => {
+    try {
+      const response = await fetch(`/api/admin/edificios/${edificioId}/tipos-unidad`)
+      const data = await response.json()
+
+      if (data.success) {
+        setTiposUnidad(data.tiposUnidad)
+      } else {
+        console.error('Error al cargar tipos de unidad:', data.error)
+        setTiposUnidad([])
+      }
+    } catch (error) {
+      console.error('Error:', error)
+      setTiposUnidad([])
+    }
+  }
+
   const resetForm = () => {
     setFormData({
       codigoUnidad: '',
@@ -357,13 +416,19 @@ export default function AdminLeadsPage() {
       conciliado: false,
       brokerId: 'none',
       clienteId: 'none',
+      edificioId: 'none',
+      tipoUnidadEdificioId: 'none',
       reglaComisionId: 'none',
       comisionId: 'none'
     })
     setEditingLead(null)
+    setTiposUnidad([])
   }
 
   const handleOpenEditDialog = (lead: Lead) => {
+    const edificioId = (lead.edificio?.id && lead.edificio.id.trim() !== '') ? lead.edificio.id : 'none'
+    const tipoUnidadId = (lead.tipoUnidadEdificio?.id && lead.tipoUnidadEdificio.id.trim() !== '') ? lead.tipoUnidadEdificio.id : 'none'
+
     setFormData({
       codigoUnidad: lead.codigoUnidad || '',
       totalLead: lead.totalLead.toString(),
@@ -378,9 +443,17 @@ export default function AdminLeadsPage() {
       conciliado: lead.conciliado,
       brokerId: (lead.broker?.id && lead.broker.id.trim() !== '') ? lead.broker.id : 'none',
       clienteId: (lead.cliente?.id && lead.cliente.id.trim() !== '') ? lead.cliente.id : 'none',
+      edificioId: edificioId,
+      tipoUnidadEdificioId: tipoUnidadId,
       reglaComisionId: (lead.reglaComision?.id && lead.reglaComision.id.trim() !== '') ? lead.reglaComision.id : 'none',
       comisionId: (lead.comisionBase?.id && lead.comisionBase.id.trim() !== '') ? lead.comisionBase.id : 'none'
     })
+
+    // Load tipos de unidad for the selected edificio
+    if (edificioId !== 'none') {
+      fetchTiposUnidad(edificioId)
+    }
+
     setEditingLead(lead)
     setIsEditDialogOpen(true)
   }
@@ -388,6 +461,11 @@ export default function AdminLeadsPage() {
   const handleSubmit = async () => {
     if (!formData.totalLead || !formData.montoUf || !formData.brokerId || formData.brokerId === 'none' || !formData.clienteId || formData.clienteId === 'none') {
       toast.error('Total lead, monto UF, broker y cliente son requeridos')
+      return
+    }
+
+    if (!formData.edificioId || formData.edificioId === 'none') {
+      toast.error('Proyecto (edificio) es requerido')
       return
     }
 
@@ -407,6 +485,8 @@ export default function AdminLeadsPage() {
           ...formData,
           brokerId: formData.brokerId === 'none' ? null : formData.brokerId,
           clienteId: formData.clienteId === 'none' ? null : formData.clienteId,
+          edificioId: formData.edificioId === 'none' ? null : formData.edificioId,
+          tipoUnidadEdificioId: formData.tipoUnidadEdificioId === 'none' ? null : formData.tipoUnidadEdificioId,
           reglaComisionId: formData.reglaComisionId === 'none' ? null : formData.reglaComisionId,
           comisionId: formData.comisionId === 'none' ? null : formData.comisionId
         })
@@ -811,6 +891,57 @@ export default function AdminLeadsPage() {
                                             .map((cliente) => (
                                               <SelectItem key={cliente.id} value={cliente.id}>
                                                 {cliente.nombre} - {cliente.rut}
+                                              </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                      </Select>
+                                    </div>
+                                  </div>
+
+                                  <div className="grid grid-cols-2 gap-4">
+                                    <div className="grid grid-cols-1 gap-2">
+                                      <Label htmlFor="edificio">Proyecto (Edificio) *</Label>
+                                      <Select value={formData.edificioId} onValueChange={(value: string) => setFormData({ ...formData, edificioId: value })}>
+                                        <SelectTrigger>
+                                          <SelectValue placeholder="Seleccionar proyecto" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                          <SelectItem value="none">Seleccionar proyecto...</SelectItem>
+                                          {edificios
+                                            .filter(e => e.id && e.id.trim() !== '')
+                                            .map((edificio) => (
+                                              <SelectItem key={edificio.id} value={edificio.id}>
+                                                {edificio.nombre}
+                                              </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                      </Select>
+                                    </div>
+
+                                    <div className="grid grid-cols-1 gap-2">
+                                      <Label htmlFor="tipoUnidad">Tipo de Unidad</Label>
+                                      <Select
+                                        value={formData.tipoUnidadEdificioId}
+                                        onValueChange={(value: string) => setFormData({ ...formData, tipoUnidadEdificioId: value })}
+                                        disabled={!formData.edificioId || formData.edificioId === 'none' || tiposUnidad.length === 0}
+                                      >
+                                        <SelectTrigger>
+                                          <SelectValue placeholder={
+                                            !formData.edificioId || formData.edificioId === 'none'
+                                              ? "Primero selecciona un proyecto"
+                                              : tiposUnidad.length === 0
+                                                ? "No hay tipos disponibles"
+                                                : "Seleccionar tipo de unidad"
+                                          } />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                          <SelectItem value="none">Sin tipo específico</SelectItem>
+                                          {tiposUnidad
+                                            .filter(t => t.id && t.id.trim() !== '')
+                                            .map((tipo) => (
+                                              <SelectItem key={tipo.id} value={tipo.id}>
+                                                {tipo.nombre} ({tipo.codigo})
+                                                {tipo.bedrooms && tipo.bathrooms && ` - ${tipo.bedrooms}D/${tipo.bathrooms}B`}
                                               </SelectItem>
                                             ))}
                                         </SelectContent>

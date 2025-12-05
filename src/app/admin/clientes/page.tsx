@@ -75,7 +75,7 @@ export default function ClientesPage() {
     telefono: '',
     direccion: '',
     fechaNacimiento: '',
-    brokerId: ''
+    brokerId: 'UNASSIGNED'
   })
 
   useEffect(() => {
@@ -154,7 +154,7 @@ export default function ClientesPage() {
       telefono: '',
       direccion: '',
       fechaNacimiento: '',
-      brokerId: ''
+      brokerId: 'UNASSIGNED'
     })
     setEditingCliente(null)
   }
@@ -172,7 +172,7 @@ export default function ClientesPage() {
       telefono: cliente.telefono || '',
       direccion: cliente.direccion || '',
       fechaNacimiento: cliente.fechaNacimiento ? cliente.fechaNacimiento.split('T')[0] : '',
-      brokerId: cliente.broker?.id || ''
+      brokerId: cliente.broker?.id || 'UNASSIGNED'
     })
     setEditingCliente(cliente)
     setIsEditDialogOpen(true)
@@ -203,13 +203,19 @@ export default function ClientesPage() {
   }
 
   const handleSubmit = async () => {
-    if (!formData.nombre.trim() || !formData.rut.trim()) {
-      toast.error('Nombre y RUT son requeridos')
+    if (!formData.nombre.trim() || !formData.telefono.trim()) {
+      toast.error('Nombre y Telefono son requeridos')
       return
     }
 
     try {
       setSaving(true)
+
+      // Convert UNASSIGNED to empty string for the API
+      const dataToSend = {
+        ...formData,
+        brokerId: formData.brokerId === 'UNASSIGNED' ? '' : formData.brokerId
+      }
 
       if (editingCliente) {
         // Editar cliente existente
@@ -218,7 +224,7 @@ export default function ClientesPage() {
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify(formData)
+          body: JSON.stringify(dataToSend)
         })
 
         const data = await response.json()
@@ -238,7 +244,7 @@ export default function ClientesPage() {
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify(formData)
+          body: JSON.stringify(dataToSend)
         })
 
         const data = await response.json()
@@ -321,7 +327,7 @@ export default function ClientesPage() {
                 </div>
 
                 <div className="grid grid-cols-1 gap-2">
-                  <Label htmlFor="create-rut">RUT *</Label>
+                  <Label htmlFor="create-rut">RUT (opcional)</Label>
                   <Input
                     id="create-rut"
                     value={formData.rut}
@@ -331,7 +337,7 @@ export default function ClientesPage() {
                 </div>
 
                 <div className="grid grid-cols-1 gap-2">
-                  <Label htmlFor="create-email">Email</Label>
+                  <Label htmlFor="create-email">Email (opcional)</Label>
                   <Input
                     id="create-email"
                     type="email"
@@ -342,7 +348,7 @@ export default function ClientesPage() {
                 </div>
 
                 <div className="grid grid-cols-1 gap-2">
-                  <Label htmlFor="create-telefono">Teléfono</Label>
+                  <Label htmlFor="create-telefono">Teléfono *</Label>
                   <Input
                     id="create-telefono"
                     value={formData.telefono}
@@ -352,7 +358,7 @@ export default function ClientesPage() {
                 </div>
 
                 <div className="grid grid-cols-1 gap-2">
-                  <Label htmlFor="create-direccion">Dirección</Label>
+                  <Label htmlFor="create-direccion">Dirección (opcional)</Label>
                   <Input
                     id="create-direccion"
                     value={formData.direccion}
@@ -362,7 +368,7 @@ export default function ClientesPage() {
                 </div>
 
                 <div className="grid grid-cols-1 gap-2">
-                  <Label htmlFor="create-fechaNacimiento">Fecha de Nacimiento</Label>
+                  <Label htmlFor="create-fechaNacimiento">Fecha de Nacimiento (opcional)</Label>
                   <Input
                     id="create-fechaNacimiento"
                     type="date"
@@ -378,7 +384,7 @@ export default function ClientesPage() {
                       <SelectValue placeholder="Sin broker asignado" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">Sin broker</SelectItem>
+                      <SelectItem value="UNASSIGNED">Sin broker</SelectItem>
                       {brokers.map((broker) => (
                         <SelectItem key={broker.id} value={broker.id}>
                           {broker.nombre} - {broker.rut}
@@ -677,7 +683,7 @@ export default function ClientesPage() {
                                   </div>
 
                                   <div className="grid grid-cols-1 gap-2">
-                                    <Label htmlFor="telefono">Teléfono</Label>
+                                    <Label htmlFor="telefono">Teléfono (opcional)</Label>
                                     <Input
                                       id="telefono"
                                       value={formData.telefono}
@@ -687,7 +693,7 @@ export default function ClientesPage() {
                                   </div>
 
                                   <div className="grid grid-cols-1 gap-2">
-                                    <Label htmlFor="direccion">Dirección</Label>
+                                    <Label htmlFor="direccion">Dirección (opcional)</Label>
                                     <Input
                                       id="direccion"
                                       value={formData.direccion}
@@ -697,7 +703,7 @@ export default function ClientesPage() {
                                   </div>
 
                                   <div className="grid grid-cols-1 gap-2">
-                                    <Label htmlFor="fechaNacimiento">Fecha de Nacimiento</Label>
+                                    <Label htmlFor="fechaNacimiento">Fecha de Nacimiento (opcional)</Label>
                                     <Input
                                       id="fechaNacimiento"
                                       type="date"
@@ -713,7 +719,7 @@ export default function ClientesPage() {
                                         <SelectValue placeholder="Sin broker asignado" />
                                       </SelectTrigger>
                                       <SelectContent>
-                                        <SelectItem value="">Sin broker</SelectItem>
+                                        <SelectItem value="UNASSIGNED">Sin broker</SelectItem>
                                         {brokers.map((broker) => (
                                           <SelectItem key={broker.id} value={broker.id}>
                                             {broker.nombre} - {broker.rut}

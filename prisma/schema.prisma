@@ -162,9 +162,9 @@ model Unidad {
 model Cliente {
   id              String    @id @default(cuid())
   nombre          String
-  rut             String    @unique
+  rut             String?    
   email           String?
-  telefono        String?
+  telefono        String @unique
   brokerId        String?
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt

@@ -88,10 +88,6 @@ export async function POST(request: NextRequest) {
   try {
     console.log('🔍 Iniciando POST /api/admin/clientes')
 
-    // En desarrollo, omitir verificación de autenticación por ahora
-    if (process.env.NODE_ENV === 'development') {
-      console.log('🛠️ Modo desarrollo - omitiendo autenticación')
-    } else {
       // Verificar autenticación y rol de administrador
       const authResult = await verifyAuth(request)
       console.log('🔐 Resultado de autenticación:', authResult)
@@ -103,7 +99,6 @@ export async function POST(request: NextRequest) {
           { status: 401 }
         )
       }
-    }
 
     const body = await request.json()
     const { nombre, rut, email, telefono, direccion, fechaNacimiento, brokerId } = body
@@ -113,47 +108,55 @@ export async function POST(request: NextRequest) {
     // Validaciones
     if (!nombre || !telefono) {
       return NextResponse.json(
-        { success: false, error: 'Nombre y teléfono (WhatsApp) son requeridos' },
+        { success: false, error: 'Nombre y Telefono son requeridos' },
         { status: 400 }
       )
     }
 
     // Verificar si el RUT ya existe (solo si se proporciona)
     if (rut) {
-      const existingCliente = await prisma.cliente.findUnique({
-        where: { rut }
-      })
+      const existingCliente = await prisma.cliente.findFirst({
+  where: {
+    OR: [
+      {rut},
+      {email},
+      {telefono}
+    ]
+  }
+});
 
       if (existingCliente) {
         return NextResponse.json(
-          { success: false, error: 'Ya existe un cliente con este RUT' },
+          { success: false, error: 'Ya existe un cliente con este RUT, Email o Telefono' },
           { status: 400 }
         )
       }
     }
 
-    // Verificar que el broker existe
-    const broker = await prisma.user.findUnique({
-      where: { id: brokerId }
-    })
+    // Verificar que el broker existe (solo si se proporciona)
+    if (brokerId && brokerId.trim() !== '') {
+      const broker = await prisma.user.findUnique({
+        where: { id: brokerId }
+      })
 
-    if (!broker || broker.role !== 'BROKER') {
-      return NextResponse.json(
-        { success: false, error: 'Broker no encontrado o inválido' },
-        { status: 400 }
-      )
+      if (!broker || broker.role !== 'BROKER') {
+        return NextResponse.json(
+          { success: false, error: 'Broker no encontrado o inválido' },
+          { status: 400 }
+        )
+      }
     }
 
     // Crear cliente
     const nuevoCliente = await prisma.cliente.create({
       data: {
         nombre,
-        rut,
+        rut: rut || null,
         email: email || null,
-        telefono: telefono || null,
+        telefono: telefono,
         direccion: direccion || null,
         fechaNacimiento: fechaNacimiento ? new Date(fechaNacimiento) : null,
-        brokerId
+        brokerId: (brokerId && brokerId.trim() !== '') ? brokerId : null
       },
       include: {
         broker: {

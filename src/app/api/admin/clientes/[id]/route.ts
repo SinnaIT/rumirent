@@ -117,9 +117,9 @@ export async function PUT(
     console.log('📝 Datos a actualizar:', { nombre, rut, email, telefono, direccion, fechaNacimiento, brokerId })
 
     // Validaciones básicas
-    if (!nombre || !telefono) {
+    if (!nombre || !rut) {
       return NextResponse.json(
-        { error: 'Nombre y teléfono (WhatsApp) son requeridos' },
+        { error: 'Nombre y RUT son requeridos' },
         { status: 400 }
       )
     }
@@ -153,19 +153,21 @@ export async function PUT(
       }
     }
 
-    // Verificar que el broker existe
-    const brokerExists = await prisma.user.findUnique({
-      where: {
-        id: brokerId,
-        role: 'BROKER'
-      }
-    })
+    // Verificar que el broker existe (solo si se proporciona)
+    if (brokerId && brokerId.trim() !== '') {
+      const brokerExists = await prisma.user.findUnique({
+        where: {
+          id: brokerId,
+          role: 'BROKER'
+        }
+      })
 
-    if (!brokerExists) {
-      return NextResponse.json(
-        { error: 'El broker especificado no existe o no es válido' },
-        { status: 400 }
-      )
+      if (!brokerExists) {
+        return NextResponse.json(
+          { error: 'El broker especificado no existe o no es válido' },
+          { status: 400 }
+        )
+      }
     }
 
     // Actualizar cliente
@@ -178,7 +180,7 @@ export async function PUT(
         telefono: telefono || null,
         direccion: direccion || null,
         fechaNacimiento: fechaNacimiento ? new Date(fechaNacimiento) : null,
-        brokerId
+        brokerId: (brokerId && brokerId.trim() !== '') ? brokerId : null
       },
       include: {
         broker: {
