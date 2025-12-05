@@ -55,7 +55,8 @@
       "Bash(del /F /Q \".next\\trace\" 2)",
       "Bash(git checkout:*)",
       "Bash(del /F /Q \"d:\\development\\sinntait\\rumirent\\rumirent-app\\src\\app\\admin\\reportes\\brokers-mensual\\page.tsx\" 2)",
-      "Bash(del /F /Q \"d:\\development\\sinntait\\rumirent\\rumirent-app\\src\\app\\api\\admin\\reportes\\brokers-mensual\\route.ts\" 2)"
+      "Bash(del /F /Q \"d:\\development\\sinntait\\rumirent\\rumirent-app\\src\\app\\api\\admin\\reportes\\brokers-mensual\\route.ts\" 2)",
+      "Bash(npx shadcn@latest add:*)"
     ],
     "deny": [],
     "ask": []

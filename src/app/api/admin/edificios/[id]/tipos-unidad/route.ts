@@ -38,7 +38,18 @@ export async function GET(
     // Obtener todos los tipos de unidad del edificio
     const tiposUnidad = await prisma.tipoUnidadEdificio.findMany({
       where: { edificioId: id },
-      include: {
+      select: {
+        id: true,
+        nombre: true,
+        codigo: true,
+        bedrooms: true,
+        bathrooms: true,
+        descripcion: true,
+        activo: true,
+        plantillaOrigenId: true,
+        comisionId: true,
+        createdAt: true,
+        updatedAt: true,
         comision: {
           select: {
             id: true,

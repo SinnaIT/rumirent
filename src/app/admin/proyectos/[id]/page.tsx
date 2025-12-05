@@ -180,11 +180,27 @@ export default function ProyectoDetailPage() {
 
   // Plantillas state
   const [plantillas, setPlantillas] = useState<any[]>([])
-  const [isPlantillasDialogOpen, setIsPlantillasDialogOpen] = useState(false)
-  const [selectedPlantillas, setSelectedPlantillas] = useState<string[]>([])
-  const [plantillaComisionId, setPlantillaComisionId] = useState<string>('none')
   const [loadingPlantillas, setLoadingPlantillas] = useState(false)
-  const [applyingPlantillas, setApplyingPlantillas] = useState(false)
+  const [togglingPlantilla, setTogglingPlantilla] = useState<string | null>(null)
+
+  // Dialog states
+  const [isNewPlantillaDialogOpen, setIsNewPlantillaDialogOpen] = useState(false)
+  const [isEditComisionDialogOpen, setIsEditComisionDialogOpen] = useState(false)
+  const [editingComisionTipo, setEditingComisionTipo] = useState<TipoUnidadDetail | null>(null)
+
+  // Form state for new plantilla
+  const [newPlantillaFormData, setNewPlantillaFormData] = useState({
+    nombre: '',
+    codigo: '',
+    bedrooms: '',
+    bathrooms: '',
+    descripcion: ''
+  })
+
+  // Form state for editing commission
+  const [comisionFormData, setComisionFormData] = useState({
+    comisionId: 'none'
+  })
 
 
   // Form state for unidades
@@ -252,6 +268,7 @@ export default function ProyectoDetailPage() {
   useEffect(() => {
     if (params.id && activeTab === 'tipos-unidad') {
       fetchTiposUnidadDetalle()
+      fetchPlantillas()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [params.id, activeTab])
@@ -672,58 +689,125 @@ export default function ProyectoDetailPage() {
     }
   }
 
-  const handleOpenPlantillasDialog = () => {
-    setSelectedPlantillas([])
-    setPlantillaComisionId('none')
-    fetchPlantillas()
-    setIsPlantillasDialogOpen(true)
-  }
+  const handleTogglePlantillaCheckbox = async (plantillaId: string) => {
+    try {
+      setTogglingPlantilla(plantillaId)
+      const response = await fetch(`/api/admin/edificios/${params.id}/tipos-unidad/toggle`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ plantillaId })
+      })
 
-  const handleTogglePlantilla = (plantillaId: string) => {
-    setSelectedPlantillas(prev => {
-      if (prev.includes(plantillaId)) {
-        return prev.filter(id => id !== plantillaId)
+      const data = await response.json()
+
+      if (data.success) {
+        toast.success(data.message)
+        // Refresh both lists
+        fetchTiposUnidadDetalle()
+        fetchEdificio()
       } else {
-        return [...prev, plantillaId]
+        toast.error(data.error || 'Error al aplicar plantilla')
       }
-    })
+    } catch (error) {
+      console.error('Error:', error)
+      toast.error('Error de conexión')
+    } finally {
+      setTogglingPlantilla(null)
+    }
   }
 
-  const handleApplyPlantillas = async () => {
-    if (selectedPlantillas.length === 0) {
-      toast.error('Selecciona al menos una plantilla')
+  const handleOpenNewPlantillaDialog = () => {
+    setNewPlantillaFormData({
+      nombre: '',
+      codigo: '',
+      bedrooms: '',
+      bathrooms: '',
+      descripcion: ''
+    })
+    setIsNewPlantillaDialogOpen(true)
+  }
+
+  const handleSubmitNewPlantilla = async () => {
+    if (!newPlantillaFormData.nombre.trim() || !newPlantillaFormData.codigo.trim()) {
+      toast.error('Nombre y código son requeridos')
       return
     }
 
     try {
-      setApplyingPlantillas(true)
-      const response = await fetch(`/api/admin/edificios/${params.id}/tipos-unidad/bulk-create`, {
+      setSaving(true)
+      const response = await fetch('/api/admin/plantillas-tipo-unidad', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          plantillaIds: selectedPlantillas,
-          comisionId: plantillaComisionId === 'none' ? undefined : plantillaComisionId
+          nombre: newPlantillaFormData.nombre,
+          codigo: newPlantillaFormData.codigo.toUpperCase(),
+          bedrooms: newPlantillaFormData.bedrooms ? parseInt(newPlantillaFormData.bedrooms) : null,
+          bathrooms: newPlantillaFormData.bathrooms ? parseInt(newPlantillaFormData.bathrooms) : null,
+          descripcion: newPlantillaFormData.descripcion || null
         })
       })
 
       const data = await response.json()
 
       if (data.success) {
-        toast.success(`${data.summary.created} tipos creados, ${data.summary.updated} actualizados`)
-        setIsPlantillasDialogOpen(false)
-        setSelectedPlantillas([])
-        fetchTiposUnidadDetalle()
-        fetchEdificio()
+        toast.success('Plantilla creada exitosamente')
+        setIsNewPlantillaDialogOpen(false)
+        fetchPlantillas()
       } else {
-        toast.error(data.error || 'Error al aplicar plantillas')
+        toast.error(data.error || 'Error al crear plantilla')
       }
     } catch (error) {
       console.error('Error:', error)
       toast.error('Error de conexión')
     } finally {
-      setApplyingPlantillas(false)
+      setSaving(false)
+    }
+  }
+
+  const handleOpenEditComisionDialog = (tipoUnidad: TipoUnidadDetail) => {
+    setEditingComisionTipo(tipoUnidad)
+    setComisionFormData({
+      comisionId: tipoUnidad.comisionId || 'none'
+    })
+    setIsEditComisionDialogOpen(true)
+  }
+
+  const handleSubmitComision = async () => {
+    if (!editingComisionTipo) return
+
+    try {
+      setSaving(true)
+      const response = await fetch(`/api/admin/edificios/${params.id}/tipos-unidad/${editingComisionTipo.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          nombre: editingComisionTipo.nombre,
+          codigo: editingComisionTipo.codigo,
+          comisionId: comisionFormData.comisionId === 'none' ? null : comisionFormData.comisionId
+        })
+      })
+
+      const data = await response.json()
+
+      if (data.success) {
+        toast.success('Comisión actualizada exitosamente')
+        setIsEditComisionDialogOpen(false)
+        setEditingComisionTipo(null)
+        fetchTiposUnidadDetalle()
+      } else {
+        toast.error(data.error || 'Error al actualizar comisión')
+      }
+    } catch (error) {
+      console.error('Error:', error)
+      toast.error('Error de conexión')
+    } finally {
+      setSaving(false)
     }
   }
 
@@ -1806,349 +1890,325 @@ export default function ProyectoDetailPage() {
         </TabsContent>
 
         <TabsContent value="tipos-unidad" className="space-y-4">
+          {/* Section 1: Available Templates */}
           <Card>
             <CardHeader>
               <div className="flex items-center justify-between">
                 <div>
-                  <CardTitle>Tipos de Unidad</CardTitle>
+                  <CardTitle>Plantillas Disponibles</CardTitle>
                   <CardDescription>
-                    Gestiona los tipos de unidades disponibles en este proyecto
+                    Selecciona las plantillas que deseas usar en este proyecto
                   </CardDescription>
                 </div>
-                <div className="flex gap-2">
-                  <Button variant="outline" onClick={handleOpenPlantillasDialog}>
-                    <Copy className="w-4 h-4 mr-2" />
-                    Aplicar Plantillas
-                  </Button>
-                  <Dialog open={isCreateTipoUnidadDialogOpen} onOpenChange={setIsCreateTipoUnidadDialogOpen}>
-                    <DialogTrigger asChild>
-                      <Button onClick={handleOpenCreateTipoUnidadDialog}>
-                        <Plus className="w-4 h-4 mr-2" />
-                        Nuevo Tipo
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent className="sm:max-w-[500px]">
-                    <DialogHeader>
-                      <DialogTitle>
-                        {editingTipoUnidad ? 'Editar Tipo de Unidad' : 'Nuevo Tipo de Unidad'}
-                      </DialogTitle>
-                      <DialogDescription>
-                        {editingTipoUnidad
-                          ? 'Modifica los datos del tipo de unidad existente'
-                          : 'Crea un nuevo tipo de unidad para este proyecto'
-                        }
-                      </DialogDescription>
-                    </DialogHeader>
-
-                    <ScrollArea className="max-h-[60vh] pr-4">
-                      <div className="grid gap-4 py-4">
-                      <div className="grid grid-cols-1 gap-2">
-                        <Label htmlFor="nombre">Nombre del Tipo *</Label>
-                        <Input
-                          id="nombre"
-                          value={tipoUnidadFormData.nombre}
-                          onChange={(e) => setTipoUnidadFormData({ ...tipoUnidadFormData, nombre: e.target.value })}
-                          placeholder="ej: Studio, 1 Dormitorio, Penthouse"
-                        />
-                      </div>
-
-                      <div className="grid grid-cols-1 gap-2">
-                        <Label htmlFor="codigo">Código *</Label>
-                        <Input
-                          id="codigo"
-                          value={tipoUnidadFormData.codigo}
-                          onChange={(e) => setTipoUnidadFormData({ ...tipoUnidadFormData, codigo: e.target.value.toUpperCase() })}
-                          placeholder="ej: STU, 1D, PH"
-                        />
-                      </div>
-
-                      <div className="grid grid-cols-1 gap-2">
-                        <Label htmlFor="comision">
-                          Comisión
-                          <span className="text-muted-foreground text-sm ml-1">(opcional - usa la del proyecto si no se especifica)</span>
-                        </Label>
-                        <Select
-                          value={tipoUnidadFormData.comisionId}
-                          onValueChange={(value: string) => setTipoUnidadFormData({ ...tipoUnidadFormData, comisionId: value })}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Usar comisión del proyecto" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="none">Usar comisión del proyecto</SelectItem>
-                            {comisiones.map((comision) => (
-                              <SelectItem key={comision.id} value={comision.id}>
-                                {comision.nombre} ({(comision.porcentaje * 100).toFixed(1)}%)
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      </div>
-                    </ScrollArea>
-
-                    <div className="flex justify-end space-x-2">
-                      <Button
-                        variant="outline"
-                        onClick={() => setIsCreateTipoUnidadDialogOpen(false)}
-                        disabled={saving}
-                      >
-                        Cancelar
-                      </Button>
-                      <Button onClick={handleSubmitTipoUnidad} disabled={saving}>
-                        {saving ? 'Guardando...' : (editingTipoUnidad ? 'Actualizar' : 'Crear')}
-                      </Button>
-                    </div>
-                    </DialogContent>
-                  </Dialog>
-                </div>
+                <Button onClick={handleOpenNewPlantillaDialog}>
+                  <Plus className="w-4 h-4 mr-2" />
+                  Nueva Plantilla
+                </Button>
               </div>
             </CardHeader>
             <CardContent>
-              {loadingTiposUnidad ? (
-                <div className="flex items-center justify-center py-12">
+              {loadingPlantillas ? (
+                <div className="flex items-center justify-center py-8">
                   <div className="text-center">
                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
-                    <p className="mt-2 text-muted-foreground">Cargando tipos de unidad...</p>
+                    <p className="mt-2 text-muted-foreground">Cargando plantillas...</p>
                   </div>
                 </div>
-              ) : tiposUnidadDetalle.length === 0 ? (
-                <div className="text-center py-12">
+              ) : plantillas.length === 0 ? (
+                <div className="text-center py-12 border rounded-lg bg-muted/50">
                   <Settings className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-foreground mb-2">No hay tipos de unidad</h3>
+                  <h3 className="text-lg font-medium text-foreground mb-2">No hay plantillas</h3>
                   <p className="text-muted-foreground mb-4">
-                    Crea el primer tipo de unidad para comenzar a organizar las unidades de este proyecto
+                    Crea la primera plantilla de tipo de unidad
                   </p>
-                  <Button onClick={handleOpenCreateTipoUnidadDialog}>
+                  <Button onClick={handleOpenNewPlantillaDialog}>
                     <Plus className="w-4 h-4 mr-2" />
-                    Crear Primer Tipo
+                    Crear Primera Plantilla
                   </Button>
                 </div>
               ) : (
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Tipo</TableHead>
-                        <TableHead>Código</TableHead>
-                        <TableHead>Comisión</TableHead>
-                        <TableHead>Unidades</TableHead>
-                        <TableHead className="text-right">Acciones</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {tiposUnidadDetalle.map((tipoUnidad) => (
-                        <TableRow key={tipoUnidad.id}>
-                          <TableCell>
-                            <div className="font-medium">{tipoUnidad.nombre}</div>
-                          </TableCell>
-                          <TableCell>
-                            <Badge variant="outline">{tipoUnidad.codigo}</Badge>
-                          </TableCell>
-                          <TableCell>
-                            <div>
-                              {tipoUnidad.comision ? (
-                                <>
-                                  <div className="font-medium">{tipoUnidad.comision.nombre}</div>
-                                  <div className="text-sm text-muted-foreground">
-                                    {(tipoUnidad.comision.porcentaje * 100).toFixed(1)}%
-                                  </div>
-                                </>
-                              ) : (
-                                <>
-                                  <div className="font-medium text-muted-foreground">Comisión del proyecto</div>
-                                  <div className="text-sm text-muted-foreground">
-                                    {edificio.comision ? `${(edificio.comision.porcentaje * 100).toFixed(1)}%` : 'No definida'}
-                                  </div>
-                                </>
+                <div className="border rounded-lg divide-y">
+                  {plantillas.map((plantilla) => {
+                    const isApplied = tiposUnidadDetalle.some(
+                      t => t.plantillaOrigenId === plantilla.id
+                    )
+                    const isToggling = togglingPlantilla === plantilla.id
+
+                    return (
+                      <div
+                        key={plantilla.id}
+                        className="flex items-center justify-between p-4 hover:bg-muted/50 transition-colors"
+                      >
+                        <div className="flex items-center space-x-4 flex-1">
+                          <Checkbox
+                            checked={isApplied}
+                            onCheckedChange={() => handleTogglePlantillaCheckbox(plantilla.id)}
+                            disabled={isToggling}
+                          />
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2">
+                              <p className="font-medium">{plantilla.nombre}</p>
+                              <Badge variant="outline" className="text-xs">
+                                {plantilla.codigo}
+                              </Badge>
+                              {isApplied && (
+                                <Badge variant="default" className="text-xs">
+                                  Aplicado
+                                </Badge>
                               )}
                             </div>
-                          </TableCell>
-                          <TableCell>
-                            <div className="text-center">
-                              <div className="font-medium">{tipoUnidad._count.unidades}</div>
-                              <div className="text-sm text-muted-foreground">unidades</div>
-                            </div>
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <div className="flex items-center justify-end space-x-2">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleOpenEditTipoUnidadDialog(tipoUnidad)}
-                              >
-                                <Edit className="w-4 h-4" />
-                              </Button>
-                              <AlertDialog>
-                                <AlertDialogTrigger asChild>
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="text-destructive hover:text-destructive"
-                                    disabled={tipoUnidad._count.unidades > 0}
-                                  >
-                                    <Trash2 className="w-4 h-4" />
-                                  </Button>
-                                </AlertDialogTrigger>
-                                <AlertDialogContent>
-                                  <AlertDialogHeader>
-                                    <AlertDialogTitle>¿Eliminar tipo de unidad?</AlertDialogTitle>
-                                    <AlertDialogDescription>
-                                      Esta acción eliminará permanentemente el tipo de unidad &quot;{tipoUnidad.nombre}&quot;.
-                                      Esta acción no se puede deshacer.
-                                      {tipoUnidad._count.unidades > 0 && (
-                                        <span className="block mt-2 text-destructive font-medium">
-                                          No se puede eliminar porque tiene {tipoUnidad._count.unidades} unidades asociadas.
-                                        </span>
-                                      )}
-                                    </AlertDialogDescription>
-                                  </AlertDialogHeader>
-                                  <AlertDialogFooter>
-                                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                    <AlertDialogAction
-                                      onClick={() => handleDeleteTipoUnidad(tipoUnidad)}
-                                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                                      disabled={tipoUnidad._count.unidades > 0}
-                                    >
-                                      Eliminar
-                                    </AlertDialogAction>
-                                  </AlertDialogFooter>
-                                </AlertDialogContent>
-                              </AlertDialog>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
+                            {(plantilla.bedrooms || plantilla.bathrooms || plantilla.descripcion) && (
+                              <div className="flex gap-3 mt-1">
+                                {plantilla.bedrooms && (
+                                  <p className="text-sm text-muted-foreground">
+                                    {plantilla.bedrooms} {plantilla.bedrooms === 1 ? 'dormitorio' : 'dormitorios'}
+                                  </p>
+                                )}
+                                {plantilla.bathrooms && (
+                                  <p className="text-sm text-muted-foreground">
+                                    {plantilla.bathrooms} {plantilla.bathrooms === 1 ? 'baño' : 'baños'}
+                                  </p>
+                                )}
+                                {plantilla.descripcion && (
+                                  <p className="text-sm text-muted-foreground italic">
+                                    {plantilla.descripcion}
+                                  </p>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                          {plantilla.usageCount > 0 && (
+                            <Badge variant="secondary" className="text-xs">
+                              Usado en {plantilla.usageCount} {plantilla.usageCount === 1 ? 'proyecto' : 'proyectos'}
+                            </Badge>
+                          )}
+                        </div>
+                        {isToggling && (
+                          <div className="ml-4">
+                            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary"></div>
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })}
                 </div>
               )}
             </CardContent>
           </Card>
 
-          {/* Dialog para aplicar plantillas */}
-          <Dialog open={isPlantillasDialogOpen} onOpenChange={setIsPlantillasDialogOpen}>
-            <DialogContent className="sm:max-w-[700px]">
+          {/* Section 2: Assigned Types to Project */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Tipos Asignados a este Proyecto</CardTitle>
+              <CardDescription>
+                Gestiona las comisiones de los tipos de unidad aplicados
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {loadingTiposUnidad ? (
+                <div className="flex items-center justify-center py-8">
+                  <div className="text-center">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+                    <p className="mt-2 text-muted-foreground">Cargando tipos...</p>
+                  </div>
+                </div>
+              ) : tiposUnidadDetalle.length === 0 ? (
+                <div className="text-center py-12 border rounded-lg bg-muted/50">
+                  <Settings className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-foreground mb-2">No hay tipos asignados</h3>
+                  <p className="text-muted-foreground">
+                    Selecciona plantillas en la sección superior para asignarlas a este proyecto
+                  </p>
+                </div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Tipo</TableHead>
+                      <TableHead>Código</TableHead>
+                      <TableHead>Comisión</TableHead>
+                      <TableHead className="text-center">Unidades</TableHead>
+                      <TableHead className="text-right">Acciones</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {tiposUnidadDetalle.map((tipoUnidad) => (
+                      <TableRow key={tipoUnidad.id}>
+                        <TableCell>
+                          <div className="font-medium">{tipoUnidad.nombre}</div>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="outline">{tipoUnidad.codigo}</Badge>
+                        </TableCell>
+                        <TableCell>
+                          {tipoUnidad.comision ? (
+                            <div>
+                              <div className="font-medium text-sm">{tipoUnidad.comision.nombre}</div>
+                              <div className="text-sm text-muted-foreground">
+                                {(tipoUnidad.comision.porcentaje * 100).toFixed(1)}%
+                              </div>
+                            </div>
+                          ) : (
+                            <Badge variant="secondary" className="text-xs">
+                              Sin asignar
+                            </Badge>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <div className="font-medium">{tipoUnidad._count.unidades}</div>
+                          <div className="text-xs text-muted-foreground">unidades</div>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleOpenEditComisionDialog(tipoUnidad)}
+                          >
+                            <Edit className="w-4 h-4 mr-2" />
+                            Editar Comisión
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Dialog: New Template */}
+          <Dialog open={isNewPlantillaDialogOpen} onOpenChange={setIsNewPlantillaDialogOpen}>
+            <DialogContent className="sm:max-w-[500px]">
               <DialogHeader>
-                <DialogTitle>Aplicar Plantillas de Tipos de Unidad</DialogTitle>
+                <DialogTitle>Nueva Plantilla de Tipo de Unidad</DialogTitle>
                 <DialogDescription>
-                  Selecciona las plantillas que deseas aplicar a este proyecto. Si ya existe un tipo con el mismo código, se actualizará.
+                  Crea una nueva plantilla global que podrás reutilizar en otros proyectos
                 </DialogDescription>
               </DialogHeader>
 
               <ScrollArea className="max-h-[60vh] pr-4">
                 <div className="grid gap-4 py-4">
-                  <div className="grid grid-cols-1 gap-2">
-                    <Label>Comisión para tipos nuevos (opcional)</Label>
-                    <Select
-                      value={plantillaComisionId}
-                      onValueChange={(value: string) => setPlantillaComisionId(value)}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Usar comisión del proyecto" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="none">Usar comisión del proyecto</SelectItem>
-                        {comisiones.map((comision) => (
-                          <SelectItem key={comision.id} value={comision.id}>
-                            {comision.nombre} ({(comision.porcentaje * 100).toFixed(1)}%)
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <p className="text-xs text-muted-foreground">
-                      Solo se aplicará a los tipos que se creen nuevos. Los tipos existentes mantendrán su comisión actual.
-                    </p>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="grid gap-2">
+                      <Label htmlFor="template-nombre">Nombre *</Label>
+                      <Input
+                        id="template-nombre"
+                        value={newPlantillaFormData.nombre}
+                        onChange={(e) => setNewPlantillaFormData({ ...newPlantillaFormData, nombre: e.target.value })}
+                        placeholder="ej: Studio, 1 Dormitorio"
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="template-codigo">Código *</Label>
+                      <Input
+                        id="template-codigo"
+                        value={newPlantillaFormData.codigo}
+                        onChange={(e) => setNewPlantillaFormData({ ...newPlantillaFormData, codigo: e.target.value.toUpperCase() })}
+                        placeholder="ej: STU, 1D"
+                      />
+                    </div>
                   </div>
 
-                  {loadingPlantillas ? (
-                    <div className="flex items-center justify-center py-8">
-                      <div className="text-center">
-                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
-                        <p className="mt-2 text-sm text-muted-foreground">Cargando plantillas...</p>
-                      </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="grid gap-2">
+                      <Label htmlFor="template-bedrooms">Dormitorios</Label>
+                      <Input
+                        id="template-bedrooms"
+                        type="number"
+                        min="0"
+                        value={newPlantillaFormData.bedrooms}
+                        onChange={(e) => setNewPlantillaFormData({ ...newPlantillaFormData, bedrooms: e.target.value })}
+                        placeholder="0"
+                      />
                     </div>
-                  ) : plantillas.length === 0 ? (
-                    <div className="text-center py-8 border rounded-lg bg-muted/50">
-                      <Settings className="h-12 w-12 text-muted-foreground mx-auto mb-2" />
-                      <p className="text-sm text-muted-foreground">
-                        No hay plantillas disponibles
-                      </p>
+                    <div className="grid gap-2">
+                      <Label htmlFor="template-bathrooms">Baños</Label>
+                      <Input
+                        id="template-bathrooms"
+                        type="number"
+                        min="0"
+                        value={newPlantillaFormData.bathrooms}
+                        onChange={(e) => setNewPlantillaFormData({ ...newPlantillaFormData, bathrooms: e.target.value })}
+                        placeholder="0"
+                      />
                     </div>
-                  ) : (
-                    <div className="space-y-2">
-                      <Label>Plantillas Disponibles</Label>
-                      <div className="border rounded-lg divide-y">
-                        {plantillas.map((plantilla) => (
-                          <div
-                            key={plantilla.id}
-                            className="flex items-center justify-between p-3 hover:bg-muted/50 cursor-pointer"
-                            onClick={() => handleTogglePlantilla(plantilla.id)}
-                          >
-                            <div className="flex items-center space-x-3 flex-1">
-                              <Checkbox
-                                checked={selectedPlantillas.includes(plantilla.id)}
-                                onCheckedChange={() => handleTogglePlantilla(plantilla.id)}
-                              />
-                              <div className="flex-1">
-                                <div className="flex items-center gap-2">
-                                  <p className="font-medium">{plantilla.nombre}</p>
-                                  <Badge variant="outline" className="text-xs">
-                                    {plantilla.codigo}
-                                  </Badge>
-                                </div>
-                                {(plantilla.bedrooms || plantilla.bathrooms || plantilla.descripcion) && (
-                                  <div className="flex gap-3 mt-1">
-                                    {plantilla.bedrooms && (
-                                      <p className="text-xs text-muted-foreground">
-                                        {plantilla.bedrooms} dorm.
-                                      </p>
-                                    )}
-                                    {plantilla.bathrooms && (
-                                      <p className="text-xs text-muted-foreground">
-                                        {plantilla.bathrooms} baños
-                                      </p>
-                                    )}
-                                    {plantilla.descripcion && (
-                                      <p className="text-xs text-muted-foreground">
-                                        {plantilla.descripcion}
-                                      </p>
-                                    )}
-                                  </div>
-                                )}
-                              </div>
-                              {plantilla.usageCount > 0 && (
-                                <Badge variant="secondary" className="text-xs">
-                                  Usado {plantilla.usageCount}x
-                                </Badge>
-                              )}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                      {selectedPlantillas.length > 0 && (
-                        <p className="text-sm text-muted-foreground">
-                          {selectedPlantillas.length} plantilla{selectedPlantillas.length !== 1 ? 's' : ''} seleccionada{selectedPlantillas.length !== 1 ? 's' : ''}
-                        </p>
-                      )}
-                    </div>
-                  )}
+                  </div>
+
+                  <div className="grid gap-2">
+                    <Label htmlFor="template-descripcion">Descripción</Label>
+                    <Input
+                      id="template-descripcion"
+                      value={newPlantillaFormData.descripcion}
+                      onChange={(e) => setNewPlantillaFormData({ ...newPlantillaFormData, descripcion: e.target.value })}
+                      placeholder="Descripción opcional..."
+                    />
+                  </div>
                 </div>
               </ScrollArea>
 
               <div className="flex justify-end space-x-2">
                 <Button
                   variant="outline"
-                  onClick={() => setIsPlantillasDialogOpen(false)}
-                  disabled={applyingPlantillas}
+                  onClick={() => setIsNewPlantillaDialogOpen(false)}
+                  disabled={saving}
                 >
                   Cancelar
                 </Button>
+                <Button onClick={handleSubmitNewPlantilla} disabled={saving}>
+                  {saving ? 'Creando...' : 'Crear Plantilla'}
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+
+          {/* Dialog: Edit Commission */}
+          <Dialog open={isEditComisionDialogOpen} onOpenChange={setIsEditComisionDialogOpen}>
+            <DialogContent className="sm:max-w-[400px]">
+              <DialogHeader>
+                <DialogTitle>Editar Comisión</DialogTitle>
+                <DialogDescription>
+                  Asigna una comisión específica para el tipo "{editingComisionTipo?.nombre}"
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="grid gap-4 py-4">
+                <div className="grid gap-2">
+                  <Label htmlFor="comision-select">Comisión</Label>
+                  <Select
+                    value={comisionFormData.comisionId}
+                    onValueChange={(value: string) => setComisionFormData({ comisionId: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Sin comisión asignada" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Sin comisión asignada</SelectItem>
+                      {comisiones.filter(c => c.activa).map((comision) => (
+                        <SelectItem key={comision.id} value={comision.id}>
+                          {comision.nombre} - {(comision.porcentaje * 100).toFixed(1)}%
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">
+                    Si no asignas comisión, usará la comisión del proyecto por defecto
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex justify-end space-x-2">
                 <Button
-                  onClick={handleApplyPlantillas}
-                  disabled={applyingPlantillas || selectedPlantillas.length === 0}
+                  variant="outline"
+                  onClick={() => {
+                    setIsEditComisionDialogOpen(false)
+                    setEditingComisionTipo(null)
+                  }}
+                  disabled={saving}
                 >
-                  {applyingPlantillas ? 'Aplicando...' : `Aplicar${selectedPlantillas.length > 0 ? ` (${selectedPlantillas.length})` : ''}`}
+                  Cancelar
+                </Button>
+                <Button onClick={handleSubmitComision} disabled={saving}>
+                  {saving ? 'Guardando...' : 'Guardar'}
                 </Button>
               </div>
             </DialogContent>

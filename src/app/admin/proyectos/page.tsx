@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -12,6 +12,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog'
 import { ScrollArea } from '@/components/ui/scroll-area'
+import { Badge } from '@/components/ui/badge'
 import { toast } from 'sonner'
 import {
   Building2,
@@ -22,7 +23,9 @@ import {
   RefreshCw,
   MapPin,
   Calendar,
-  Home
+  Home,
+  Search,
+  X
 } from 'lucide-react'
 
 interface Comision {
@@ -61,8 +64,11 @@ interface Edificio {
 }
 
 
+type FilterField = 'all' | 'nombre' | 'empresa' | 'direccion' | 'comuna' | 'ciudad' | 'region'
+
 export default function ProyectosPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [edificios, setEdificios] = useState<Edificio[]>([])
   const [comisiones, setComisiones] = useState<Comision[]>([])
   const [empresas, setEmpresas] = useState<Empresa[]>([])
@@ -70,6 +76,11 @@ export default function ProyectosPage() {
   const [saving, setSaving] = useState(false)
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
   const [editingEdificio, setEditingEdificio] = useState<Edificio | null>(null)
+
+  // Filter state
+  const [filterField, setFilterField] = useState<FilterField>('all')
+  const [searchTerm, setSearchTerm] = useState('')
+  const [empresaIdFilter, setEmpresaIdFilter] = useState<string | null>(null)
 
   // Form state
   const [formData, setFormData] = useState({
@@ -85,18 +96,37 @@ export default function ProyectosPage() {
   })
 
   useEffect(() => {
+    // Check for empresaId in URL params
+    const empresaIdParam = searchParams.get('empresaId')
+    console.log('🔗 URL empresaId param:', empresaIdParam)
+    if (empresaIdParam) {
+      console.log('✅ Setting empresaIdFilter to:', empresaIdParam)
+      setEmpresaIdFilter(empresaIdParam)
+      setFilterField('empresa')
+    }
+  }, [searchParams])
+
+  useEffect(() => {
     fetchEdificios()
     fetchComisiones()
     fetchEmpresas()
-  }, [])
+  }, [empresaIdFilter])
 
   const fetchEdificios = async () => {
     try {
       setLoading(true)
-      const response = await fetch('/api/admin/edificios')
+      const url = empresaIdFilter
+        ? `/api/admin/edificios?empresaId=${empresaIdFilter}`
+        : '/api/admin/edificios'
+
+      console.log('🔍 Fetching edificios with URL:', url)
+      console.log('📊 empresaIdFilter:', empresaIdFilter)
+
+      const response = await fetch(url)
       const data = await response.json()
 
       if (data.success) {
+        console.log('✅ Edificios loaded:', data.edificios.length, 'edificios')
         setEdificios(data.edificios)
       } else {
         toast.error('Error al cargar proyectos')
@@ -244,6 +274,53 @@ export default function ProyectosPage() {
       toast.error('Error de conexión')
     }
   }
+
+  const clearFilters = () => {
+    setSearchTerm('')
+    setFilterField('all')
+    setEmpresaIdFilter(null)
+    router.push('/admin/proyectos')
+  }
+
+  // Filter logic - only apply text search if there's a search term
+  // The empresaId filter is already applied at the API level
+  const filteredEdificios = edificios.filter((edificio) => {
+    // If no search term, show all edificios (already filtered by empresaId at API level)
+    if (!searchTerm) return true
+
+    const searchLower = searchTerm.toLowerCase()
+
+    switch (filterField) {
+      case 'nombre':
+        return edificio.nombre.toLowerCase().includes(searchLower)
+      case 'empresa':
+        return edificio.empresa?.nombre.toLowerCase().includes(searchLower) ||
+               edificio.empresa?.rut.includes(searchTerm)
+      case 'direccion':
+        return edificio.direccion.toLowerCase().includes(searchLower)
+      case 'comuna':
+        return edificio.comuna.toLowerCase().includes(searchLower)
+      case 'ciudad':
+        return edificio.ciudad.toLowerCase().includes(searchLower)
+      case 'region':
+        return edificio.region.toLowerCase().includes(searchLower)
+      case 'all':
+      default:
+        return (
+          edificio.nombre.toLowerCase().includes(searchLower) ||
+          edificio.direccion.toLowerCase().includes(searchLower) ||
+          edificio.comuna.toLowerCase().includes(searchLower) ||
+          edificio.ciudad.toLowerCase().includes(searchLower) ||
+          edificio.region.toLowerCase().includes(searchLower) ||
+          edificio.empresa?.nombre.toLowerCase().includes(searchLower) ||
+          edificio.empresa?.rut.includes(searchTerm)
+        )
+    }
+  })
+
+  const activeEmpresaFilter = empresaIdFilter
+    ? empresas.find(e => e.id === empresaIdFilter)
+    : null
 
 
 
@@ -432,6 +509,36 @@ export default function ProyectosPage() {
         </div>
       </div>
 
+      {/* Active filter badge */}
+      {activeEmpresaFilter && (
+        <Card className="bg-blue-50 border-blue-200">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Building2 className="h-5 w-5 text-blue-600" />
+                <div>
+                  <p className="text-sm font-medium text-blue-900">
+                    Filtrando por empresa
+                  </p>
+                  <p className="text-xs text-blue-700">
+                    {activeEmpresaFilter.nombre} ({activeEmpresaFilter.rut})
+                  </p>
+                </div>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={clearFilters}
+                className="text-blue-700 hover:text-blue-900 hover:bg-blue-100"
+              >
+                <X className="w-4 h-4 mr-1" />
+                Limpiar filtro
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Stats Cards */}
       {edificios.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -440,7 +547,10 @@ export default function ProyectosPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">Total Proyectos</p>
-                  <p className="text-2xl font-bold">{edificios.length}</p>
+                  <p className="text-2xl font-bold">{filteredEdificios.length}</p>
+                  {filteredEdificios.length !== edificios.length && (
+                    <p className="text-xs text-muted-foreground">de {edificios.length} total</p>
+                  )}
                 </div>
                 <Building2 className="h-8 w-8 text-muted-foreground" />
               </div>
@@ -453,7 +563,7 @@ export default function ProyectosPage() {
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">Total Unidades</p>
                   <p className="text-2xl font-bold">
-                    {edificios.reduce((sum, e) => sum + e.totalUnidades, 0)}
+                    {filteredEdificios.reduce((sum, e) => sum + e.totalUnidades, 0)}
                   </p>
                 </div>
                 <Home className="h-8 w-8 text-muted-foreground" />
@@ -467,7 +577,7 @@ export default function ProyectosPage() {
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">Unidades Vendidas</p>
                   <p className="text-2xl font-bold">
-                    {edificios.reduce((sum, e) => sum + e.unidadesVendidas, 0)}
+                    {filteredEdificios.reduce((sum, e) => sum + e.unidadesVendidas, 0)}
                   </p>
                 </div>
                 <Home className="h-8 w-8 text-green-600" />
@@ -481,7 +591,7 @@ export default function ProyectosPage() {
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">Disponibles</p>
                   <p className="text-2xl font-bold">
-                    {edificios.reduce((sum, e) => sum + e.unidadesDisponibles, 0)}
+                    {filteredEdificios.reduce((sum, e) => sum + e.unidadesDisponibles, 0)}
                   </p>
                 </div>
                 <Calendar className="h-8 w-8 text-green-600" />
@@ -500,6 +610,51 @@ export default function ProyectosPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
+          {/* Search and filter controls */}
+          <div className="mb-4 flex flex-col sm:flex-row gap-3">
+            <div className="flex-1">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+                <Input
+                  placeholder="Buscar proyectos..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+            </div>
+            <div className="sm:w-48">
+              <Select
+                value={filterField}
+                onValueChange={(value: FilterField) => setFilterField(value)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Filtrar por..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos los campos</SelectItem>
+                  <SelectItem value="nombre">Nombre</SelectItem>
+                  <SelectItem value="empresa">Empresa</SelectItem>
+                  <SelectItem value="direccion">Dirección</SelectItem>
+                  <SelectItem value="comuna">Comuna</SelectItem>
+                  <SelectItem value="ciudad">Ciudad</SelectItem>
+                  <SelectItem value="region">Región</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            {searchTerm && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setSearchTerm('')}
+                className="sm:w-auto"
+              >
+                <X className="w-4 h-4 mr-1" />
+                Limpiar
+              </Button>
+            )}
+          </div>
+
           {edificios.length === 0 ? (
             <div className="text-center py-12">
               <Building2 className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
@@ -510,6 +665,17 @@ export default function ProyectosPage() {
               <Button onClick={handleOpenCreateDialog}>
                 <Plus className="w-4 h-4 mr-2" />
                 Crear Primer Proyecto
+              </Button>
+            </div>
+          ) : filteredEdificios.length === 0 ? (
+            <div className="text-center py-12">
+              <Search className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-foreground mb-2">No se encontraron resultados</h3>
+              <p className="text-muted-foreground mb-4">
+                No hay proyectos que coincidan con tu búsqueda
+              </p>
+              <Button variant="outline" onClick={() => setSearchTerm('')}>
+                Limpiar búsqueda
               </Button>
             </div>
           ) : (
@@ -527,7 +693,7 @@ export default function ProyectosPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {edificios.map((edificio) => {
+                  {filteredEdificios.map((edificio) => {
                     return (
                       <TableRow key={edificio.id}>
                         <TableCell>

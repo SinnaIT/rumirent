@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Textarea } from '@/components/ui/textarea'
 import { Checkbox } from '@/components/ui/checkbox'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { toast } from 'sonner'
 import {
   FileText,
@@ -21,7 +22,10 @@ import {
   TrendingUp,
   Users,
   CheckCircle,
-  Calculator
+  Calculator,
+  MessageCircle,
+  Mail,
+  Eye
 } from 'lucide-react'
 
 interface Broker {
@@ -132,9 +136,9 @@ export default function AdminLeadsPage() {
   const [showRecalculationDialog, setShowRecalculationDialog] = useState(false)
   const [selectedMonth, setSelectedMonth] = useState<string>(() => (new Date().getMonth() + 1).toString())
   const [selectedYear, setSelectedYear] = useState<string>(() => new Date().getFullYear().toString())
+  const [searchField, setSearchField] = useState('cliente')
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedBroker, setSelectedBroker] = useState('todos')
-  const [selectedCliente, setSelectedCliente] = useState('todos')
   const [selectedEstado, setSelectedEstado] = useState('todos')
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [editingLead, setEditingLead] = useState<Lead | null>(null)
@@ -441,6 +445,30 @@ export default function AdminLeadsPage() {
     return `${value.toFixed(2)} UF`
   }
 
+  const handleWhatsApp = (cliente: Cliente) => {
+    if (!cliente.telefono) {
+      toast.error('El cliente no tiene teléfono registrado')
+      return
+    }
+    // Formato chileno: eliminar caracteres no numéricos y agregar código de país
+    const phone = cliente.telefono.replace(/\D/g, '')
+    const whatsappUrl = `https://wa.me/56${phone}`
+    window.open(whatsappUrl, '_blank')
+  }
+
+  const handleEmail = (cliente: Cliente) => {
+    if (!cliente.email) {
+      toast.error('El cliente no tiene email registrado')
+      return
+    }
+    const mailtoUrl = `mailto:${cliente.email}`
+    window.location.href = mailtoUrl
+  }
+
+  const handleViewClient = (clienteId: string) => {
+    window.open(`/admin/clientes/${clienteId}`, '_blank')
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -648,6 +676,7 @@ export default function AdminLeadsPage() {
               <table className="w-full caption-bottom text-sm">
                 <thead className="sticky top-0 bg-background z-10 border-b">
                   <tr className="border-b transition-colors hover:bg-muted/50">
+                    <TableHead className="w-[180px]">Acciones</TableHead>
                     <TableHead>Cliente</TableHead>
                     <TableHead>Broker</TableHead>
                     <TableHead>Proyecto/Unidad</TableHead>
@@ -655,7 +684,6 @@ export default function AdminLeadsPage() {
                     <TableHead>Valor</TableHead>
                     <TableHead>Comisión</TableHead>
                     <TableHead>Fecha</TableHead>
-                    <TableHead className="text-right">Acciones</TableHead>
                   </tr>
                 </thead>
                 <tbody className="[&_tr:last-child]:border-0">
@@ -663,6 +691,331 @@ export default function AdminLeadsPage() {
                     const estado = formatearEstado(lead.estado)
                     return (
                       <tr key={lead.id} className="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted">
+                        <td className="p-2 align-middle">
+                          <TooltipProvider>
+                            <div className="flex items-center gap-1">
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handleWhatsApp(lead.cliente)}
+                                    className="h-8 w-8 p-0"
+                                  >
+                                    <MessageCircle className="w-4 h-4 text-green-600" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p>Enviar WhatsApp</p>
+                                </TooltipContent>
+                              </Tooltip>
+
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handleEmail(lead.cliente)}
+                                    className="h-8 w-8 p-0"
+                                  >
+                                    <Mail className="w-4 h-4 text-blue-600" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p>Enviar Email</p>
+                                </TooltipContent>
+                              </Tooltip>
+
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handleViewClient(lead.cliente.id)}
+                                    className="h-8 w-8 p-0"
+                                  >
+                                    <Eye className="w-4 h-4 text-purple-600" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p>Ver detalle del cliente</p>
+                                </TooltipContent>
+                              </Tooltip>
+
+                              <Dialog open={isEditDialogOpen && editingLead?.id === lead.id} onOpenChange={(open) => {
+                                if (!open) {
+                                  setIsEditDialogOpen(false)
+                                  resetForm()
+                                }
+                              }}>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <DialogTrigger asChild>
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => handleOpenEditDialog(lead)}
+                                        className="h-8 w-8 p-0"
+                                      >
+                                        <Edit className="w-4 h-4 text-orange-600" />
+                                      </Button>
+                                    </DialogTrigger>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    <p>Editar lead</p>
+                                  </TooltipContent>
+                                </Tooltip>
+                              <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
+                                <DialogHeader>
+                                  <DialogTitle className="flex items-center">
+                                    <FileText className="w-5 h-5 mr-2" />
+                                    Editar Lead
+                                  </DialogTitle>
+                                  <DialogDescription>
+                                    Modifica los datos del lead. Todos los campos son editables.
+                                  </DialogDescription>
+                                </DialogHeader>
+
+                                <div className="grid gap-4 py-4">
+                                  <div className="grid grid-cols-2 gap-4">
+                                    <div className="grid grid-cols-1 gap-2">
+                                      <Label htmlFor="broker">Broker *</Label>
+                                      <Select value={formData.brokerId} onValueChange={(value: string) => setFormData({ ...formData, brokerId: value })}>
+                                        <SelectTrigger>
+                                          <SelectValue placeholder="Seleccionar broker" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                          <SelectItem value="none">Seleccionar broker...</SelectItem>
+                                          {brokers
+                                            .filter(b => b.id && b.id.trim() !== '')
+                                            .map((broker) => (
+                                              <SelectItem key={broker.id} value={broker.id}>
+                                                {broker.nombre} - {broker.rut}
+                                              </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                      </Select>
+                                    </div>
+
+                                    <div className="grid grid-cols-1 gap-2">
+                                      <Label htmlFor="cliente">Cliente *</Label>
+                                      <Select value={formData.clienteId} onValueChange={(value: string) => setFormData({ ...formData, clienteId: value })}>
+                                        <SelectTrigger>
+                                          <SelectValue placeholder="Seleccionar cliente" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                          <SelectItem value="none">Seleccionar cliente...</SelectItem>
+                                          {clientes
+                                            .filter(c => c.id && c.id.trim() !== '')
+                                            .map((cliente) => (
+                                              <SelectItem key={cliente.id} value={cliente.id}>
+                                                {cliente.nombre} - {cliente.rut}
+                                              </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                      </Select>
+                                    </div>
+                                  </div>
+
+                                  <div className="grid grid-cols-2 gap-4">
+                                    <div className="grid grid-cols-1 gap-2">
+                                      <Label htmlFor="codigoUnidad">Código Unidad</Label>
+                                      <Input
+                                        id="codigoUnidad"
+                                        value={formData.codigoUnidad}
+                                        onChange={(e) => setFormData({ ...formData, codigoUnidad: e.target.value })}
+                                        placeholder="Ej: A-101"
+                                      />
+                                    </div>
+
+                                    <div className="grid grid-cols-1 gap-2">
+                                      <Label htmlFor="estado">Estado</Label>
+                                      <Select value={formData.estado} onValueChange={(value) => setFormData({ ...formData, estado: value as Lead['estado'] })}>
+                                        <SelectTrigger>
+                                          <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                          {ESTADOS_LEAD.map((estado) => (
+                                            <SelectItem key={estado.value} value={estado.value}>
+                                              {estado.label}
+                                            </SelectItem>
+                                          ))}
+                                        </SelectContent>
+                                      </Select>
+                                    </div>
+                                  </div>
+
+                                  <div className="grid grid-cols-3 gap-4">
+                                    <div className="grid grid-cols-1 gap-2">
+                                      <Label htmlFor="totalLead">Total Lead (CLP) *</Label>
+                                      <Input
+                                        id="totalLead"
+                                        type="number"
+                                        value={formData.totalLead}
+                                        onChange={(e) => setFormData({ ...formData, totalLead: e.target.value })}
+                                        placeholder="150000000"
+                                      />
+                                    </div>
+
+                                    <div className="grid grid-cols-1 gap-2">
+                                      <Label htmlFor="montoUf">Monto UF *</Label>
+                                      <Input
+                                        id="montoUf"
+                                        type="number"
+                                        step="0.01"
+                                        value={formData.montoUf}
+                                        onChange={(e) => setFormData({ ...formData, montoUf: e.target.value })}
+                                        placeholder="4500.50"
+                                      />
+                                    </div>
+
+                                    <div className="grid grid-cols-1 gap-2">
+                                      <Label htmlFor="comision">Comisión (CLP)</Label>
+                                      <Input
+                                        id="comision"
+                                        type="number"
+                                        value={formData.comision}
+                                        onChange={(e) => setFormData({ ...formData, comision: e.target.value })}
+                                        placeholder="7500000"
+                                      />
+                                    </div>
+                                  </div>
+
+                                  <div className="grid grid-cols-1 gap-2">
+                                    <Label htmlFor="comisionBase">Comisión Base (Opcional)</Label>
+                                    <Select
+                                      value={formData.comisionId}
+                                      onValueChange={(value: string) => setFormData({ ...formData, comisionId: value })}
+                                    >
+                                      <SelectTrigger>
+                                        <SelectValue placeholder="Seleccionar comisión base" />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        <SelectItem value="none">Sin comisión base específica</SelectItem>
+                                        {comisiones
+                                          .filter(c => c.id && c.id.trim() !== '')
+                                          .sort((a, b) => a.nombre.localeCompare(b.nombre))
+                                          .map((comision) => (
+                                            <SelectItem key={comision.id} value={comision.id}>
+                                              {comision.nombre} ({comision.codigo}) - {(comision.porcentaje * 100).toFixed(1)}%
+                                            </SelectItem>
+                                          ))}
+                                      </SelectContent>
+                                    </Select>
+                                  </div>
+
+                                  <div className="grid grid-cols-1 gap-2">
+                                    <Label htmlFor="reglaComision">Regla de Comisión (Opcional)</Label>
+                                    <Select
+                                      value={formData.reglaComisionId}
+                                      onValueChange={(value: string) => setFormData({ ...formData, reglaComisionId: value })}
+                                    >
+                                      <SelectTrigger>
+                                        <SelectValue placeholder="Seleccionar regla de comisión" />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        <SelectItem value="none">Sin regla específica</SelectItem>
+                                        {reglasComision
+                                          .filter(r => r.id && r.id.trim() !== '')
+                                          .sort((a, b) => a.comision.nombre.localeCompare(b.comision.nombre) || a.cantidadMinima - b.cantidadMinima)
+                                          .map((regla) => (
+                                            <SelectItem key={regla.id} value={regla.id}>
+                                              {regla.comision.nombre} ({regla.comision.codigo}) - {(regla.porcentaje * 100).toFixed(1)}%
+                                              (${regla.cantidadMinima.toLocaleString()}{regla.cantidadMaxima ? ` - $${regla.cantidadMaxima.toLocaleString()}` : '+'})
+                                            </SelectItem>
+                                          ))}
+                                      </SelectContent>
+                                    </Select>
+                                    {formData.reglaComisionId && formData.reglaComisionId !== 'none' && (
+                                      <div className="text-xs text-muted-foreground">
+                                        💡 Esta regla puede recalcular automáticamente la comisión según el monto del lead
+                                      </div>
+                                    )}
+                                  </div>
+
+                                  <div className="grid grid-cols-3 gap-4">
+                                    <div className="grid grid-cols-1 gap-2">
+                                      <Label htmlFor="fechaPagoReserva">Fecha Pago Reserva</Label>
+                                      <Input
+                                        id="fechaPagoReserva"
+                                        type="date"
+                                        value={formData.fechaPagoReserva}
+                                        onChange={(e) => setFormData({ ...formData, fechaPagoReserva: e.target.value })}
+                                      />
+                                    </div>
+
+                                    <div className="grid grid-cols-1 gap-2">
+                                      <Label htmlFor="fechaPagoLead">Fecha Pago Lead</Label>
+                                      <Input
+                                        id="fechaPagoLead"
+                                        type="date"
+                                        value={formData.fechaPagoLead}
+                                        onChange={(e) => setFormData({ ...formData, fechaPagoLead: e.target.value })}
+                                      />
+                                    </div>
+
+                                    <div className="grid grid-cols-1 gap-2">
+                                      <Label htmlFor="fechaCheckin">Fecha Check-in</Label>
+                                      <Input
+                                        id="fechaCheckin"
+                                        type="date"
+                                        value={formData.fechaCheckin}
+                                        onChange={(e) => setFormData({ ...formData, fechaCheckin: e.target.value })}
+                                      />
+                                    </div>
+                                  </div>
+
+                                  <div className="grid grid-cols-1 gap-2">
+                                    <Label htmlFor="postulacion">Postulación</Label>
+                                    <Input
+                                      id="postulacion"
+                                      value={formData.postulacion}
+                                      onChange={(e) => setFormData({ ...formData, postulacion: e.target.value })}
+                                      placeholder="Información sobre postulación..."
+                                    />
+                                  </div>
+
+                                  <div className="grid grid-cols-1 gap-2">
+                                    <Label htmlFor="observaciones">Observaciones</Label>
+                                    <Textarea
+                                      id="observaciones"
+                                      value={formData.observaciones}
+                                      onChange={(e) => setFormData({ ...formData, observaciones: e.target.value })}
+                                      placeholder="Observaciones adicionales..."
+                                      rows={3}
+                                    />
+                                  </div>
+
+                                  <div className="flex items-center space-x-2">
+                                    <Checkbox
+                                      id="conciliado"
+                                      checked={formData.conciliado}
+                                      onCheckedChange={(checked) => setFormData({ ...formData, conciliado: checked as boolean })}
+                                    />
+                                    <Label htmlFor="conciliado">Lead conciliado</Label>
+                                  </div>
+                                </div>
+
+                                <div className="flex justify-end space-x-2">
+                                  <Button
+                                    variant="outline"
+                                    onClick={() => {
+                                      setIsEditDialogOpen(false)
+                                      resetForm()
+                                    }}
+                                    disabled={saving}
+                                  >
+                                    Cancelar
+                                  </Button>
+                                  <Button onClick={handleSubmit} disabled={saving}>
+                                    {saving ? 'Guardando...' : 'Actualizar Lead'}
+                                  </Button>
+                                </div>
+                              </DialogContent>
+                              </Dialog>
+                            </div>
+                          </TooltipProvider>
+                        </td>
                         <td className="p-2 align-middle whitespace-nowrap">
                           <div>
                             <div className="font-medium">{lead.cliente.nombre}</div>
@@ -739,271 +1092,6 @@ export default function AdminLeadsPage() {
                           <div className="text-sm">
                             {new Date(lead.createdAt).toLocaleDateString('es-ES')}
                           </div>
-                        </td>
-                        <td className="p-2 align-middle whitespace-nowrap text-right">
-                          <Dialog open={isEditDialogOpen && editingLead?.id === lead.id} onOpenChange={(open) => {
-                            if (!open) {
-                              setIsEditDialogOpen(false)
-                              resetForm()
-                            }
-                          }}>
-                            <DialogTrigger asChild>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleOpenEditDialog(lead)}
-                              >
-                                <Edit className="w-4 h-4" />
-                              </Button>
-                            </DialogTrigger>
-                            <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
-                              <DialogHeader>
-                                <DialogTitle className="flex items-center">
-                                  <FileText className="w-5 h-5 mr-2" />
-                                  Editar Lead
-                                </DialogTitle>
-                                <DialogDescription>
-                                  Modifica los datos del lead. Todos los campos son editables.
-                                </DialogDescription>
-                              </DialogHeader>
-
-                              <div className="grid gap-4 py-4">
-                                <div className="grid grid-cols-2 gap-4">
-                                  <div className="grid grid-cols-1 gap-2">
-                                    <Label htmlFor="broker">Broker *</Label>
-                                    <Select value={formData.brokerId} onValueChange={(value: string) => setFormData({ ...formData, brokerId: value })}>
-                                      <SelectTrigger>
-                                        <SelectValue placeholder="Seleccionar broker" />
-                                      </SelectTrigger>
-                                      <SelectContent>
-                                        <SelectItem value="none">Seleccionar broker...</SelectItem>
-                                        {brokers
-                                          .filter(b => b.id && b.id.trim() !== '')
-                                          .map((broker) => (
-                                            <SelectItem key={broker.id} value={broker.id}>
-                                              {broker.nombre} - {broker.rut}
-                                            </SelectItem>
-                                          ))}
-                                      </SelectContent>
-                                    </Select>
-                                  </div>
-
-                                  <div className="grid grid-cols-1 gap-2">
-                                    <Label htmlFor="cliente">Cliente *</Label>
-                                    <Select value={formData.clienteId} onValueChange={(value: string) => setFormData({ ...formData, clienteId: value })}>
-                                      <SelectTrigger>
-                                        <SelectValue placeholder="Seleccionar cliente" />
-                                      </SelectTrigger>
-                                      <SelectContent>
-                                        <SelectItem value="none">Seleccionar cliente...</SelectItem>
-                                        {clientes
-                                          .filter(c => c.id && c.id.trim() !== '')
-                                          .map((cliente) => (
-                                            <SelectItem key={cliente.id} value={cliente.id}>
-                                              {cliente.nombre} - {cliente.rut}
-                                            </SelectItem>
-                                          ))}
-                                      </SelectContent>
-                                    </Select>
-                                  </div>
-                                </div>
-
-                                <div className="grid grid-cols-2 gap-4">
-                                  <div className="grid grid-cols-1 gap-2">
-                                    <Label htmlFor="codigoUnidad">Código Unidad</Label>
-                                    <Input
-                                      id="codigoUnidad"
-                                      value={formData.codigoUnidad}
-                                      onChange={(e) => setFormData({ ...formData, codigoUnidad: e.target.value })}
-                                      placeholder="Ej: A-101"
-                                    />
-                                  </div>
-
-                                  <div className="grid grid-cols-1 gap-2">
-                                    <Label htmlFor="estado">Estado</Label>
-                                    <Select value={formData.estado} onValueChange={(value) => setFormData({ ...formData, estado: value as Lead['estado'] })}>
-                                      <SelectTrigger>
-                                        <SelectValue />
-                                      </SelectTrigger>
-                                      <SelectContent>
-                                        {ESTADOS_LEAD.map((estado) => (
-                                          <SelectItem key={estado.value} value={estado.value}>
-                                            {estado.label}
-                                          </SelectItem>
-                                        ))}
-                                      </SelectContent>
-                                    </Select>
-                                  </div>
-                                </div>
-
-                                <div className="grid grid-cols-3 gap-4">
-                                  <div className="grid grid-cols-1 gap-2">
-                                    <Label htmlFor="totalLead">Total Lead (CLP) *</Label>
-                                    <Input
-                                      id="totalLead"
-                                      type="number"
-                                      value={formData.totalLead}
-                                      onChange={(e) => setFormData({ ...formData, totalLead: e.target.value })}
-                                      placeholder="150000000"
-                                    />
-                                  </div>
-
-                                  <div className="grid grid-cols-1 gap-2">
-                                    <Label htmlFor="montoUf">Monto UF *</Label>
-                                    <Input
-                                      id="montoUf"
-                                      type="number"
-                                      step="0.01"
-                                      value={formData.montoUf}
-                                      onChange={(e) => setFormData({ ...formData, montoUf: e.target.value })}
-                                      placeholder="4500.50"
-                                    />
-                                  </div>
-
-                                  <div className="grid grid-cols-1 gap-2">
-                                    <Label htmlFor="comision">Comisión (CLP)</Label>
-                                    <Input
-                                      id="comision"
-                                      type="number"
-                                      value={formData.comision}
-                                      onChange={(e) => setFormData({ ...formData, comision: e.target.value })}
-                                      placeholder="7500000"
-                                    />
-                                  </div>
-                                </div>
-
-                                <div className="grid grid-cols-1 gap-2">
-                                  <Label htmlFor="comisionBase">Comisión Base (Opcional)</Label>
-                                  <Select
-                                    value={formData.comisionId}
-                                    onValueChange={(value: string) => setFormData({ ...formData, comisionId: value })}
-                                  >
-                                    <SelectTrigger>
-                                      <SelectValue placeholder="Seleccionar comisión base" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      <SelectItem value="none">Sin comisión base específica</SelectItem>
-                                      {comisiones
-                                        .filter(c => c.id && c.id.trim() !== '')
-                                        .sort((a, b) => a.nombre.localeCompare(b.nombre))
-                                        .map((comision) => (
-                                          <SelectItem key={comision.id} value={comision.id}>
-                                            {comision.nombre} ({comision.codigo}) - {(comision.porcentaje * 100).toFixed(1)}%
-                                          </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                  </Select>
-                                </div>
-
-                                <div className="grid grid-cols-1 gap-2">
-                                  <Label htmlFor="reglaComision">Regla de Comisión (Opcional)</Label>
-                                  <Select
-                                    value={formData.reglaComisionId}
-                                    onValueChange={(value: string) => setFormData({ ...formData, reglaComisionId: value })}
-                                  >
-                                    <SelectTrigger>
-                                      <SelectValue placeholder="Seleccionar regla de comisión" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      <SelectItem value="none">Sin regla específica</SelectItem>
-                                      {reglasComision
-                                        .filter(r => r.id && r.id.trim() !== '')
-                                        .sort((a, b) => a.comision.nombre.localeCompare(b.comision.nombre) || a.cantidadMinima - b.cantidadMinima)
-                                        .map((regla) => (
-                                          <SelectItem key={regla.id} value={regla.id}>
-                                            {regla.comision.nombre} ({regla.comision.codigo}) - {(regla.porcentaje * 100).toFixed(1)}%
-                                            (${regla.cantidadMinima.toLocaleString()}{regla.cantidadMaxima ? ` - $${regla.cantidadMaxima.toLocaleString()}` : '+'})
-                                          </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                  </Select>
-                                  {formData.reglaComisionId && formData.reglaComisionId !== 'none' && (
-                                    <div className="text-xs text-muted-foreground">
-                                      💡 Esta regla puede recalcular automáticamente la comisión según el monto del lead
-                                    </div>
-                                  )}
-                                </div>
-
-                                <div className="grid grid-cols-3 gap-4">
-                                  <div className="grid grid-cols-1 gap-2">
-                                    <Label htmlFor="fechaPagoReserva">Fecha Pago Reserva</Label>
-                                    <Input
-                                      id="fechaPagoReserva"
-                                      type="date"
-                                      value={formData.fechaPagoReserva}
-                                      onChange={(e) => setFormData({ ...formData, fechaPagoReserva: e.target.value })}
-                                    />
-                                  </div>
-
-                                  <div className="grid grid-cols-1 gap-2">
-                                    <Label htmlFor="fechaPagoLead">Fecha Pago Lead</Label>
-                                    <Input
-                                      id="fechaPagoLead"
-                                      type="date"
-                                      value={formData.fechaPagoLead}
-                                      onChange={(e) => setFormData({ ...formData, fechaPagoLead: e.target.value })}
-                                    />
-                                  </div>
-
-                                  <div className="grid grid-cols-1 gap-2">
-                                    <Label htmlFor="fechaCheckin">Fecha Check-in</Label>
-                                    <Input
-                                      id="fechaCheckin"
-                                      type="date"
-                                      value={formData.fechaCheckin}
-                                      onChange={(e) => setFormData({ ...formData, fechaCheckin: e.target.value })}
-                                    />
-                                  </div>
-                                </div>
-
-                                <div className="grid grid-cols-1 gap-2">
-                                  <Label htmlFor="postulacion">Postulación</Label>
-                                  <Input
-                                    id="postulacion"
-                                    value={formData.postulacion}
-                                    onChange={(e) => setFormData({ ...formData, postulacion: e.target.value })}
-                                    placeholder="Información sobre postulación..."
-                                  />
-                                </div>
-
-                                <div className="grid grid-cols-1 gap-2">
-                                  <Label htmlFor="observaciones">Observaciones</Label>
-                                  <Textarea
-                                    id="observaciones"
-                                    value={formData.observaciones}
-                                    onChange={(e) => setFormData({ ...formData, observaciones: e.target.value })}
-                                    placeholder="Observaciones adicionales..."
-                                    rows={3}
-                                  />
-                                </div>
-
-                                <div className="flex items-center space-x-2">
-                                  <Checkbox
-                                    id="conciliado"
-                                    checked={formData.conciliado}
-                                    onCheckedChange={(checked) => setFormData({ ...formData, conciliado: checked as boolean })}
-                                  />
-                                  <Label htmlFor="conciliado">Lead conciliado</Label>
-                                </div>
-                              </div>
-
-                              <div className="flex justify-end space-x-2">
-                                <Button
-                                  variant="outline"
-                                  onClick={() => {
-                                    setIsEditDialogOpen(false)
-                                    resetForm()
-                                  }}
-                                  disabled={saving}
-                                >
-                                  Cancelar
-                                </Button>
-                                <Button onClick={handleSubmit} disabled={saving}>
-                                  {saving ? 'Guardando...' : 'Actualizar Lead'}
-                                </Button>
-                              </div>
-                            </DialogContent>
-                          </Dialog>
                         </td>
                       </tr>
                     )
