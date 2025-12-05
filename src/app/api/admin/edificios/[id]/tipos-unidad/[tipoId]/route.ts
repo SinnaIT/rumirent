@@ -89,9 +89,9 @@ export async function PUT(
     }
 
     const body = await request.json()
-    const { nombre, codigo, comisionId } = body
+    const { nombre, codigo, comisionId, activo } = body
 
-    console.log('📝 Datos a actualizar:', { nombre, codigo, comisionId })
+    console.log('📝 Datos a actualizar:', { nombre, codigo, comisionId, activo })
     console.log('📝 Comisión procesada para actualización:', comisionId === 'none' || !comisionId ? null : comisionId)
 
     // Validaciones básicas
@@ -148,13 +148,20 @@ export async function PUT(
     }
 
     // Actualizar tipo de unidad
+    const updateData: any = {
+      nombre,
+      codigo,
+      comisionId: comisionId === 'none' || !comisionId ? null : comisionId
+    }
+
+    // Solo actualizar activo si se proporciona
+    if (activo !== undefined) {
+      updateData.activo = activo
+    }
+
     const updatedTipoUnidad = await prisma.tipoUnidadEdificio.update({
       where: { id: tipoId },
-      data: {
-        nombre,
-        codigo,
-        comisionId: comisionId === 'none' || !comisionId ? null : comisionId
-      },
+      data: updateData,
       include: {
         comision: {
           select: {

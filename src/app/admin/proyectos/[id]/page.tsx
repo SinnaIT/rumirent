@@ -181,9 +181,11 @@ export default function ProyectoDetailPage() {
   // Plantillas state
   const [plantillas, setPlantillas] = useState<any[]>([])
   const [loadingPlantillas, setLoadingPlantillas] = useState(false)
-  const [togglingPlantilla, setTogglingPlantilla] = useState<string | null>(null)
+  const [selectedPlantillasToAssign, setSelectedPlantillasToAssign] = useState<string[]>([])
+  const [applyingTemplates, setApplyingTemplates] = useState(false)
 
   // Dialog states
+  const [isAssignTemplatesDialogOpen, setIsAssignTemplatesDialogOpen] = useState(false)
   const [isNewPlantillaDialogOpen, setIsNewPlantillaDialogOpen] = useState(false)
   const [isEditComisionDialogOpen, setIsEditComisionDialogOpen] = useState(false)
   const [editingComisionTipo, setEditingComisionTipo] = useState<TipoUnidadDetail | null>(null)
@@ -268,7 +270,6 @@ export default function ProyectoDetailPage() {
   useEffect(() => {
     if (params.id && activeTab === 'tipos-unidad') {
       fetchTiposUnidadDetalle()
-      fetchPlantillas()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [params.id, activeTab])
@@ -689,33 +690,58 @@ export default function ProyectoDetailPage() {
     }
   }
 
-  const handleTogglePlantillaCheckbox = async (plantillaId: string) => {
+  const handleTogglePlantillaSelection = (plantillaId: string) => {
+    setSelectedPlantillasToAssign(prev => {
+      if (prev.includes(plantillaId)) {
+        return prev.filter(id => id !== plantillaId)
+      } else {
+        return [...prev, plantillaId]
+      }
+    })
+  }
+
+  const handleApplySelectedTemplates = async () => {
+    if (selectedPlantillasToAssign.length === 0) {
+      toast.error('Selecciona al menos una plantilla')
+      return
+    }
+
     try {
-      setTogglingPlantilla(plantillaId)
-      const response = await fetch(`/api/admin/edificios/${params.id}/tipos-unidad/toggle`, {
+      setApplyingTemplates(true)
+      const response = await fetch(`/api/admin/edificios/${params.id}/tipos-unidad/bulk-create`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ plantillaId })
+        body: JSON.stringify({
+          plantillaIds: selectedPlantillasToAssign,
+          // Sin comisionId - se crean sin comisión
+        })
       })
 
       const data = await response.json()
 
       if (data.success) {
-        toast.success(data.message)
-        // Refresh both lists
+        toast.success(`${data.summary.created} tipos creados, ${data.summary.updated} actualizados`)
+        setIsAssignTemplatesDialogOpen(false)
+        setSelectedPlantillasToAssign([])
         fetchTiposUnidadDetalle()
         fetchEdificio()
       } else {
-        toast.error(data.error || 'Error al aplicar plantilla')
+        toast.error(data.error || 'Error al asignar plantillas')
       }
     } catch (error) {
       console.error('Error:', error)
       toast.error('Error de conexión')
     } finally {
-      setTogglingPlantilla(null)
+      setApplyingTemplates(false)
     }
+  }
+
+  const handleOpenAssignTemplatesDialog = () => {
+    setSelectedPlantillasToAssign([])
+    fetchPlantillas()
+    setIsAssignTemplatesDialogOpen(true)
   }
 
   const handleOpenNewPlantillaDialog = () => {
@@ -727,6 +753,38 @@ export default function ProyectoDetailPage() {
       descripcion: ''
     })
     setIsNewPlantillaDialogOpen(true)
+  }
+
+  const handleToggleActivoTipoUnidad = async (tipoUnidad: TipoUnidadDetail) => {
+    try {
+      setSaving(true)
+      const response = await fetch(`/api/admin/edificios/${params.id}/tipos-unidad/${tipoUnidad.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          nombre: tipoUnidad.nombre,
+          codigo: tipoUnidad.codigo,
+          comisionId: tipoUnidad.comisionId || null,
+          activo: !tipoUnidad.activo
+        })
+      })
+
+      const data = await response.json()
+
+      if (data.success) {
+        toast.success(`Tipo ${!tipoUnidad.activo ? 'activado' : 'inactivado'} exitosamente`)
+        fetchTiposUnidadDetalle()
+      } else {
+        toast.error(data.error || 'Error al actualizar tipo')
+      }
+    } catch (error) {
+      console.error('Error:', error)
+      toast.error('Error de conexión')
+    } finally {
+      setSaving(false)
+    }
   }
 
   const handleSubmitNewPlantilla = async () => {
@@ -1890,119 +1948,20 @@ export default function ProyectoDetailPage() {
         </TabsContent>
 
         <TabsContent value="tipos-unidad" className="space-y-4">
-          {/* Section 1: Available Templates */}
           <Card>
             <CardHeader>
               <div className="flex items-center justify-between">
                 <div>
-                  <CardTitle>Plantillas Disponibles</CardTitle>
+                  <CardTitle>Tipos de Unidad del Proyecto</CardTitle>
                   <CardDescription>
-                    Selecciona las plantillas que deseas usar en este proyecto
+                    Gestiona los tipos de unidad y sus comisiones
                   </CardDescription>
                 </div>
-                <Button onClick={handleOpenNewPlantillaDialog}>
-                  <Plus className="w-4 h-4 mr-2" />
-                  Nueva Plantilla
+                <Button onClick={handleOpenAssignTemplatesDialog}>
+                  <Copy className="w-4 h-4 mr-2" />
+                  Asignar Tipos de Unidad
                 </Button>
               </div>
-            </CardHeader>
-            <CardContent>
-              {loadingPlantillas ? (
-                <div className="flex items-center justify-center py-8">
-                  <div className="text-center">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
-                    <p className="mt-2 text-muted-foreground">Cargando plantillas...</p>
-                  </div>
-                </div>
-              ) : plantillas.length === 0 ? (
-                <div className="text-center py-12 border rounded-lg bg-muted/50">
-                  <Settings className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-foreground mb-2">No hay plantillas</h3>
-                  <p className="text-muted-foreground mb-4">
-                    Crea la primera plantilla de tipo de unidad
-                  </p>
-                  <Button onClick={handleOpenNewPlantillaDialog}>
-                    <Plus className="w-4 h-4 mr-2" />
-                    Crear Primera Plantilla
-                  </Button>
-                </div>
-              ) : (
-                <div className="border rounded-lg divide-y">
-                  {plantillas.map((plantilla) => {
-                    const isApplied = tiposUnidadDetalle.some(
-                      t => t.plantillaOrigenId === plantilla.id
-                    )
-                    const isToggling = togglingPlantilla === plantilla.id
-
-                    return (
-                      <div
-                        key={plantilla.id}
-                        className="flex items-center justify-between p-4 hover:bg-muted/50 transition-colors"
-                      >
-                        <div className="flex items-center space-x-4 flex-1">
-                          <Checkbox
-                            checked={isApplied}
-                            onCheckedChange={() => handleTogglePlantillaCheckbox(plantilla.id)}
-                            disabled={isToggling}
-                          />
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2">
-                              <p className="font-medium">{plantilla.nombre}</p>
-                              <Badge variant="outline" className="text-xs">
-                                {plantilla.codigo}
-                              </Badge>
-                              {isApplied && (
-                                <Badge variant="default" className="text-xs">
-                                  Aplicado
-                                </Badge>
-                              )}
-                            </div>
-                            {(plantilla.bedrooms || plantilla.bathrooms || plantilla.descripcion) && (
-                              <div className="flex gap-3 mt-1">
-                                {plantilla.bedrooms && (
-                                  <p className="text-sm text-muted-foreground">
-                                    {plantilla.bedrooms} {plantilla.bedrooms === 1 ? 'dormitorio' : 'dormitorios'}
-                                  </p>
-                                )}
-                                {plantilla.bathrooms && (
-                                  <p className="text-sm text-muted-foreground">
-                                    {plantilla.bathrooms} {plantilla.bathrooms === 1 ? 'baño' : 'baños'}
-                                  </p>
-                                )}
-                                {plantilla.descripcion && (
-                                  <p className="text-sm text-muted-foreground italic">
-                                    {plantilla.descripcion}
-                                  </p>
-                                )}
-                              </div>
-                            )}
-                          </div>
-                          {plantilla.usageCount > 0 && (
-                            <Badge variant="secondary" className="text-xs">
-                              Usado en {plantilla.usageCount} {plantilla.usageCount === 1 ? 'proyecto' : 'proyectos'}
-                            </Badge>
-                          )}
-                        </div>
-                        {isToggling && (
-                          <div className="ml-4">
-                            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary"></div>
-                          </div>
-                        )}
-                      </div>
-                    )
-                  })}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Section 2: Assigned Types to Project */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Tipos Asignados a este Proyecto</CardTitle>
-              <CardDescription>
-                Gestiona las comisiones de los tipos de unidad aplicados
-              </CardDescription>
             </CardHeader>
             <CardContent>
               {loadingTiposUnidad ? (
@@ -2017,7 +1976,7 @@ export default function ProyectoDetailPage() {
                   <Settings className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
                   <h3 className="text-lg font-medium text-foreground mb-2">No hay tipos asignados</h3>
                   <p className="text-muted-foreground">
-                    Selecciona plantillas en la sección superior para asignarlas a este proyecto
+                    Haz clic en "Asignar Tipos de Unidad" para seleccionar plantillas
                   </p>
                 </div>
               ) : (
@@ -2027,13 +1986,14 @@ export default function ProyectoDetailPage() {
                       <TableHead>Tipo</TableHead>
                       <TableHead>Código</TableHead>
                       <TableHead>Comisión</TableHead>
+                      <TableHead>Estado</TableHead>
                       <TableHead className="text-center">Unidades</TableHead>
                       <TableHead className="text-right">Acciones</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {tiposUnidadDetalle.map((tipoUnidad) => (
-                      <TableRow key={tipoUnidad.id}>
+                      <TableRow key={tipoUnidad.id} className={!tipoUnidad.activo ? 'opacity-60' : ''}>
                         <TableCell>
                           <div className="font-medium">{tipoUnidad.nombre}</div>
                         </TableCell>
@@ -2054,19 +2014,43 @@ export default function ProyectoDetailPage() {
                             </Badge>
                           )}
                         </TableCell>
+                        <TableCell>
+                          {tipoUnidad.activo ? (
+                            <Badge variant="default" className="bg-green-600">
+                              Activo
+                            </Badge>
+                          ) : (
+                            <Badge variant="outline" className="text-muted-foreground">
+                              Inactivo
+                            </Badge>
+                          )}
+                        </TableCell>
                         <TableCell className="text-center">
                           <div className="font-medium">{tipoUnidad._count.unidades}</div>
                           <div className="text-xs text-muted-foreground">unidades</div>
                         </TableCell>
                         <TableCell className="text-right">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleOpenEditComisionDialog(tipoUnidad)}
-                          >
-                            <Edit className="w-4 h-4 mr-2" />
-                            Editar Comisión
-                          </Button>
+                          <div className="flex items-center justify-end space-x-2">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleOpenEditComisionDialog(tipoUnidad)}
+                            >
+                              <Edit className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleToggleActivoTipoUnidad(tipoUnidad)}
+                              disabled={saving}
+                            >
+                              {tipoUnidad.activo ? (
+                                <XCircle className="w-4 h-4 text-orange-600" />
+                              ) : (
+                                <CheckCircle className="w-4 h-4 text-green-600" />
+                              )}
+                            </Button>
+                          </div>
                         </TableCell>
                       </TableRow>
                     ))}
@@ -2075,6 +2059,139 @@ export default function ProyectoDetailPage() {
               )}
             </CardContent>
           </Card>
+
+          {/* Dialog: Assign Templates */}
+          <Dialog open={isAssignTemplatesDialogOpen} onOpenChange={setIsAssignTemplatesDialogOpen}>
+            <DialogContent className="sm:max-w-[700px]">
+              <DialogHeader>
+                <DialogTitle>Asignar Tipos de Unidad</DialogTitle>
+                <DialogDescription>
+                  Selecciona las plantillas que deseas asignar a este proyecto. Los tipos se crearán sin comisión por defecto.
+                </DialogDescription>
+              </DialogHeader>
+
+              <ScrollArea className="max-h-[60vh] pr-4">
+                <div className="grid gap-4 py-4">
+                  {loadingPlantillas ? (
+                    <div className="flex items-center justify-center py-8">
+                      <div className="text-center">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+                        <p className="mt-2 text-sm text-muted-foreground">Cargando plantillas...</p>
+                      </div>
+                    </div>
+                  ) : plantillas.length === 0 ? (
+                    <div className="text-center py-8 border rounded-lg bg-muted/50">
+                      <Settings className="h-12 w-12 text-muted-foreground mx-auto mb-2" />
+                      <p className="text-sm text-muted-foreground mb-4">
+                        No hay plantillas disponibles
+                      </p>
+                      <Button onClick={handleOpenNewPlantillaDialog} variant="outline">
+                        <Plus className="w-4 h-4 mr-2" />
+                        Crear Primera Plantilla
+                      </Button>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="flex items-center justify-between mb-2">
+                        <Label className="text-base font-semibold">Plantillas Disponibles</Label>
+                        <Button onClick={handleOpenNewPlantillaDialog} variant="outline" size="sm">
+                          <Plus className="w-4 h-4 mr-2" />
+                          Nueva Plantilla
+                        </Button>
+                      </div>
+                      <div className="border rounded-lg divide-y max-h-[400px] overflow-y-auto">
+                        {plantillas.map((plantilla) => {
+                          const isAlreadyApplied = tiposUnidadDetalle.some(
+                            t => t.plantillaOrigenId === plantilla.id
+                          )
+                          const isSelected = selectedPlantillasToAssign.includes(plantilla.id)
+
+                          return (
+                            <div
+                              key={plantilla.id}
+                              className="flex items-center justify-between p-3 hover:bg-muted/50 transition-colors cursor-pointer"
+                              onClick={() => !isAlreadyApplied && handleTogglePlantillaSelection(plantilla.id)}
+                            >
+                              <div className="flex items-center space-x-3 flex-1">
+                                <Checkbox
+                                  checked={isAlreadyApplied || isSelected}
+                                  onCheckedChange={() => !isAlreadyApplied && handleTogglePlantillaSelection(plantilla.id)}
+                                  disabled={isAlreadyApplied || applyingTemplates}
+                                />
+                                <div className="flex-1">
+                                  <div className="flex items-center gap-2">
+                                    <p className={`font-medium ${isAlreadyApplied ? 'text-muted-foreground' : ''}`}>
+                                      {plantilla.nombre}
+                                    </p>
+                                    <Badge variant="outline" className="text-xs">
+                                      {plantilla.codigo}
+                                    </Badge>
+                                    {isAlreadyApplied && (
+                                      <Badge variant="default" className="text-xs bg-green-600">
+                                        Ya Aplicado
+                                      </Badge>
+                                    )}
+                                  </div>
+                                  {(plantilla.bedrooms || plantilla.bathrooms || plantilla.descripcion) && (
+                                    <div className="flex gap-3 mt-1">
+                                      {plantilla.bedrooms && (
+                                        <p className="text-xs text-muted-foreground">
+                                          {plantilla.bedrooms} {plantilla.bedrooms === 1 ? 'dorm.' : 'dorms.'}
+                                        </p>
+                                      )}
+                                      {plantilla.bathrooms && (
+                                        <p className="text-xs text-muted-foreground">
+                                          {plantilla.bathrooms} {plantilla.bathrooms === 1 ? 'baño' : 'baños'}
+                                        </p>
+                                      )}
+                                      {plantilla.descripcion && (
+                                        <p className="text-xs text-muted-foreground italic truncate max-w-[200px]">
+                                          {plantilla.descripcion}
+                                        </p>
+                                      )}
+                                    </div>
+                                  )}
+                                </div>
+                                {plantilla.usageCount > 0 && (
+                                  <Badge variant="secondary" className="text-xs">
+                                    {plantilla.usageCount} {plantilla.usageCount === 1 ? 'proyecto' : 'proyectos'}
+                                  </Badge>
+                                )}
+                              </div>
+                            </div>
+                          )
+                        })}
+                      </div>
+                      {selectedPlantillasToAssign.length > 0 && (
+                        <p className="text-sm text-muted-foreground mt-2">
+                          {selectedPlantillasToAssign.length} {selectedPlantillasToAssign.length === 1 ? 'plantilla seleccionada' : 'plantillas seleccionadas'}
+                        </p>
+                      )}
+                    </>
+                  )}
+                </div>
+              </ScrollArea>
+
+              <div className="flex justify-end space-x-2">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setIsAssignTemplatesDialogOpen(false)
+                    setSelectedPlantillasToAssign([])
+                  }}
+                  disabled={applyingTemplates}
+                >
+                  Cancelar
+                </Button>
+                <Button
+                  onClick={handleApplySelectedTemplates}
+                  disabled={applyingTemplates || selectedPlantillasToAssign.length === 0}
+                >
+                  {applyingTemplates ? 'Aplicando...' : `Aplicar (${selectedPlantillasToAssign.length})`}
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
 
           {/* Dialog: New Template */}
           <Dialog open={isNewPlantillaDialogOpen} onOpenChange={setIsNewPlantillaDialogOpen}>
