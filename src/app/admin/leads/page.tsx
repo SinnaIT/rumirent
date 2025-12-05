@@ -139,6 +139,7 @@ export default function AdminLeadsPage() {
   const [searchField, setSearchField] = useState('cliente')
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedBroker, setSelectedBroker] = useState('todos')
+  const [selectedCliente, setSelectedCliente] = useState('todos')
   const [selectedEstado, setSelectedEstado] = useState('todos')
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [editingLead, setEditingLead] = useState<Lead | null>(null)
