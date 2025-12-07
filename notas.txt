@@ -155,6 +155,7 @@ panel admin
       no esta contabilizando las reservas
     validar los montos de los reportes(en cada uno que tenga sumatorias agregar un detalle para poder validar mas facil la data)
 
+
 panel broker 
     lor proyectos no salen en las paginas si no tienen unidades (dar soporte para que salgan asi no tenga unidad con que tengan solo tipo de unidad debe ser suficiente)
   dashboard 
@@ -177,3 +178,8 @@ panel broker
 
 Hay que pedir el SSL 
 
+
+
+bloquear cliente cuando hay una reserva en curso por al menos un mes para que no se puede generar otro lead para el mismo
+revisar pagina de detalle de proyecto, cuando se abre directamente unidad no carga pero si pongo tipo de unidad si carga
+validar los montos en el panel del broker

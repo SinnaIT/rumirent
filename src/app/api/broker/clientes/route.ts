@@ -69,13 +69,19 @@ export async function POST(request: NextRequest) {
     }
 
     // Verificar que no exista un cliente con el mismo RUT
-    const existingCliente = await prisma.cliente.findUnique({
-      where: { rut }
+    const existingCliente = await prisma.cliente.findFirst({
+      where: { 
+        OR: [
+          { rut: rut },
+          { email: email },
+          { telefono: telefono }
+        ]
+       }
     })
 
     if (existingCliente) {
       return NextResponse.json(
-        { error: 'Ya existe un cliente con este RUT' },
+        { error: 'Ya existe un cliente con este RUT, email o telefono' },
         { status: 400 }
       )
     }
