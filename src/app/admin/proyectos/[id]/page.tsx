@@ -263,6 +263,7 @@ export default function ProyectoDetailPage() {
     if (params.id) {
       fetchEdificio()
       fetchComisiones()
+      fetchTiposUnidadDetalle()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [params.id])

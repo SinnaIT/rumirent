@@ -42,6 +42,49 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Validar que el cliente no tenga un lead activo en los últimos 30 días
+    // (solo para brokers, los admins pueden saltarse esta restricción)
+    if (user.role !== 'ADMIN') {
+      const thirtyDaysAgo = new Date()
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
+
+      const existingActiveLead = await prisma.lead.findFirst({
+        where: {
+          clienteId,
+          createdAt: {
+            gte: thirtyDaysAgo
+          },
+          estado: {
+            notIn: ['RECHAZADO', 'CANCELADO', 'DEPARTAMENTO_ENTREGADO']
+          }
+        },
+        select: {
+          id: true,
+          createdAt: true,
+          estado: true,
+          edificio: {
+            select: { nombre: true }
+          }
+        }
+      })
+
+      if (existingActiveLead) {
+        const fechaCreacion = existingActiveLead.createdAt.toLocaleDateString('es-CL')
+        return NextResponse.json(
+          {
+            error: `Este cliente ya tiene un lead activo creado el ${fechaCreacion} (${existingActiveLead.estado}) para ${existingActiveLead.edificio.nombre}. Debe esperar al menos 30 días o que el lead anterior sea rechazado, cancelado o el departamento sea entregado.`,
+            existingLead: {
+              id: existingActiveLead.id,
+              createdAt: existingActiveLead.createdAt.toISOString(),
+              estado: existingActiveLead.estado,
+              edificio: existingActiveLead.edificio.nombre
+            }
+          },
+          { status: 400 }
+        )
+      }
+    }
+
     if (totalLead <= 0) {
       return NextResponse.json(
         { error: 'El total del arriendo debe ser mayor a 0' },

@@ -70,6 +70,13 @@ interface Cliente {
   telefono?: string
   isOwnClient?: boolean
   isHandledByAnotherBroker?: boolean
+  hasActiveLead?: boolean
+  activeLead?: {
+    id: string
+    createdAt: string
+    estado: string
+    edificio: string
+  } | null
   broker?: {
     id: string
     nombre: string
@@ -136,6 +143,7 @@ export default function GenerarLeadPage() {
   })
   const [clientExists, setClientExists] = useState<boolean | null>(null)
   const [clientHandledByAnotherBroker, setClientHandledByAnotherBroker] = useState<Cliente | null>(null)
+  const [clientHasActiveLead, setClientHasActiveLead] = useState<{ id: string, createdAt: string, estado: string, edificio: string } | null>(null)
   const [clientCreatedInCurrentSession, setClientCreatedInCurrentSession] = useState(false)
   const [showClientModal, setShowClientModal] = useState(false)
   const [clientSearchTerm, setClientSearchTerm] = useState('')
@@ -257,6 +265,7 @@ export default function GenerarLeadPage() {
     if (!rut.trim()) {
       setClientExists(null)
       setClientHandledByAnotherBroker(null)
+      setClientHasActiveLead(null)
       setClientCreatedInCurrentSession(false)
       setClientData({ rut: '', nombre: '', email: '', telefono: '' })
       setFormData({ ...formData, clienteId: '' })
@@ -274,6 +283,7 @@ export default function GenerarLeadPage() {
           // Cliente manejado por otro broker
           setClientExists(false)
           setClientHandledByAnotherBroker(data.cliente)
+          setClientHasActiveLead(null)
           setClientCreatedInCurrentSession(false)
           setClientData({
             rut: data.cliente.rut,
@@ -287,6 +297,14 @@ export default function GenerarLeadPage() {
           setClientExists(true)
           setClientHandledByAnotherBroker(null)
           setClientCreatedInCurrentSession(false)
+
+          // Verificar si tiene lead activo
+          if (data.cliente.hasActiveLead && data.cliente.activeLead) {
+            setClientHasActiveLead(data.cliente.activeLead)
+          } else {
+            setClientHasActiveLead(null)
+          }
+
           setClientData({
             rut: data.cliente.rut,
             nombre: data.cliente.nombre,
@@ -296,11 +314,12 @@ export default function GenerarLeadPage() {
           setFormData({ ...formData, clienteId: data.cliente.id })
         }
       } else {
-        // Cliente no encontrado
+        // Cliente no encontrado - preservar datos ingresados manualmente
         setClientExists(false)
         setClientHandledByAnotherBroker(null)
+        setClientHasActiveLead(null)
         setClientCreatedInCurrentSession(false)
-        setClientData({ rut, nombre: '', email: '', telefono: '' })
+        setClientData(prev => ({ ...prev, rut }))
         setFormData({ ...formData, clienteId: '' })
       }
     } catch (error) {
@@ -308,7 +327,9 @@ export default function GenerarLeadPage() {
       toast.error('Error al buscar cliente')
       setClientExists(null)
       setClientHandledByAnotherBroker(null)
+      setClientHasActiveLead(null)
       setClientCreatedInCurrentSession(false)
+      setClientData(prev => ({ ...prev, rut }))
     } finally {
       setSearchingClient(false)
     }
@@ -317,6 +338,7 @@ export default function GenerarLeadPage() {
   const clearClientData = () => {
     setClientExists(null)
     setClientHandledByAnotherBroker(null)
+    setClientHasActiveLead(null)
     setClientCreatedInCurrentSession(false)
     setClientData({ rut: '', nombre: '', email: '', telefono: '' })
     setFormData({ ...formData, clienteId: '' })
@@ -342,6 +364,14 @@ export default function GenerarLeadPage() {
     })
     setFormData({ ...formData, clienteId: cliente.id })
     setClientExists(true)
+
+    // Verificar si tiene lead activo
+    if (cliente.hasActiveLead && cliente.activeLead) {
+      setClientHasActiveLead(cliente.activeLead)
+    } else {
+      setClientHasActiveLead(null)
+    }
+
     setShowClientModal(false)
     setClientSearchTerm('')
   }
@@ -496,6 +526,11 @@ export default function GenerarLeadPage() {
       return
     }
 
+    if (clientHasActiveLead) {
+      toast.error('Este cliente ya tiene un lead activo. Debe esperar al menos 30 días o que el lead actual termine.')
+      return
+    }
+
     if (!formData.edificioId) {
       toast.error('Debe seleccionar un edificio')
       return
@@ -613,7 +648,24 @@ export default function GenerarLeadPage() {
         toast.success('Lead generado exitosamente')
         router.push('/broker/ventas')
       } else {
-        toast.error(data.error)
+        // Mostrar error detallado
+        toast.error(data.error, {
+          duration: 6000, // Mostrar por más tiempo si es un error de lead duplicado
+        })
+
+        // Si el error es por lead duplicado, limpiar el cliente para que busque otro
+        if (data.existingLead) {
+          console.log('Lead existente encontrado:', data.existingLead)
+          // Opcionalmente podrías actualizar el estado para mostrar el lead existente
+          if (data.existingLead.createdAt && data.existingLead.estado) {
+            setClientHasActiveLead({
+              id: data.existingLead.id,
+              createdAt: data.existingLead.createdAt,
+              estado: data.existingLead.estado,
+              edificio: data.existingLead.edificio || 'Edificio desconocido'
+            })
+          }
+        }
       }
     } catch (error) {
       console.error('Error:', error)
@@ -862,11 +914,12 @@ export default function GenerarLeadPage() {
                         onBlur={(e) => handleRutChange(e.target.value)}
                         onKeyDown={(e) => {if (e.key === 'Enter') {handleRutChange(clientData.rut)}}}
                         placeholder="ej: 12.345.678-9"
-                        disabled={clientHandledByAnotherBroker !== null}
+                        disabled={clientHandledByAnotherBroker !== null || clientHasActiveLead !== null}
                         className={`${
-                          (clientExists === true && !clientHandledByAnotherBroker) || clientCreatedInCurrentSession ? 'border-green-500 bg-green-50' :
-                          clientHandledByAnotherBroker ? 'border-red-500 bg-red-50' :
-                          clientExists === false ? 'border-yellow-500 bg-yellow-50' :
+                          clientHasActiveLead ? 'border-destructive border-2 bg-destructive/10 dark:bg-destructive/20 font-semibold' :
+                          (clientExists === true && !clientHandledByAnotherBroker) || clientCreatedInCurrentSession ? 'border-green-500 dark:border-green-600 bg-green-50 dark:bg-green-950' :
+                          clientHandledByAnotherBroker ? 'border-destructive bg-destructive/10 dark:bg-destructive/20' :
+                          clientExists === false ? 'border-yellow-500 dark:border-yellow-600 bg-yellow-50 dark:bg-yellow-950' :
                           ''
                         } ${clientData.rut ? 'pr-10' : ''}`}
                       />
@@ -926,7 +979,7 @@ export default function GenerarLeadPage() {
                         )}
 
                         <div className="flex-1 min-h-0 border rounded-lg overflow-hidden">
-                          <div className="h-full overflow-auto">
+                          <div className="h-full overflow-y-auto max-h-[50vh] pb-8">
                           <Table>
                             <TableHeader className="sticky top-0 bg-background">
                               <TableRow>
@@ -934,13 +987,14 @@ export default function GenerarLeadPage() {
                                 <TableHead className="min-w-[120px]">RUT</TableHead>
                                 <TableHead className="min-w-[180px]">Email</TableHead>
                                 <TableHead className="min-w-[130px]">Teléfono</TableHead>
+                                <TableHead className="min-w-[200px]">Estado</TableHead>
                                 <TableHead className="text-right min-w-[100px]">Acción</TableHead>
                               </TableRow>
                             </TableHeader>
                             <TableBody>
                               {filteredClientes.length === 0 ? (
                                 <TableRow>
-                                  <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
+                                  <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
                                     <div className="flex flex-col items-center gap-2">
                                       <User className="h-8 w-8 text-muted-foreground" />
                                       <p>{clientSearchTerm ? 'No se encontraron clientes que coincidan con tu búsqueda' : 'No hay clientes registrados'}</p>
@@ -951,26 +1005,70 @@ export default function GenerarLeadPage() {
                                   </TableCell>
                                 </TableRow>
                               ) : (
-                                filteredClientes.map((cliente) => (
-                                  <TableRow key={cliente.id} className="hover:bg-muted/50 cursor-pointer" onClick={() => selectClientFromModal(cliente)}>
-                                    <TableCell className="font-medium">{cliente.nombre}</TableCell>
+                                filteredClientes.map((cliente) => {
+                                  const hasActiveLead = cliente.hasActiveLead && cliente.activeLead
+                                  const isDisabled = hasActiveLead
+
+                                  return (
+                                  <TableRow
+                                    key={cliente.id}
+                                    className={`
+                                      ${isDisabled
+                                        ? 'bg-destructive/10 dark:bg-destructive/20 border-l-4 border-l-destructive hover:bg-destructive/20 dark:hover:bg-destructive/30'
+                                        : 'hover:bg-muted/50 cursor-pointer'
+                                      }
+                                    `}
+                                    onClick={() => !isDisabled && selectClientFromModal(cliente)}
+                                  >
+                                    <TableCell className="font-medium">
+                                      <div className="flex items-center gap-2">
+                                        {hasActiveLead && (
+                                          <span className="text-lg">🚫</span>
+                                        )}
+                                        {cliente.nombre}
+                                      </div>
+                                    </TableCell>
                                     <TableCell className="font-mono text-sm">{cliente.rut}</TableCell>
                                     <TableCell className="text-sm">{cliente.email || '-'}</TableCell>
                                     <TableCell className="text-sm">{cliente.telefono || '-'}</TableCell>
+                                    <TableCell>
+                                      {hasActiveLead ? (
+                                        <div className="flex flex-col gap-1">
+                                          <Badge variant="destructive" className="w-fit font-semibold">
+                                            ⚠ NO DISPONIBLE
+                                          </Badge>
+                                          <span className="text-xs font-medium text-destructive dark:text-red-400">
+                                            Lead activo desde {new Date(cliente.activeLead!.createdAt).toLocaleDateString('es-CL')}
+                                          </span>
+                                          <span className="text-xs text-destructive/80 dark:text-red-300">
+                                            Estado: {cliente.activeLead!.estado}
+                                          </span>
+                                        </div>
+                                      ) : (
+                                        <Badge variant="outline" className="w-fit bg-green-50 dark:bg-green-950 text-green-700 dark:text-green-400 border-green-200 dark:border-green-800 font-semibold">
+                                          ✓ Disponible
+                                        </Badge>
+                                      )}
+                                    </TableCell>
                                     <TableCell className="text-right">
                                       <Button
                                         size="sm"
                                         onClick={(e) => {
                                           e.stopPropagation()
-                                          selectClientFromModal(cliente)
+                                          if (!isDisabled) {
+                                            selectClientFromModal(cliente)
+                                          }
                                         }}
-                                        className="bg-primary hover:bg-primary/90"
+                                        disabled={isDisabled}
+                                        className="bg-primary hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
+                                        title={isDisabled ? `Cliente tiene un lead activo desde ${new Date(cliente.activeLead!.createdAt).toLocaleDateString('es-CL')}` : ''}
                                       >
-                                        Seleccionar
+                                        {isDisabled ? 'No disponible' : 'Seleccionar'}
                                       </Button>
                                     </TableCell>
                                   </TableRow>
-                                ))
+                                  )
+                                })
                               )}
                             </TableBody>
                           </Table>
@@ -1021,6 +1119,66 @@ export default function GenerarLeadPage() {
                       size="sm"
                       onClick={clearClientData}
                       className="text-red-700 border-red-300 hover:bg-red-100"
+                    >
+                      <X className="h-4 w-4 mr-1" />
+                      Buscar otro cliente
+                    </Button>
+                  </div>
+                </div>
+              )}
+              {clientHasActiveLead && !clientHandledByAnotherBroker && (
+                <div className="p-4 bg-destructive/10 dark:bg-destructive/20 rounded-lg border-2 border-destructive shadow-md">
+                  <div className="flex items-start gap-3">
+                    <div className="flex-shrink-0 mt-0.5">
+                      <div className="bg-destructive text-destructive-foreground rounded-full p-2">
+                        <span className="text-2xl">🚫</span>
+                      </div>
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-base text-destructive dark:text-red-400 font-bold flex items-center mb-2">
+                        CLIENTE NO DISPONIBLE
+                      </p>
+                      <p className="text-sm text-destructive/90 dark:text-red-300 font-semibold mb-1">
+                        Este cliente ya tiene un lead activo en proceso
+                      </p>
+                      <div className="bg-background/50 dark:bg-background/30 p-2 rounded mt-2 space-y-1 border border-border">
+                        <p className="text-sm text-destructive/80 dark:text-red-300">
+                          <span className="font-semibold">Creado el:</span> {new Date(clientHasActiveLead.createdAt).toLocaleDateString('es-CL', {
+                            year: 'numeric',
+                            month: 'long',
+                            day: 'numeric'
+                          })}
+                        </p>
+                        <p className="text-sm text-destructive/80 dark:text-red-300">
+                          <span className="font-semibold">Estado actual:</span> {clientHasActiveLead.estado}
+                        </p>
+                        <p className="text-sm text-destructive/80 dark:text-red-300">
+                          <span className="font-semibold">Edificio:</span> {clientHasActiveLead.edificio}
+                        </p>
+                      </div>
+                      <p className="text-sm text-destructive/90 dark:text-red-300 mt-3 font-medium">
+                        ⏱️ No puedes crear otro lead para este cliente hasta que:
+                      </p>
+                      <ul className="text-sm text-destructive/80 dark:text-red-300 mt-1 ml-4 list-disc space-y-1">
+                        <li>El proceso actual termine (rechazado, cancelado o entregado)</li>
+                        <li>O pasen al menos 30 días desde su creación</li>
+                      </ul>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={clearClientData}
+                      className="ml-2 h-auto p-1 text-destructive hover:text-destructive hover:bg-destructive/20"
+                    >
+                      <X className="h-5 w-5" />
+                    </Button>
+                  </div>
+                  <div className="mt-4 flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={clearClientData}
+                      className="border-destructive/50 hover:bg-destructive/10 font-semibold"
                     >
                       <X className="h-4 w-4 mr-1" />
                       Buscar otro cliente
@@ -1483,10 +1641,11 @@ export default function GenerarLeadPage() {
           <Button
             className="w-full"
             onClick={handleSubmit}
-            disabled={saving || !clientData.rut.trim() || !clientData.nombre.trim() || !formData.edificioId || !formData.totalLead || clientHandledByAnotherBroker !== null}
+            disabled={saving || !clientData.rut.trim() || !clientData.nombre.trim() || !formData.edificioId || !formData.totalLead || clientHandledByAnotherBroker !== null || clientHasActiveLead !== null}
           >
             {saving ? 'Generando...' :
              clientHandledByAnotherBroker ? 'Cliente no disponible' :
+             clientHasActiveLead ? 'Cliente tiene lead activo' :
              'Generar Lead'}
           </Button>
         </div>

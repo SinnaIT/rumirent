@@ -181,5 +181,7 @@ Hay que pedir el SSL
 
 
 bloquear cliente cuando hay una reserva en curso por al menos un mes para que no se puede generar otro lead para el mismo
+
 revisar pagina de detalle de proyecto, cuando se abre directamente unidad no carga pero si pongo tipo de unidad si carga
+
 validar los montos en el panel del broker

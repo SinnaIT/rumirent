@@ -403,20 +403,27 @@ export default function BrokerDashboard() {
           <div className="space-y-2">
             <div className="flex items-center justify-between text-sm">
               <span className="text-muted-foreground">Progreso</span>
-              <span className="font-bold text-warning">
+              <span className={`font-bold ${
+                metrics.metaColocacion.porcentaje >= 100 ? 'text-blue-500' :
+                metrics.metaColocacion.porcentaje >= 80 ? 'text-blue-500' :
+                metrics.metaColocacion.porcentaje >= 30 ? 'text-yellow-500' :
+                'text-red-500'
+              }`}>
                 {metrics.metaColocacion.porcentaje.toFixed(1)}%
               </span>
             </div>
             <div className={`w-full rounded-full h-2 overflow-hidden transition-all ${
-              metrics.metaColocacion.porcentaje >= 100 ? 'bg-gradient-to-r from-warning to-warning/70' : 'bg-muted'
+              metrics.metaColocacion.porcentaje >= 100 ? 'bg-blue-500' : 'bg-gray-200 dark:bg-gray-700'
             }`}>
               {metrics.metaColocacion.porcentaje < 100 && (
                 <div
-                  className="bg-gradient-to-r from-warning to-warning/70 h-full rounded-full transition-all duration-500"
-                  style={{
-                    width: `${metrics.metaColocacion.porcentaje}%`,
-                  }}
-                />
+                  className={`h-2 rounded-full transition-all duration-500 ${
+                    metrics.metaColocacion.porcentaje >= 80 ? 'bg-blue-500' :
+                    metrics.metaColocacion.porcentaje >= 30 ? 'bg-yellow-500' :
+                    'bg-red-500'
+                  }`}
+                  style={{ width: `${metrics.metaColocacion.porcentaje}%` }}
+                ></div>
               )}
             </div>
           </div>
@@ -466,19 +473,19 @@ export default function BrokerDashboard() {
           </div>
         </div>
 
-        {/* 6. Comisiones Concretadas */}
+        {/* 6. Comisiones Confirmadas del Periodo */}
         <div className="group bg-card border border-border rounded-xl p-6 shadow-sm hover:shadow-lg hover:shadow-success/5 transition-all duration-300 hover:border-success/20 cursor-pointer">
           <div className="flex items-start justify-between">
             <div className="space-y-3 flex-1">
               <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
-                Comisiones Concretadas
+                Comisiones Confirmadas del Periodo
               </p>
               <div className="space-y-1">
                 <p className="text-3xl font-bold text-success tracking-tight">
-                  {formatCurrency(metrics.comisionesConcretadas)}
+                  {formatCurrency(metrics.comisionesConfirmadas)}
                 </p>
                 <p className="text-sm text-muted-foreground font-medium">
-                  Ingresos confirmados
+                  Departamentos entregados con check-in
                 </p>
               </div>
             </div>

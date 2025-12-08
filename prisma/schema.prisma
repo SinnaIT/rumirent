@@ -119,23 +119,23 @@ model CaracteristicaEdificio {
 }
 
 model TipoUnidadEdificio {
-  id                String                  @id @default(cuid())
+  id                String               @id @default(cuid())
   nombre            String
   codigo            String
-  bedrooms          Int?
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @updatedAt
   bathrooms         Int?
-  activo            Boolean                 @default(true)
+  bedrooms          Int?
+  activo            Boolean              @default(true)
   descripcion       String?
-  comisionId        String?
   edificioId        String
+  comisionId        String?
   plantillaOrigenId String?
-  createdAt         DateTime                @default(now())
-  updatedAt         DateTime                @updatedAt
-  comision          Comision?               @relation("TipoUnidadComision", fields: [comisionId], references: [id])
-  edificio          Edificio                @relation(fields: [edificioId], references: [id], onDelete: Cascade)
-  plantillaOrigen   PlantillaTipoUnidad?    @relation(fields: [plantillaOrigenId], references: [id], onDelete: SetNull)
+  leads             Lead[]               @relation("LeadTipoUnidad")
+  comision          Comision?            @relation("TipoUnidadComision", fields: [comisionId], references: [id])
+  edificio          Edificio             @relation(fields: [edificioId], references: [id], onDelete: Cascade)
+  plantillaOrigen   PlantillaTipoUnidad? @relation(fields: [plantillaOrigenId], references: [id])
   unidades          Unidad[]
-  leads             Lead[]                  @relation("LeadTipoUnidad")
 
   @@unique([edificioId, codigo])
   @@map("tipos_unidad_edificio")
@@ -162,9 +162,9 @@ model Unidad {
 model Cliente {
   id              String    @id @default(cuid())
   nombre          String
-  rut             String?    
+  rut             String?
   email           String?
-  telefono        String @unique
+  telefono        String
   brokerId        String?
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
@@ -270,15 +270,15 @@ model MetaMensual {
 }
 
 model PlantillaTipoUnidad {
-  id                 String                 @id @default(cuid())
-  nombre             String                 @unique
-  codigo             String                 @unique
+  id                 String               @id @default(cuid())
+  nombre             String               @unique
+  codigo             String               @unique
   bedrooms           Int?
   bathrooms          Int?
   descripcion        String?
-  activo             Boolean                @default(true)
-  createdAt          DateTime               @default(now())
-  updatedAt          DateTime               @updatedAt
+  activo             Boolean              @default(true)
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @updatedAt
   tiposUnidadCreados TipoUnidadEdificio[]
 
   @@map("plantillas_tipo_unidad")

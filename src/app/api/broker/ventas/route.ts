@@ -13,13 +13,44 @@ export async function GET(request: NextRequest) {
       )
     }
 
+    // Calcular fecha límite para leads activos (30 días atrás)
+    const thirtyDaysAgo = new Date()
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
+
     // Obtener leads del broker
     const leads = await prisma.lead.findMany({
       where: {
         brokerId: authResult.user.id
       },
       include: {
-        cliente: true,
+        cliente: {
+          include: {
+            leads: {
+              where: {
+                createdAt: {
+                  gte: thirtyDaysAgo
+                },
+                estado: {
+                  notIn: ['RECHAZADO', 'CANCELADO', 'DEPARTAMENTO_ENTREGADO']
+                }
+              },
+              select: {
+                id: true,
+                createdAt: true,
+                estado: true,
+                edificio: {
+                  select: {
+                    nombre: true
+                  }
+                }
+              },
+              orderBy: {
+                createdAt: 'desc'
+              },
+              take: 1
+            }
+          }
+        },
         unidad: {
           include: {
             edificio: {
@@ -84,7 +115,14 @@ export async function GET(request: NextRequest) {
         nombre: lead.cliente.nombre,
         rut: lead.cliente.rut,
         email: lead.cliente.email,
-        telefono: lead.cliente.telefono
+        telefono: lead.cliente.telefono,
+        hasActiveLead: lead.cliente.leads && lead.cliente.leads.length > 0,
+        activeLead: lead.cliente.leads && lead.cliente.leads.length > 0 ? {
+          id: lead.cliente.leads[0].id,
+          createdAt: lead.cliente.leads[0].createdAt.toISOString(),
+          estado: lead.cliente.leads[0].estado,
+          edificio: lead.cliente.leads[0].edificio.nombre
+        } : null
       } : null,
       unidad: lead.unidad ? {
         id: lead.unidad.id,

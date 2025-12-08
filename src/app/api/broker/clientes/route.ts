@@ -20,10 +20,40 @@ export async function GET(request: NextRequest) {
 
     console.log('[API /broker/clientes] Broker ID:', authResult.user.id)
 
-    // Obtener clientes del broker actual
+    // Calcular fecha límite para leads activos (30 días atrás)
+    const thirtyDaysAgo = new Date()
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
+
+    // Obtener clientes del broker actual con información de leads activos
     const clientes = await prisma.cliente.findMany({
       where: {
         brokerId: authResult.user.id
+      },
+      include: {
+        leads: {
+          where: {
+            createdAt: {
+              gte: thirtyDaysAgo
+            },
+            estado: {
+              notIn: ['RECHAZADO', 'CANCELADO', 'DEPARTAMENTO_ENTREGADO']
+            }
+          },
+          select: {
+            id: true,
+            createdAt: true,
+            estado: true,
+            edificio: {
+              select: {
+                nombre: true
+              }
+            }
+          },
+          orderBy: {
+            createdAt: 'desc'
+          },
+          take: 1 // Solo el más reciente
+        }
       },
       orderBy: {
         nombre: 'asc'
@@ -32,9 +62,25 @@ export async function GET(request: NextRequest) {
 
     console.log('[API /broker/clientes] Clientes found:', clientes.length)
 
+    // Formatear la respuesta con información de lead activo
+    const clientesWithLeadStatus = clientes.map(cliente => {
+      const activeLead = cliente.leads[0]
+      return {
+        ...cliente,
+        leads: undefined, // Remover el array completo
+        hasActiveLead: !!activeLead,
+        activeLead: activeLead ? {
+          id: activeLead.id,
+          createdAt: activeLead.createdAt.toISOString(),
+          estado: activeLead.estado,
+          edificio: activeLead.edificio.nombre
+        } : null
+      }
+    })
+
     return NextResponse.json({
       success: true,
-      clientes
+      clientes: clientesWithLeadStatus
     })
 
   } catch (error) {

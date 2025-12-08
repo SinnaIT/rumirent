@@ -34,11 +34,11 @@ export async function GET(request: NextRequest) {
     const fechaInicio = new Date(anioNum, mesNum - 1, 1)
     const fechaFin = new Date(anioNum, mesNum, 0, 23, 59, 59, 999)
 
-    // Obtener todos los leads creados en el mes
-    const leadsCreados = await prisma.lead.findMany({
+    // Obtener todos los leads del periodo (filtrados por fechaPagoReserva)
+    const leadsPeriodo = await prisma.lead.findMany({
       where: {
         brokerId: authResult.user.id,
-        createdAt: {
+        fechaPagoReserva: {
           gte: fechaInicio,
           lte: fechaFin,
         },
@@ -48,46 +48,57 @@ export async function GET(request: NextRequest) {
         comision: true,
         fechaCheckin: true,
         totalLead: true,
+        estado: true,
       },
     })
 
-    // Obtener leads con check-in en el mes
-    const leadsConCheckin = await prisma.lead.findMany({
+    // Obtener leads confirmados (DEPARTAMENTO_ENTREGADO con fechaCheckin ingresada)
+    const leadsConfirmados = await prisma.lead.findMany({
       where: {
         brokerId: authResult.user.id,
-        fechaCheckin: {
+        fechaPagoReserva: {
           gte: fechaInicio,
           lte: fechaFin,
         },
+        estado: 'DEPARTAMENTO_ENTREGADO',
+        fechaCheckin: { not: null },
       },
       select: {
         id: true,
         comision: true,
-        fechaCheckin: true,
       },
     })
 
-    // 1. Cantidad de reservas (leads creados en el mes)
-    const cantidadReservas = leadsCreados.length
+    // Filtrar leads activos (excluir RECHAZADO y CANCELADO)
+    const leadsActivos = leadsPeriodo.filter(
+      lead => lead.estado !== 'RECHAZADO' && lead.estado !== 'CANCELADO'
+    )
 
-    // 2. Número de check-ins (leads con fechaCheckin en el mes)
-    const numeroCheckins = leadsConCheckin.length
+    // 1. Cantidad de reservas (leads del periodo excluyen do rechazados/cancelados)
+    const cantidadReservas = leadsActivos.length
 
-    // 3. Comisiones proyectadas (suma de comisiones de leads creados)
-    const comisionesProyectadas = leadsCreados.reduce(
+    // 2. Número de check-ins (leads del periodo con fechaCheckin)
+    const numeroCheckins = leadsPeriodo.filter(
+      lead => lead.fechaCheckin !== null &&
+              lead.estado !== 'RECHAZADO' &&
+              lead.estado !== 'CANCELADO'
+    ).length
+
+    // 3. Comisiones proyectadas (suma de comisiones de leads activos del periodo)
+    const comisionesProyectadas = leadsActivos.reduce(
       (sum, lead) => sum + (lead.comision || 0),
       0
     )
 
-    // 4. Comisiones concretadas (suma de comisiones de leads con check-in)
-    const comisionesConcretadas = leadsConCheckin.reduce(
+    // 4. Comisiones confirmadas (suma de comisiones de leads DEPARTAMENTO_ENTREGADO con fechaCheckin)
+    const comisionesConfirmadas = leadsConfirmados.reduce(
       (sum, lead) => sum + (lead.comision || 0),
       0
     )
 
-    // 5. % de cierre del mes (leads con fechaCheckin / total leads creados)
+    // 5. % de cierre del mes (leads con fechaCheckin / total leads activos)
     const porcentajeCierre = cantidadReservas > 0
-      ? (leadsCreados.filter(lead => lead.fechaCheckin !== null).length / cantidadReservas) * 100
+      ? (numeroCheckins / cantidadReservas) * 100
       : 0
 
     // 6. Meta de colocación (buscar meta configurada para el broker en el mes/año)
@@ -119,8 +130,8 @@ export async function GET(request: NextRequest) {
       })
     }
 
-    // Calcular el monto actual (suma de totalLead de los leads creados)
-    const montoActual = leadsCreados.reduce(
+    // Calcular el monto actual (suma de totalLead de los leads activos del periodo)
+    const montoActual = leadsActivos.reduce(
       (sum, lead) => sum + (lead.totalLead || 0),
       0
     )
@@ -132,7 +143,7 @@ export async function GET(request: NextRequest) {
       cantidadReservas,
       numeroCheckins,
       comisionesProyectadas,
-      comisionesConcretadas,
+      comisionesConfirmadas,
       porcentajeCierre: Math.round(porcentajeCierre * 100) / 100, // Redondear a 2 decimales
       metaColocacion: {
         montoActual,

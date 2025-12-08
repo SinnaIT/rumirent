@@ -64,6 +64,13 @@ interface Cliente {
   rut: string
   email?: string
   telefono?: string
+  hasActiveLead?: boolean
+  activeLead?: {
+    id: string
+    createdAt: string
+    estado: string
+    edificio: string
+  } | null
 }
 
 interface ReglaComision {
@@ -643,10 +650,24 @@ export default function BrokerVentasPage() {
                           <div className="flex items-center gap-2">
                             <User className="h-4 w-4 text-muted-foreground" />
                             <span className="font-semibold text-base">{clienteAgrupado.cliente.nombre}</span>
+                            {clienteAgrupado.cliente.hasActiveLead ? (
+                              <Badge variant="destructive" className="text-xs">
+                                Lead Activo
+                              </Badge>
+                            ) : (
+                              <Badge variant="outline" className="text-xs bg-green-50 dark:bg-green-950 text-green-700 dark:text-green-400 border-green-200 dark:border-green-800">
+                                Disponible
+                              </Badge>
+                            )}
                           </div>
                           <div className="flex items-center gap-2 mt-1">
                             <CreditCard className="h-3 w-3 text-muted-foreground" />
                             <span className="text-sm text-muted-foreground">{clienteAgrupado.cliente.rut}</span>
+                            {clienteAgrupado.cliente.hasActiveLead && clienteAgrupado.cliente.activeLead && (
+                              <span className="text-xs text-destructive dark:text-red-400">
+                                • Lead desde {new Date(clienteAgrupado.cliente.activeLead.createdAt).toLocaleDateString('es-CL')}
+                              </span>
+                            )}
                           </div>
                         </div>
 
@@ -691,13 +712,14 @@ export default function BrokerVentasPage() {
                         <Table>
                           <TableHeader>
                             <TableRow>
+                              <TableHead className="text-xs text-center">Acciones</TableHead>
+                              <TableHead className="text-xs">Disponibilidad Cliente</TableHead>
                               <TableHead className="text-xs">Edificio / Unidad</TableHead>
-                              <TableHead className="text-xs">Estado</TableHead>
+                              <TableHead className="text-xs">Estado Lead</TableHead>
                               <TableHead className="text-xs text-right">Total</TableHead>
                               <TableHead className="text-xs text-right">Comisión</TableHead>
                               <TableHead className="text-xs text-center">Check-in</TableHead>
                               <TableHead className="text-xs">Fecha Creación</TableHead>
-                              <TableHead className="text-xs text-center">Acciones</TableHead>
                             </TableRow>
                           </TableHeader>
                           <TableBody>
@@ -707,6 +729,34 @@ export default function BrokerVentasPage() {
 
                               return (
                                 <TableRow key={lead.id} className="text-xs">
+                                  <TableCell className="text-center">
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => abrirEdicionLead(lead)}
+                                    >
+                                      <Edit className="w-3 h-3 mr-1" />
+                                      Editar
+                                    </Button>
+                                  </TableCell>
+                                  <TableCell>
+                                    {lead.cliente?.hasActiveLead ? (
+                                      <div className="flex flex-col gap-1">
+                                        <Badge variant="destructive" className="w-fit text-xs">
+                                          🚫 Lead Activo
+                                        </Badge>
+                                        {lead.cliente.activeLead && (
+                                          <span className="text-xs text-destructive dark:text-red-400">
+                                            Desde {new Date(lead.cliente.activeLead.createdAt).toLocaleDateString('es-CL')}
+                                          </span>
+                                        )}
+                                      </div>
+                                    ) : (
+                                      <Badge variant="outline" className="w-fit text-xs bg-green-50 dark:bg-green-950 text-green-700 dark:text-green-400 border-green-200 dark:border-green-800">
+                                        ✓ Disponible
+                                      </Badge>
+                                    )}
+                                  </TableCell>
                                   <TableCell>
                                     {lead.unidad ? (
                                       <>
@@ -751,16 +801,6 @@ export default function BrokerVentasPage() {
                                   </TableCell>
                                   <TableCell>
                                     {formatDate(lead.createdAt)}
-                                  </TableCell>
-                                  <TableCell className="text-center">
-                                    <Button
-                                      size="sm"
-                                      variant="outline"
-                                      onClick={() => abrirEdicionLead(lead)}
-                                    >
-                                      <Edit className="w-3 h-3 mr-1" />
-                                      Editar
-                                    </Button>
                                   </TableCell>
                                 </TableRow>
                               )
