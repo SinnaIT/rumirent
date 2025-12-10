@@ -134,7 +134,7 @@ model TipoUnidadEdificio {
   leads             Lead[]               @relation("LeadTipoUnidad")
   comision          Comision?            @relation("TipoUnidadComision", fields: [comisionId], references: [id])
   edificio          Edificio             @relation(fields: [edificioId], references: [id], onDelete: Cascade)
-  plantillaOrigen   PlantillaTipoUnidad? @relation(fields: [plantillaOrigenId], references: [id])
+  plantillaOrigen   PlantillaTipoUnidad? @relation(fields: [plantillaOrigenId], references: [id], onDelete: SetNull)
   unidades          Unidad[]
 
   @@unique([edificioId, codigo])
@@ -164,7 +164,7 @@ model Cliente {
   nombre          String
   rut             String?
   email           String?
-  telefono        String
+  telefono        String    @unique
   brokerId        String?
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
