@@ -1,149 +1,287 @@
-# Guía de Migración a Producción
+# Guía de Migración - Agregar Columnas Faltantes
 
-## Situación Actual
-- Base de datos de desarrollo con múltiples migraciones incrementales
-- Algunas migraciones duplicadas detectadas
-- Necesidad de consolidar antes de subir a producción
+## 📋 Contexto
 
-## Estrategia de Migración Segura
+Esta migración soluciona el problema de **8 columnas que existen en el código pero no en la base de datos de producción**. Estas columnas fueron agregadas al `schema.prisma` pero nunca se migraron a producción.
 
-### Pre-requisitos
-1. Backup completo de la base de datos de producción
-2. Acceso a variables de entorno de producción
-3. Acceso SSH o panel de control del servidor
+### Columnas que se Agregarán
 
-### Paso 1: Generar SQL Consolidado
+#### 1. Tabla `tipos_unidad_edificio` (3 columnas)
+- `activo` - Boolean, default: `true` - Flag de activación
+- `descripcion` - Text, nullable - Descripción del tipo de unidad
+- `plantillaOrigenId` - Text, nullable - Referencia a plantilla origen
+
+#### 2. Tabla `empresas` (1 columna)
+- `tipoEntidad` - Enum `TipoEntidad`, default: `COMPANY` - Clasificación de la empresa
+
+#### 3. Tabla `users` (4 columnas)
+- `lastPasswordChange` - DateTime, nullable - Última vez que cambió contraseña
+- `mustChangePassword` - Boolean, default: `false` - Obligar cambio de contraseña
+- `resetToken` - Text, nullable - Token para reset de contraseña
+- `resetTokenExpiry` - DateTime, nullable - Expiración del token
+
+---
+
+## 🚀 Proceso de Aplicación
+
+### Paso 1: Subir el Código Actualizado
+
+**En tu máquina local (Windows):**
 
 ```bash
-# Generar script SQL desde el esquema actual
-npx prisma migrate diff \
-  --from-empty \
-  --to-schema-datamodel prisma/schema.prisma \
-  --script > migration-production.sql
+# 1. Hacer commit de la nueva migración
+git add prisma/migrations/20251211000000_add_missing_columns/
+git add apply-migration-to-qa.sh
+git add apply-migration-to-production.sh
+git commit -m "feat: add migration for missing columns in production"
+
+# 2. Push al repositorio
+git push origin main
 ```
 
-### Paso 2: Revisar el Script Generado
+---
 
-Revisar `migration-production.sql` y verificar:
-- ✅ Creación de todas las tablas
-- ✅ Creación de índices y constraints
-- ✅ Enums definidos correctamente
-- ✅ Relaciones FK correctas
-- ❌ No hay DROP TABLE de datos importantes
-- ❌ No hay comandos destructivos inesperados
+### Paso 2: Aplicar en QA (Testing)
+
+**En el servidor QA:**
+
+```bash
+# 1. Actualizar el código
+git pull origin main
+
+# 2. Reconstruir contenedores (si es necesario)
+docker-compose build
+
+# 3. Reiniciar contenedores
+docker-compose up -d
+
+# 4. Dar permisos al script
+chmod +x apply-migration-to-qa.sh
+
+# 5. Ejecutar migración en QA
+./apply-migration-to-qa.sh
+
+# Cuando pregunte, escribe: SI
+# Al final, cuando pregunte si reiniciar, escribe: y
+```
+
+**Verificación en QA:**
+
+1. ✅ Espera que la app reinicie (5-10 segundos)
+2. ✅ Verifica que las páginas ya NO dan estos errores:
+   - ❌ `column tipos_unidad_edificio.descripcion does not exist`
+   - ❌ `column empresas.tipoEntidad does not exist`
+3. ✅ Prueba la funcionalidad de:
+   - Crear/editar tipos de unidad
+   - Crear/editar empresas
+   - Login de usuarios
+
+**Si algo falla en QA:**
+
+```bash
+# Restaurar backup
+./restore-to-qa.sh backup-qa-before-migration-YYYYMMDD-HHMMSS.sql --fresh
+
+# Revisar logs
+docker logs rumirent-qa-app
+```
+
+---
 
 ### Paso 3: Aplicar en Producción
 
-#### Opción A: Base de datos nueva (Recomendada)
-```bash
-# 1. Aplicar el script consolidado
-psql $DATABASE_URL_PRODUCTION < migration-production.sql
+⚠️ **SOLO después de verificar que funciona en QA**
 
-# 2. Crear entrada en _prisma_migrations
-npx prisma migrate resolve --applied "20250207000000_production_baseline"
-
-# 3. Generar el cliente de Prisma
-npx prisma generate
-```
-
-#### Opción B: Base de datos existente con datos
-```bash
-# 1. Backup primero
-pg_dump $DATABASE_URL_PRODUCTION > backup-$(date +%Y%m%d).sql
-
-# 2. Comparar esquema actual vs nuevo
-npx prisma migrate diff \
-  --from-url $DATABASE_URL_PRODUCTION \
-  --to-schema-datamodel prisma/schema.prisma \
-  --script > migration-incremental.sql
-
-# 3. Revisar migration-incremental.sql cuidadosamente
-# Este archivo solo contendrá los cambios necesarios
-
-# 4. Aplicar los cambios
-psql $DATABASE_URL_PRODUCTION < migration-incremental.sql
-
-# 5. Marcar como aplicado
-npx prisma migrate resolve --applied "20250207000000_production_update"
-```
-
-### Paso 4: Verificación Post-Migración
+**En el servidor de Producción:**
 
 ```bash
-# Verificar que el esquema coincide
-npx prisma migrate status
+# 1. Actualizar el código
+git pull origin main
 
-# Validar que el cliente Prisma funciona
-npx prisma studio
+# 2. Reconstruir contenedores (si es necesario)
+docker-compose build
+
+# 3. Reiniciar contenedores
+docker-compose up -d
+
+# 4. Dar permisos al script
+chmod +x apply-migration-to-production.sh
+
+# 5. Ejecutar migración en PRODUCCIÓN
+./apply-migration-to-production.sh
+
+# Confirmaciones que pedirá:
+# - ¿Has probado en QA? → Escribe: SI
+# - Confirmación final → Escribe: SI EN PRODUCCION
+# - ¿Reiniciar app? → Escribe: y
 ```
 
-## Limpieza de Migraciones Locales (Opcional)
+**El script hará automáticamente:**
 
-Si quieres limpiar tus migraciones locales después de consolidar:
+1. ✅ Verificar que los contenedores están corriendo
+2. ✅ Crear backup OBLIGATORIO de producción
+3. ✅ Limpiar migraciones antiguas (baseline problemático)
+4. ✅ Aplicar la migración con `npx prisma migrate deploy`
+5. ✅ Generar Prisma Client
+6. ✅ Verificar que las columnas se agregaron correctamente
+7. ✅ Mostrar estado de migraciones
+
+**Monitoreo Post-Migración:**
 
 ```bash
-# 1. Hacer backup de la carpeta de migraciones
-cp -r prisma/migrations prisma/migrations-backup
+# 1. Monitorear logs
+docker logs -f rumirent-prod-app
 
-# 2. Borrar migraciones antiguas
-rm -rf prisma/migrations/*
+# 2. Verificar que no hay errores de "column does not exist"
 
-# 3. Crear nueva migración baseline
-mkdir -p prisma/migrations/20250207000000_baseline
-
-# 4. Copiar el script consolidado
-cp migration-production.sql prisma/migrations/20250207000000_baseline/migration.sql
-
-# 5. Resetear la base de datos local y aplicar baseline
-npx prisma migrate reset
-
-# 6. Verificar que todo funciona
-npm run dev
+# 3. Probar funcionalidad crítica:
+#    - Login de usuarios
+#    - Gestión de empresas
+#    - Gestión de tipos de unidad
+#    - Creación de leads
 ```
 
-## Checklist de Seguridad
+---
 
-Antes de aplicar en producción:
-- [ ] Backup completo realizado
-- [ ] Script SQL revisado manualmente
-- [ ] Probado en ambiente de staging/QA
-- [ ] Ventana de mantenimiento programada
-- [ ] Plan de rollback preparado
-- [ ] Variables de entorno verificadas
-- [ ] Monitoreo activo post-migración
+## 🔄 Rollback (Si Algo Sale Mal)
 
-## Rollback en Caso de Problemas
+### En QA:
 
 ```bash
-# Restaurar desde backup
-psql $DATABASE_URL_PRODUCTION < backup-YYYYMMDD.sql
-
-# Verificar integridad
-npx prisma migrate status
+./restore-to-qa.sh backup-qa-before-migration-YYYYMMDD-HHMMSS.sql --fresh
+docker restart rumirent-qa-app
 ```
 
-## Notas Importantes
+### En Producción:
 
-- ⚠️ **NUNCA** usar `prisma migrate reset` en producción
-- ⚠️ **SIEMPRE** hacer backup antes de migrar
-- ⚠️ Las migraciones duplicadas detectadas:
-  - `20251130202741_add_entregado_cancelado`
-  - `20251130202752_add_entregado_cancelado`
-  - Revisar cuál es la correcta antes de aplicar
+```bash
+# 1. Detener la aplicación
+docker stop rumirent-prod-app
 
-## Migraciones Detectadas en Desarrollo
+# 2. Restaurar backup
+docker exec -i rumirent-prod-db psql -U rumirent_prod -d rumirent_prod_db < backup-production-before-migration-YYYYMMDD-HHMMSS.sql
 
-1. `20250924201153_init_with_optional_commission` - Inicial
-2. `20251022140456_add_edificio_mejoras_completas`
-3. `20251023183046_add_metas_mensuales`
-4. `20251023190700_make_broker_id_optional_in_metas`
-5. `20251023190919_add_user_birth_date`
-6. `20251023233728_add_bedrooms_bathrooms_to_tipo_unidad`
-7. `20251024111244_add_image_type_to_imagenes`
-8. `20251026150104_add_address_fields_to_edificio`
-9. `20251026202147_make_broker_optional_in_cliente`
-10. `20251124103958_add_tipo_entidad_to_empresa`
-11. `20251125202639_update_estado_lead_enum`
-12. `20251130002926_add_plantillas_tipo_unidad`
-13. `20251130202741_add_entregado_cancelado` ⚠️ DUPLICADA
-14. `20251130202752_add_entregado_cancelado` ⚠️ DUPLICADA
+# 3. Reiniciar aplicación
+docker start rumirent-prod-app
+
+# 4. Verificar
+docker logs -f rumirent-prod-app
+```
+
+---
+
+## ✅ Checklist de Validación
+
+### Antes de Aplicar en QA:
+- [ ] Código actualizado en servidor QA (`git pull`)
+- [ ] Contenedores corriendo (`docker ps`)
+- [ ] Migración existe en contenedor
+- [ ] Backup automático se creará
+
+### Después de Aplicar en QA:
+- [ ] Migración aplicada sin errores
+- [ ] Páginas de empresas funcionan
+- [ ] Páginas de tipos de unidad funcionan
+- [ ] Login funciona correctamente
+- [ ] No hay errores de "column does not exist" en logs
+
+### Antes de Aplicar en Producción:
+- [ ] ✅ Probado y validado en QA
+- [ ] Código actualizado en servidor producción (`git pull`)
+- [ ] Contenedores corriendo (`docker ps`)
+- [ ] Planificado en horario de bajo tráfico (recomendado)
+- [ ] Equipo notificado de la migración
+
+### Después de Aplicar en Producción:
+- [ ] Backup guardado en lugar seguro
+- [ ] Migración aplicada sin errores
+- [ ] Aplicación reiniciada correctamente
+- [ ] No hay errores en logs
+- [ ] Funcionalidad crítica verificada
+- [ ] Usuarios pueden usar la aplicación normalmente
+
+---
+
+## 📊 Archivos Involucrados
+
+### Nuevos Archivos Creados:
+```
+prisma/migrations/20251211000000_add_missing_columns/
+├── migration.sql                  # SQL de la migración
+
+apply-migration-to-qa.sh          # Script para QA
+apply-migration-to-production.sh  # Script para producción
+MIGRATION_GUIDE.md                # Esta guía
+```
+
+### Archivos Eliminados:
+```
+prisma/migrations/20251210075009_baseline_production_ready/
+└── migration.sql                  # Baseline antiguo que causaba conflictos
+```
+
+---
+
+## 🆘 Solución de Problemas
+
+### Error: "Container not running"
+```bash
+# Verificar contenedores
+docker ps
+
+# Iniciar contenedores si están detenidos
+docker-compose up -d
+```
+
+### Error: "Migration file not found"
+```bash
+# Asegúrate de haber actualizado el código
+git pull origin main
+
+# Verifica que la migración existe
+ls -la prisma/migrations/20251211000000_add_missing_columns/
+```
+
+### Error: "Failed to create backup"
+```bash
+# Verificar espacio en disco
+df -h
+
+# Verificar que pg_dump funciona
+docker exec rumirent-qa-db pg_dump --version
+```
+
+### Error: "Column already exists"
+Este error es **normal** si ejecutas la migración más de una vez. La migración usa `IF NOT EXISTS` y `DO $$ BEGIN ... END $$` para ser idempotente (segura de ejecutar múltiples veces).
+
+---
+
+## 📞 Contacto
+
+Si encuentras problemas durante la migración:
+
+1. **Revisar logs**: `docker logs -f rumirent-[qa|prod]-app`
+2. **Revisar archivos de log generados**: `migration-[qa|production]-YYYYMMDD-HHMMSS.log`
+3. **Backups disponibles**: Todos los backups se guardan en el directorio actual
+
+---
+
+## 🎯 Resultado Esperado
+
+Después de aplicar esta migración:
+
+✅ **QA y Producción tendrán:**
+- 8 nuevas columnas agregadas
+- Estructura de DB sincronizada con `schema.prisma`
+- No más errores de "column does not exist"
+- Funcionalidad completa de tipos de unidad, empresas y usuarios
+
+✅ **Historial de migraciones limpio:**
+- Migración incremental documentada
+- Fácil de auditar y revertir si es necesario
+- Sin baseline confuso
+
+---
+
+**Última actualización**: 2025-12-11
+**Versión de la migración**: `20251211000000_add_missing_columns`
