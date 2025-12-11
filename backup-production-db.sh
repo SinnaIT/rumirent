@@ -16,11 +16,60 @@ print_error() { echo -e "${RED}❌ $1${NC}"; }
 print_warning() { echo -e "${YELLOW}⚠️  $1${NC}"; }
 print_info() { echo -e "${YELLOW}ℹ️  $1${NC}"; }
 
-# Verificar DATABASE_URL
+# Función para cargar variables del archivo .env
+load_env() {
+    local env_file="${1:-.env}"
+
+    if [ ! -f "$env_file" ]; then
+        return 1
+    fi
+
+    print_info "Cargando configuración desde $env_file..."
+
+    # Leer archivo .env y exportar variables (ignorando comentarios y líneas vacías)
+    while IFS='=' read -r key value; do
+        # Ignorar comentarios y líneas vacías
+        [[ "$key" =~ ^#.*$ ]] && continue
+        [[ -z "$key" ]] && continue
+
+        # Eliminar comillas del valor si existen
+        value=$(echo "$value" | sed -e 's/^"//' -e 's/"$//' -e "s/^'//" -e "s/'$//")
+
+        # Exportar la variable si no está ya definida
+        if [ -z "${!key}" ]; then
+            export "$key=$value"
+        fi
+    done < "$env_file"
+
+    return 0
+}
+
+# Intentar cargar .env si existe
+load_env ".env" || true
+
+# Verificar DATABASE_URL (puede venir del .env o de variables de entorno)
 if [ -z "$DATABASE_URL_PRODUCTION" ]; then
-    print_error "Variable DATABASE_URL_PRODUCTION no está definida"
-    echo "Uso: DATABASE_URL_PRODUCTION='postgresql://user:pass@host:port/db' $0"
-    exit 1
+    # Intentar construir desde variables individuales del .env
+    if [ -n "$POSTGRES_USER" ] && [ -n "$POSTGRES_PASSWORD" ] && [ -n "$POSTGRES_DB" ]; then
+        POSTGRES_HOST="${POSTGRES_HOST:-localhost}"
+        POSTGRES_PORT="${POSTGRES_PORT:-5432}"
+        DATABASE_URL_PRODUCTION="postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}"
+        print_info "DATABASE_URL_PRODUCTION construida desde .env"
+    else
+        print_error "Variable DATABASE_URL_PRODUCTION no está definida"
+        echo ""
+        echo "Opciones:"
+        echo "  1. Definir DATABASE_URL_PRODUCTION:"
+        echo "     DATABASE_URL_PRODUCTION='postgresql://user:pass@host:port/db' $0"
+        echo ""
+        echo "  2. O tener un archivo .env con:"
+        echo "     POSTGRES_USER=user"
+        echo "     POSTGRES_PASSWORD=pass"
+        echo "     POSTGRES_HOST=host"
+        echo "     POSTGRES_PORT=5432"
+        echo "     POSTGRES_DB=database"
+        exit 1
+    fi
 fi
 
 # Crear nombre de archivo con timestamp

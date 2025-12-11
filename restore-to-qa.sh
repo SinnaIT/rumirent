@@ -16,10 +16,41 @@ print_error() { echo -e "${RED}❌ $1${NC}"; }
 print_warning() { echo -e "${YELLOW}⚠️  $1${NC}"; }
 print_info() { echo -e "${YELLOW}ℹ️  $1${NC}"; }
 
-# Configuración (ajustar según tu entorno)
-QA_CONTAINER="${QA_CONTAINER:-rumirent-qa-db}"
-QA_USER="${QA_USER:-rumirent_qa}"
-QA_DATABASE="${QA_DATABASE:-rumirent_qa_db}"
+# Función para cargar variables del archivo .env
+load_env() {
+    local env_file="${1:-.env}"
+
+    if [ ! -f "$env_file" ]; then
+        print_warning "Archivo $env_file no encontrado, usando valores por defecto"
+        return 1
+    fi
+
+    print_info "Cargando configuración desde $env_file..."
+
+    # Leer archivo .env y exportar variables (ignorando comentarios y líneas vacías)
+    while IFS='=' read -r key value; do
+        # Ignorar comentarios y líneas vacías
+        [[ "$key" =~ ^#.*$ ]] && continue
+        [[ -z "$key" ]] && continue
+
+        # Eliminar comillas del valor si existen
+        value=$(echo "$value" | sed -e 's/^"//' -e 's/"$//' -e "s/^'//" -e "s/'$//")
+
+        # Exportar la variable
+        export "$key=$value"
+    done < "$env_file"
+
+    return 0
+}
+
+# Cargar variables del .env
+load_env ".env"
+
+# Configuración (ajustar según tu entorno o usa valores del .env)
+# Prioridad: Variables de entorno > .env > Defaults
+QA_CONTAINER="${QA_CONTAINER:-${POSTGRES_CONTAINER_NAME:-rumirent-qa-db}}"
+QA_USER="${QA_USER:-${POSTGRES_USER:-rumirent_qa}}"
+QA_DATABASE="${QA_DATABASE:-${POSTGRES_DB:-rumirent_qa_db}}"
 BACKUP_FILE="$1"
 
 # Función de ayuda
@@ -27,13 +58,23 @@ show_help() {
     echo "Uso: $0 <archivo-backup.sql> [opciones]"
     echo ""
     echo "Opciones:"
-    echo "  -c, --container NAME    Nombre del contenedor Docker (default: rumirent-qa-db)"
-    echo "  -u, --user USER         Usuario de PostgreSQL (default: rumirent_qa)"
-    echo "  -d, --database DB       Nombre de la base de datos (default: rumirent_qa_db)"
+    echo "  -c, --container NAME    Nombre del contenedor Docker"
+    echo "  -u, --user USER         Usuario de PostgreSQL"
+    echo "  -d, --database DB       Nombre de la base de datos"
+    echo "  -e, --env-file FILE     Archivo .env a usar (default: .env)"
     echo "  -f, --fresh             Eliminar y recrear la base de datos (limpia)"
     echo "  -h, --help              Mostrar esta ayuda"
     echo ""
-    echo "Variables de entorno:"
+    echo "Configuración:"
+    echo "  El script lee automáticamente del archivo .env si existe."
+    echo "  Prioridad: Parámetros CLI > Variables de entorno > .env > Defaults"
+    echo ""
+    echo "Variables del .env usadas:"
+    echo "  POSTGRES_USER           → Usuario de PostgreSQL"
+    echo "  POSTGRES_DB             → Nombre de la base de datos"
+    echo "  POSTGRES_CONTAINER_NAME → Nombre del contenedor (opcional)"
+    echo ""
+    echo "Variables de entorno (override):"
     echo "  QA_CONTAINER            Nombre del contenedor"
     echo "  QA_USER                 Usuario de PostgreSQL"
     echo "  QA_DATABASE             Nombre de la base de datos"
@@ -41,11 +82,14 @@ show_help() {
     echo "Ejemplos:"
     echo "  $0 backup-rumirent-20251209.sql"
     echo "  $0 backup.sql --fresh"
+    echo "  $0 backup.sql --env-file .env.qa"
     echo "  QA_CONTAINER=postgres_qa $0 backup.sql"
 }
 
 # Parsear argumentos
 FRESH_DB=false
+ENV_FILE=".env"
+
 while [[ $# -gt 0 ]]; do
     case $1 in
         -c|--container)
@@ -58,6 +102,16 @@ while [[ $# -gt 0 ]]; do
             ;;
         -d|--database)
             QA_DATABASE="$2"
+            shift 2
+            ;;
+        -e|--env-file)
+            ENV_FILE="$2"
+            # Recargar variables del nuevo archivo .env
+            load_env "$ENV_FILE"
+            # Actualizar configuración con nuevos valores
+            QA_CONTAINER="${QA_CONTAINER:-${POSTGRES_CONTAINER_NAME:-rumirent-qa-db}}"
+            QA_USER="${QA_USER:-${POSTGRES_USER:-rumirent_qa}}"
+            QA_DATABASE="${QA_DATABASE:-${POSTGRES_DB:-rumirent_qa_db}}"
             shift 2
             ;;
         -f|--fresh)
