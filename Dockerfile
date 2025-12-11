@@ -41,6 +41,9 @@ RUN adduser --system --uid 1001 nextjs
 
 COPY --from=builder /app/public ./public
 
+# Create uploads directory for persistent storage
+RUN mkdir -p ./public/uploads/edificios && chown -R nextjs:nodejs ./public/uploads
+
 # Copy Prisma schema and migrations (complete folder from builder)
 COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
 

@@ -39,6 +39,8 @@ services:
       - JWT_SECRET=${JWT_SECRET}
       - JWT_EXPIRES_IN=${JWT_EXPIRES_IN:-7d}
       - NEXTAUTH_URL=${NEXTAUTH_URL}
+    volumes:
+      - uploads_qa_data:/app/public/uploads
     depends_on:
       qa-db:
         condition: service_healthy
@@ -53,6 +55,8 @@ services:
 
 volumes:
   postgres_qa_data:
+    driver: local
+  uploads_qa_data:
     driver: local
 
 networks:

@@ -18,11 +18,22 @@ print_error() { echo -e "${RED}❌ $1${NC}"; }
 print_warning() { echo -e "${YELLOW}⚠️  $1${NC}"; }
 print_info() { echo -e "${BLUE}ℹ️  $1${NC}"; }
 
+
+# Función para cargar .env
+load_env() {
+    if [ -f ".env" ]; then
+        print_info "Cargando configuración desde .env..."
+        export $(cat .env | grep -v '^#' | grep -v '^$' | xargs)
+    fi
+}
+
+load_env
+
 # Configuración
-DB_CONTAINER="${1:-rumirent-prod-db}"
-APP_CONTAINER="${2:-rumirent-prod-app}"
-DB_USER="${3:-rumirent_prod}"
-DB_NAME="${4:-rumirent_prod_db}"
+DB_CONTAINER="${POSTGRES_CONTAINER_NAME:-rumirent-qa-db}"
+APP_CONTAINER="${APP_CONTAINER_NAME:-rumirent-qa-app}"
+DB_USER="${POSTGRES_USER:-rumirent_qa}"
+DB_NAME="${POSTGRES_DB:-rumirent_qa_db}"
 
 echo "╔════════════════════════════════════════════════════════════╗"
 echo "║   MIGRAR PRODUCCIÓN EXISTENTE (Solo Columnas Faltantes)  ║"
@@ -76,6 +87,7 @@ docker exec -i "$DB_CONTAINER" psql -U "$DB_USER" -d "$DB_NAME" <<'SQL'
 ALTER TABLE "tipos_unidad_edificio" ADD COLUMN IF NOT EXISTS "activo" BOOLEAN NOT NULL DEFAULT true;
 ALTER TABLE "tipos_unidad_edificio" ADD COLUMN IF NOT EXISTS "descripcion" TEXT;
 ALTER TABLE "tipos_unidad_edificio" ADD COLUMN IF NOT EXISTS "plantillaOrigenId" TEXT;
+UPDATE "clientes" SET telefono='1' WHERE telefono IS NULL;
 
 -- Add missing column to empresas
 DO $$ BEGIN

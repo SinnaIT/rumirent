@@ -36,7 +36,8 @@ export async function GET(request: NextRequest) {
         id: true,
         email: true,
         nombre: true,
-        role: true
+        role: true,
+        mustChangePassword: true
       }
     })
 
