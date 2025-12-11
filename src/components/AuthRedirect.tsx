@@ -6,9 +6,10 @@ import { useRouter } from 'next/navigation'
 interface AuthRedirectProps {
   role: 'ADMIN' | 'BROKER'
   token: string
+  mustChangePassword: boolean
 }
 
-export function AuthRedirect({ role, token }: AuthRedirectProps) {
+export function AuthRedirect({ role, token, mustChangePassword }: AuthRedirectProps) {
   useEffect(() => {
     // Store token in localStorage
     console.log('Storing token in localStorage')
@@ -19,14 +20,16 @@ export function AuthRedirect({ role, token }: AuthRedirectProps) {
     document.cookie = `auth-token=${token}; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Lax`
 
     // Navigate directly to the target URL
-    const targetUrl = role === 'ADMIN' ? '/admin' : '/broker'
+    let targetUrl = role === 'ADMIN' ? '/admin' : '/broker'
+    if(mustChangePassword)
+      targetUrl = '/change-password'
     console.log('Navigating to:', targetUrl)
 
     // Small delay to ensure storage is set
     setTimeout(() => {
       window.location.href = targetUrl
     }, 200)
-  }, [role, token])
+  }, [role, token, mustChangePassword])
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-600 to-blue-800">

@@ -6,6 +6,11 @@ Las imágenes subidas para los proyectos no se mostraban en producción con el e
 
 ### Causa Raíz
 
+**Problema Principal: Next.js Standalone Mode no sirve archivos de `/public`**
+
+En Next.js con `output: 'standalone'`, los archivos estáticos en `/public` NO se sirven automáticamente. Las imágenes se guardaban correctamente en el volumen Docker, pero no eran accesibles vía HTTP.
+
+**Problemas Secundarios:**
 1. **Directorio no persistente**: El directorio `/public/uploads` se guardaba dentro del contenedor Docker sin un volumen persistente
 2. **Pérdida de datos**: Al reiniciar o hacer redeploy del contenedor, todas las imágenes subidas se perdían
 3. **Configuración faltante**:
@@ -14,7 +19,43 @@ Las imágenes subidas para los proyectos no se mostraban en producción con el e
 
 ## Solución Implementada
 
-### 1. Modificaciones al Dockerfile
+### 1. API Route para servir imágenes
+
+**Archivo nuevo:** `src/app/api/uploads/[...path]/route.ts`
+
+Creamos un endpoint API que sirve las imágenes desde el sistema de archivos, ya que Next.js standalone no sirve `/public` automáticamente.
+
+```typescript
+export async function GET(request, { params }) {
+  const filePath = join(process.cwd(), 'public', 'uploads', ...params.path)
+  // Serve file with proper content-type and caching headers
+}
+```
+
+### 2. Actualización de URLs en uploadUtils.ts
+
+**Modificado:** `src/lib/uploadUtils.ts`
+
+Cambiamos las URLs generadas de `/uploads/*` a `/api/uploads/*`:
+
+```typescript
+// Antes: const publicUrl = `/uploads/${subfolder}/${filename}`
+// Ahora: const publicUrl = `/api/uploads/${subfolder}/${filename}`
+```
+
+### 3. Migración de URLs existentes
+
+**Nuevo:** `migrate-image-urls.sql` + `fix-image-urls-production.sh`
+
+Script SQL para actualizar las URLs existentes en la base de datos:
+
+```sql
+UPDATE "ImagenEdificio"
+SET url = REPLACE(url, '/uploads/', '/api/uploads/')
+WHERE url LIKE '/uploads/%' AND "imageType" = 'UPLOAD';
+```
+
+### 4. Modificaciones al Dockerfile
 
 Se agregó la creación explícita del directorio de uploads con los permisos correctos:
 
@@ -23,7 +64,7 @@ Se agregó la creación explícita del directorio de uploads con los permisos co
 RUN mkdir -p ./public/uploads/edificios && chown -R nextjs:nodejs ./public/uploads
 ```
 
-### 2. Modificaciones a docker-compose.prod.yml
+### 5. Modificaciones a docker-compose.prod.yml
 
 Se agregó un volumen persistente para almacenar las imágenes:
 
@@ -37,7 +78,7 @@ volumes:
     driver: local
 ```
 
-### 3. Modificaciones a docker-compose.qa.yml
+### 6. Modificaciones a docker-compose.qa.yml
 
 Se aplicó la misma configuración para el ambiente de QA:
 
@@ -53,20 +94,46 @@ volumes:
 
 ## Aplicar la Solución en Producción
 
-### Opción 1: Usando el script automatizado (Recomendado)
+### Paso 1: Commit y Push de los cambios
+
+```bash
+# 1. Commit de todos los cambios
+git add .
+git commit -m "fix: serve uploaded images via API route for standalone mode"
+git push origin main
+
+# 2. Esperar a que GitHub Actions construya la nueva imagen
+# Verificar en: https://github.com/YOUR_ORG/rumirent-app/actions
+```
+
+### Paso 2: Actualizar contenedores en producción
 
 ```bash
 # En el servidor de producción
+ssh usuario@servidor-produccion
+cd /path/to/rumirent-app
+
+# Pull de los cambios
+git pull origin main
+
+# Usar el script automatizado
 ./fix-uploads-production.sh
 ```
 
-### Opción 2: Manual
+### Paso 3: Migrar URLs en la base de datos
+
+```bash
+# Ejecutar el script de migración de URLs
+./fix-image-urls-production.sh
+```
+
+### Opción Manual (si prefieres hacerlo paso a paso)
 
 ```bash
 # 1. Detener los contenedores actuales
 docker-compose -f docker-compose.prod.yml --env-file .env.production down
 
-# 2. Hacer pull de la nueva imagen (después de hacer push con los cambios)
+# 2. Hacer pull de la nueva imagen
 docker pull ghcr.io/YOUR_ORG/rumirent-app:latest
 
 # 3. Levantar con la nueva configuración
@@ -74,6 +141,9 @@ docker-compose -f docker-compose.prod.yml --env-file .env.production up -d
 
 # 4. Verificar que el directorio existe
 docker exec rumirent-prod-app ls -la /app/public/uploads/
+
+# 5. Migrar URLs en la base de datos
+docker exec -i rumirent-prod-db psql -U ${POSTGRES_USER} -d ${POSTGRES_DB} < migrate-image-urls.sql
 ```
 
 ## Verificación

@@ -7,15 +7,6 @@ export async function middleware(request: NextRequest) {
 
   console.log(`[MIDDLEWARE] ${request.method} ${pathname}`)
 
-  // In development, disable middleware for admin/broker PAGE routes (not API routes)
-  // Let pages handle their own authentication with localStorage
-  if (process.env.NODE_ENV === 'development') {
-    if ((pathname.startsWith('/admin') || pathname.startsWith('/broker')) && !pathname.startsWith('/api')) {
-      console.log(`[MIDDLEWARE] Development mode - allowing access to ${pathname}`)
-      return NextResponse.next()
-    }
-  }
-
   // Public routes that don't require authentication
   const publicRoutes = [
     '/login',

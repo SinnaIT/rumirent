@@ -72,7 +72,9 @@ export async function saveUploadedFile(
     await writeFile(filepath, buffer)
 
     // Generate public URL
-    const publicUrl = `/uploads/${subfolder ? subfolder + '/' : ''}${filename}`
+    // In production (standalone mode), we use API route to serve files
+    // In development, we can use direct /uploads path
+    const publicUrl = `/api/uploads/${subfolder ? subfolder + '/' : ''}${filename}`
 
     return {
       success: true,

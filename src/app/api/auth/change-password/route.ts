@@ -57,7 +57,7 @@ export async function POST(request: NextRequest) {
     const validation = changePasswordSchema.safeParse(body);
 
     if (!validation.success) {
-      const errors = validation.error.errors.map((err) => ({
+      const errors = validation.error._zod.def.map((err) => ({
         field: err.path.join('.'),
         message: err.message,
       }));

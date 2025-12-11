@@ -15,7 +15,7 @@ export default function LoginPage() {
   const [rememberMe, setRememberMe] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-  const [loginSuccess, setLoginSuccess] = useState<{ role: 'ADMIN' | 'BROKER', token: string } | null>(null)
+  const [loginSuccess, setLoginSuccess] = useState<{ role: 'ADMIN' | 'BROKER', token: string, mustChangePassword: boolean } | null>(null)
   const [showContactModal, setShowContactModal] = useState(false)
   const router = useRouter()
 
@@ -45,18 +45,21 @@ export default function LoginPage() {
 
       console.log('Login exitoso, iniciando redirección...')
 
+      
       // Check if user must change password
-      if (data.user.mustChangePassword) {
+      /**if (data.user.mustChangePassword) {
         console.log('Usuario debe cambiar contraseña, redirigiendo...')
         router.push('/change-password')
         return
-      }
+      }**/
 
       // Set login success state to trigger AuthRedirect component
       setLoginSuccess({
         role: data.user.role as 'ADMIN' | 'BROKER',
-        token: data.token
+        token: data.token,
+        mustChangePassword: data.user.mustChangePassword
       })
+
     } catch (error) {
       console.error('Error en login:', error)
       setError(error instanceof Error ? error.message : 'Error en el login')
@@ -67,7 +70,7 @@ export default function LoginPage() {
 
   // If login was successful, show redirect component
   if (loginSuccess) {
-    return <AuthRedirect role={loginSuccess.role} token={loginSuccess.token} />
+    return <AuthRedirect role={loginSuccess.role} token={loginSuccess.token}  mustChangePassword={loginSuccess.mustChangePassword}/>
   }
 
   return (
