@@ -140,6 +140,78 @@ export async function GET(
   }
 }
 
+// Helper function to calculate commission based on lead data
+async function calculateLeadCommission(
+  leadId: string,
+  totalLeadAmount: number,
+  tipoUnidadEdificioId: string | null,
+  unidadId: string | null,
+  edificioId: string | null
+): Promise<{ comision: number; comisionId: string | null }> {
+  const leadWithRelations = await prisma.lead.findUnique({
+    where: { id: leadId },
+    include: {
+      unidad: {
+        include: {
+          tipoUnidadEdificio: {
+            include: {
+              comision: true
+            }
+          }
+        }
+      },
+      edificio: {
+        include: {
+          comision: true
+        }
+      },
+      tipoUnidadEdificio: {
+        include: {
+          comision: true
+        }
+      }
+    }
+  })
+
+  let comisionPorcentaje = 0
+  let selectedComisionId = null
+
+  if (leadWithRelations) {
+    // Priority 1: TipoUnidadEdificio commission (direct from lead)
+    if (leadWithRelations.tipoUnidadEdificio?.comision) {
+      comisionPorcentaje = leadWithRelations.tipoUnidadEdificio.comision.porcentaje
+      selectedComisionId = leadWithRelations.tipoUnidadEdificio.comision.id
+    }
+    // Priority 2: Unidad's TipoUnidadEdificio commission
+    else if (leadWithRelations.unidad?.tipoUnidadEdificio?.comision) {
+      comisionPorcentaje = leadWithRelations.unidad.tipoUnidadEdificio.comision.porcentaje
+      selectedComisionId = leadWithRelations.unidad.tipoUnidadEdificio.comision.id
+    }
+    // Priority 3: Edificio commission
+    else if (leadWithRelations.edificio?.comision) {
+      comisionPorcentaje = leadWithRelations.edificio.comision.porcentaje
+      selectedComisionId = leadWithRelations.edificio.comision.id
+    }
+  }
+
+  const calculatedComision = totalLeadAmount * comisionPorcentaje
+
+  console.log('💰 Comisión calculada:', {
+    totalLead: totalLeadAmount,
+    porcentaje: comisionPorcentaje,
+    comision: calculatedComision,
+    comisionId: selectedComisionId,
+    source: leadWithRelations?.tipoUnidadEdificio?.comision ? 'TipoUnidadEdificio' :
+            leadWithRelations?.unidad?.tipoUnidadEdificio?.comision ? 'Unidad->TipoUnidadEdificio' :
+            leadWithRelations?.edificio?.comision ? 'Edificio' : 'None'
+  })
+
+  return {
+    comision: calculatedComision,
+    comisionId: selectedComisionId
+  }
+}
+
 export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -177,7 +249,10 @@ export async function PUT(
       brokerId,
       clienteId,
       reglaComisionId,
-      comisionId
+      comisionId,
+      edificioId,
+      tipoUnidadEdificioId,
+      unidadId
     } = body
 
     console.log('📝 Datos a actualizar:', body)
@@ -186,6 +261,13 @@ export async function PUT(
     if (!totalLead || !montoUf || !brokerId || !clienteId) {
       return NextResponse.json(
         { error: 'Total lead, monto UF, broker y cliente son requeridos' },
+        { status: 400 }
+      )
+    }
+
+    if (!edificioId) {
+      return NextResponse.json(
+        { error: 'Proyecto (edificio) es requerido' },
         { status: 400 }
       )
     }
@@ -229,70 +311,46 @@ export async function PUT(
       )
     }
 
-    // Calculate commission if estado is changing to DEPARTAMENTO_ENTREGADO
-    let calculatedComision = comision ? parseFloat(comision) : 0
-    const calculatedReglaComisionId = reglaComisionId || null
-    let calculatedComisionId = comisionId || null
+    // Detect if commission-affecting fields have changed
+    const totalLeadAmount = parseFloat(totalLead)
+    const commissionAffectingFieldsChanged = (
+      totalLeadAmount !== existingLead.totalLead ||
+      tipoUnidadEdificioId !== existingLead.tipoUnidadEdificioId ||
+      unidadId !== existingLead.unidadId ||
+      edificioId !== existingLead.edificioId ||
+      comisionId !== existingLead.comisionId ||
+      reglaComisionId !== existingLead.reglaComisionId ||
+      (estado === 'DEPARTAMENTO_ENTREGADO' && existingLead.estado !== 'DEPARTAMENTO_ENTREGADO')
+    )
 
-    if (estado === 'DEPARTAMENTO_ENTREGADO' && existingLead.estado !== 'DEPARTAMENTO_ENTREGADO') {
-      // Only recalculate if we're transitioning TO DEPARTAMENTO_ENTREGADO
-      const leadWithRelations = await prisma.lead.findUnique({
+    let calculatedComision = comision ? parseFloat(comision) : existingLead.comision
+    let calculatedComisionId = comisionId || existingLead.comisionId
+    const calculatedReglaComisionId = reglaComisionId || null
+
+    // First, update the lead with new field values so calculateLeadCommission can use them
+    if (commissionAffectingFieldsChanged) {
+      console.log('🔄 Campos que afectan la comisión han cambiado, actualizando lead temporalmente...')
+
+      await prisma.lead.update({
         where: { id },
-        include: {
-          unidad: {
-            include: {
-              tipoUnidadEdificio: {
-                include: {
-                  comision: true
-                }
-              }
-            }
-          },
-          edificio: {
-            include: {
-              comision: true
-            }
-          },
-          tipoUnidadEdificio: {
-            include: {
-              comision: true
-            }
-          }
+        data: {
+          edificioId: edificioId || existingLead.edificioId,
+          tipoUnidadEdificioId: tipoUnidadEdificioId === 'none' ? null : (tipoUnidadEdificioId || existingLead.tipoUnidadEdificioId),
+          unidadId: unidadId === 'none' ? null : (unidadId || existingLead.unidadId)
         }
       })
 
-      if (leadWithRelations) {
-        const totalLeadAmount = parseFloat(totalLead)
-        let comisionPorcentaje = 0
-        let selectedComisionId = null
+      console.log('♻️ Recalculando comisión automáticamente...')
+      const calculationResult = await calculateLeadCommission(
+        id,
+        totalLeadAmount,
+        tipoUnidadEdificioId === 'none' ? null : (tipoUnidadEdificioId || existingLead.tipoUnidadEdificioId),
+        unidadId === 'none' ? null : (unidadId || existingLead.unidadId),
+        edificioId || existingLead.edificioId
+      )
 
-        // Priority 1: TipoUnidadEdificio commission (direct from lead)
-        if (leadWithRelations.tipoUnidadEdificio?.comision) {
-          comisionPorcentaje = leadWithRelations.tipoUnidadEdificio.comision.porcentaje
-          selectedComisionId = leadWithRelations.tipoUnidadEdificio.comision.id
-        }
-        // Priority 2: Unidad's TipoUnidadEdificio commission
-        else if (leadWithRelations.unidad?.tipoUnidadEdificio?.comision) {
-          comisionPorcentaje = leadWithRelations.unidad.tipoUnidadEdificio.comision.porcentaje
-          selectedComisionId = leadWithRelations.unidad.tipoUnidadEdificio.comision.id
-        }
-        // Priority 3: Edificio commission
-        else if (leadWithRelations.edificio?.comision) {
-          comisionPorcentaje = leadWithRelations.edificio.comision.porcentaje
-          selectedComisionId = leadWithRelations.edificio.comision.id
-        }
-
-        // Calculate commission amount
-        calculatedComision = totalLeadAmount * comisionPorcentaje
-        calculatedComisionId = selectedComisionId
-
-        console.log('💰 Comisión calculada automáticamente:', {
-          totalLead: totalLeadAmount,
-          porcentaje: comisionPorcentaje,
-          comision: calculatedComision,
-          comisionId: selectedComisionId
-        })
-      }
+      calculatedComision = calculationResult.comision
+      calculatedComisionId = calculationResult.comisionId
     }
 
     // Actualizar lead
@@ -300,7 +358,7 @@ export async function PUT(
       where: { id },
       data: {
         codigoUnidad: codigoUnidad || null,
-        totalLead: parseFloat(totalLead),
+        totalLead: totalLeadAmount,
         montoUf: parseFloat(montoUf),
         comision: calculatedComision,
         estado: estado || 'INGRESADO',
@@ -312,6 +370,9 @@ export async function PUT(
         conciliado: conciliado || false,
         brokerId,
         clienteId,
+        edificioId,
+        tipoUnidadEdificioId: tipoUnidadEdificioId === 'none' ? null : tipoUnidadEdificioId,
+        unidadId: unidadId === 'none' ? null : unidadId,
         reglaComisionId: calculatedReglaComisionId,
         comisionId: calculatedComisionId
       },
@@ -353,6 +414,21 @@ export async function PUT(
             id: true,
             nombre: true,
             direccion: true
+          }
+        },
+        tipoUnidadEdificio: {
+          select: {
+            id: true,
+            nombre: true,
+            descripcion: true,
+            comision: {
+              select: {
+                id: true,
+                nombre: true,
+                codigo: true,
+                porcentaje: true
+              }
+            }
           }
         },
         reglaComision: {
@@ -397,6 +473,13 @@ export async function PUT(
       observaciones: updatedLead.observaciones,
       conciliado: updatedLead.conciliado,
       fechaConciliacion: updatedLead.fechaConciliacion?.toISOString() || null,
+      brokerId: updatedLead.brokerId,
+      clienteId: updatedLead.clienteId,
+      edificioId: updatedLead.edificioId,
+      tipoUnidadEdificioId: updatedLead.tipoUnidadEdificioId,
+      unidadId: updatedLead.unidadId,
+      reglaComisionId: updatedLead.reglaComisionId,
+      comisionId: updatedLead.comisionId,
       broker: {
         id: updatedLead.broker.id,
         nombre: updatedLead.broker.nombre,
@@ -406,6 +489,7 @@ export async function PUT(
       cliente: updatedLead.cliente,
       unidad: updatedLead.unidad,
       edificio: updatedLead.edificio,
+      tipoUnidadEdificio: updatedLead.tipoUnidadEdificio,
       reglaComision: updatedLead.reglaComision,
       comisionBase: updatedLead.comisionBase,
       createdAt: updatedLead.createdAt.toISOString(),

@@ -13,8 +13,8 @@ export function initializeCronJobs() {
   console.log('⏰ Initializing cron jobs...')
 
   // Ejecutar cada hora (minuto 0 de cada hora)
-  // Cron expression: '0 * * * *' = At minute 0 of every hour
-  cron.schedule('0 * * * *', async () => {
+  // Cron expression: '0 */2 * * *' = At minute 0 of every two
+  cron.schedule('0 */2 * * *', async () => {
     console.log('⏰ [CRON] Starting hourly commission recalculation job...')
     try {
       await recalculateCommissions()
@@ -27,7 +27,7 @@ export function initializeCronJobs() {
   })
 
   // Ejecutar cambios de comisión programados cada hora
-  cron.schedule('0 * * * *', async () => {
+  cron.schedule('0 6,12,22 * * *', async () => {
     console.log('⏰ [CRON] Starting scheduled commission changes execution...')
     try {
       await executeScheduledCommissionChanges()

@@ -57,7 +57,13 @@ chmod +x migrate-production-existing.sh
 
 1. ✅ Verifica que los contenedores están corriendo
 2. ✅ Crea backup automático de la DB
-3. ✅ Agrega las 8 columnas faltantes:
+3. ✅ **Actualiza enums**:
+   - `EstadoLead`: Agrega 7 valores nuevos (INGRESADO, EN_EVALUACION, OBSERVADO, CONTRATO_FIRMADO, CONTRATO_PAGADO, DEPARTAMENTO_ENTREGADO, CANCELADO)
+   - `TipoEntidad`: Crea el enum si no existe
+4. ✅ **Crea tabla plantillas_tipo_unidad** (si no existe):
+   - Con todas sus columnas y constraints
+   - Con índices únicos para nombre y código
+5. ✅ **Agrega las 8 columnas faltantes**:
    - `tipos_unidad_edificio.activo`
    - `tipos_unidad_edificio.descripcion`
    - `tipos_unidad_edificio.plantillaOrigenId`
@@ -66,10 +72,13 @@ chmod +x migrate-production-existing.sh
    - `users.mustChangePassword`
    - `users.resetToken`
    - `users.resetTokenExpiry`
-4. ✅ Actualiza el registro de migraciones en `_prisma_migrations`
-5. ✅ Genera Prisma Client
-6. ✅ Verifica que las columnas se agregaron
-7. ✅ Reinicia la aplicación
+6. ✅ **Agrega foreign key constraint**:
+   - `tipos_unidad_edificio.plantillaOrigenId` → `plantillas_tipo_unidad.id`
+7. ✅ Corrige datos problemáticos (telefono NULL en clientes)
+8. ✅ Actualiza el registro de migraciones en `_prisma_migrations`
+9. ✅ Genera Prisma Client
+10. ✅ Verifica que los cambios se aplicaron correctamente
+11. ✅ Reinicia la aplicación
 
 ---
 

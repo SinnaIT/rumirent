@@ -78,18 +78,112 @@ fi
 
 echo ""
 
-# Aplicar solo las columnas faltantes
-print_info "PASO 2: Agregando columnas faltantes..."
+# Aplicar cambios de estructura
+print_info "PASO 2: Actualizando estructura de la base de datos..."
+print_info "  - Actualizando enums (EstadoLead, TipoEntidad)"
+print_info "  - Creando tabla plantillas_tipo_unidad"
+print_info "  - Agregando columnas faltantes"
+print_info "  - Agregando foreign keys"
+print_info "  - Corrigiendo datos"
 echo ""
 
 docker exec -i "$DB_CONTAINER" psql -U "$DB_USER" -d "$DB_NAME" <<'SQL'
--- Add missing columns to tipos_unidad_edificio
+-- ============================================================================
+-- 1. Actualizar Enums (agregar valores faltantes)
+-- ============================================================================
+
+-- Actualizar EstadoLead enum (agregar valores nuevos)
+DO $$
+BEGIN
+    -- Agregar INGRESADO si no existe
+    IF NOT EXISTS (SELECT 1 FROM pg_enum WHERE enumlabel = 'INGRESADO' AND enumtypid = (SELECT oid FROM pg_type WHERE typname = 'EstadoLead')) THEN
+        ALTER TYPE "EstadoLead" ADD VALUE 'INGRESADO';
+    END IF;
+
+    -- Agregar EN_EVALUACION si no existe
+    IF NOT EXISTS (SELECT 1 FROM pg_enum WHERE enumlabel = 'EN_EVALUACION' AND enumtypid = (SELECT oid FROM pg_type WHERE typname = 'EstadoLead')) THEN
+        ALTER TYPE "EstadoLead" ADD VALUE 'EN_EVALUACION';
+    END IF;
+
+    -- Agregar OBSERVADO si no existe
+    IF NOT EXISTS (SELECT 1 FROM pg_enum WHERE enumlabel = 'OBSERVADO' AND enumtypid = (SELECT oid FROM pg_type WHERE typname = 'EstadoLead')) THEN
+        ALTER TYPE "EstadoLead" ADD VALUE 'OBSERVADO';
+    END IF;
+
+    -- Agregar CONTRATO_FIRMADO si no existe
+    IF NOT EXISTS (SELECT 1 FROM pg_enum WHERE enumlabel = 'CONTRATO_FIRMADO' AND enumtypid = (SELECT oid FROM pg_type WHERE typname = 'EstadoLead')) THEN
+        ALTER TYPE "EstadoLead" ADD VALUE 'CONTRATO_FIRMADO';
+    END IF;
+
+    -- Agregar CONTRATO_PAGADO si no existe
+    IF NOT EXISTS (SELECT 1 FROM pg_enum WHERE enumlabel = 'CONTRATO_PAGADO' AND enumtypid = (SELECT oid FROM pg_type WHERE typname = 'EstadoLead')) THEN
+        ALTER TYPE "EstadoLead" ADD VALUE 'CONTRATO_PAGADO';
+    END IF;
+
+    -- Agregar DEPARTAMENTO_ENTREGADO si no existe
+    IF NOT EXISTS (SELECT 1 FROM pg_enum WHERE enumlabel = 'DEPARTAMENTO_ENTREGADO' AND enumtypid = (SELECT oid FROM pg_type WHERE typname = 'EstadoLead')) THEN
+        ALTER TYPE "EstadoLead" ADD VALUE 'DEPARTAMENTO_ENTREGADO';
+    END IF;
+
+    -- Agregar CANCELADO si no existe
+    IF NOT EXISTS (SELECT 1 FROM pg_enum WHERE enumlabel = 'CANCELADO' AND enumtypid = (SELECT oid FROM pg_type WHERE typname = 'EstadoLead')) THEN
+        ALTER TYPE "EstadoLead" ADD VALUE 'CANCELADO';
+    END IF;
+END $$;
+
+-- ============================================================================
+-- 2. Crear tabla plantillas_tipo_unidad si no existe
+-- ============================================================================
+
+CREATE TABLE IF NOT EXISTS "plantillas_tipo_unidad" (
+    "id" TEXT NOT NULL,
+    "nombre" TEXT NOT NULL,
+    "codigo" TEXT NOT NULL,
+    "bedrooms" INTEGER,
+    "bathrooms" INTEGER,
+    "descripcion" TEXT,
+    "activo" BOOLEAN NOT NULL DEFAULT true,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "plantillas_tipo_unidad_pkey" PRIMARY KEY ("id")
+);
+
+-- Crear índices únicos si no existen
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'plantillas_tipo_unidad_nombre_key'
+    ) THEN
+        ALTER TABLE "plantillas_tipo_unidad" ADD CONSTRAINT "plantillas_tipo_unidad_nombre_key" UNIQUE ("nombre");
+    END IF;
+
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'plantillas_tipo_unidad_codigo_key'
+    ) THEN
+        ALTER TABLE "plantillas_tipo_unidad" ADD CONSTRAINT "plantillas_tipo_unidad_codigo_key" UNIQUE ("codigo");
+    END IF;
+END $$;
+
+-- ============================================================================
+-- 3. Add missing columns to tipos_unidad_edificio
+-- ============================================================================
+
 ALTER TABLE "tipos_unidad_edificio" ADD COLUMN IF NOT EXISTS "activo" BOOLEAN NOT NULL DEFAULT true;
 ALTER TABLE "tipos_unidad_edificio" ADD COLUMN IF NOT EXISTS "descripcion" TEXT;
 ALTER TABLE "tipos_unidad_edificio" ADD COLUMN IF NOT EXISTS "plantillaOrigenId" TEXT;
+
+-- ============================================================================
+-- 4. Fix data issues (telefono in clientes must not be NULL if unique)
+-- ============================================================================
+
 UPDATE "clientes" SET telefono='1' WHERE telefono IS NULL;
 
--- Add missing column to empresas
+-- ============================================================================
+-- 5. Add missing column to empresas
+-- ============================================================================
+
+-- Create TipoEntidad enum if not exists
 DO $$ BEGIN
     CREATE TYPE "TipoEntidad" AS ENUM ('COMPANY', 'INVESTOR');
 EXCEPTION
@@ -106,27 +200,31 @@ BEGIN
     END IF;
 END $$;
 
--- Add missing columns to users
+-- ============================================================================
+-- 6. Add missing columns to users
+-- ============================================================================
+
 ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "lastPasswordChange" TIMESTAMP(3);
 ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "mustChangePassword" BOOLEAN NOT NULL DEFAULT false;
 ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "resetToken" TEXT;
 ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "resetTokenExpiry" TIMESTAMP(3);
 
--- Add foreign key if plantillas_tipo_unidad exists
+-- ============================================================================
+-- 7. Add foreign key constraint for plantillaOrigenId
+-- ============================================================================
+
 DO $$
 BEGIN
-    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'plantillas_tipo_unidad') THEN
-        IF NOT EXISTS (
-            SELECT 1 FROM information_schema.table_constraints
-            WHERE constraint_name = 'tipos_unidad_edificio_plantillaOrigenId_fkey'
-        ) THEN
-            ALTER TABLE "tipos_unidad_edificio"
-                ADD CONSTRAINT "tipos_unidad_edificio_plantillaOrigenId_fkey"
-                FOREIGN KEY ("plantillaOrigenId")
-                REFERENCES "plantillas_tipo_unidad"("id")
-                ON DELETE SET NULL
-                ON UPDATE CASCADE;
-        END IF;
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.table_constraints
+        WHERE constraint_name = 'tipos_unidad_edificio_plantillaOrigenId_fkey'
+    ) THEN
+        ALTER TABLE "tipos_unidad_edificio"
+            ADD CONSTRAINT "tipos_unidad_edificio_plantillaOrigenId_fkey"
+            FOREIGN KEY ("plantillaOrigenId")
+            REFERENCES "plantillas_tipo_unidad"("id")
+            ON DELETE SET NULL
+            ON UPDATE CASCADE;
     END IF;
 END $$;
 SQL
@@ -169,12 +267,30 @@ echo ""
 
 # Verificación
 print_info "PASO 5: Verificación..."
-print_info "Columnas agregadas a tipos_unidad_edificio:"
+echo ""
+
+print_info "✅ Valores del enum EstadoLead:"
+docker exec "$DB_CONTAINER" psql -U "$DB_USER" -d "$DB_NAME" -c "SELECT enumlabel FROM pg_enum WHERE enumtypid = (SELECT oid FROM pg_type WHERE typname = 'EstadoLead') ORDER BY enumsortorder;"
+
+echo ""
+print_info "✅ Columnas agregadas a tipos_unidad_edificio:"
 docker exec "$DB_CONTAINER" psql -U "$DB_USER" -d "$DB_NAME" -c "SELECT column_name FROM information_schema.columns WHERE table_name = 'tipos_unidad_edificio' AND column_name IN ('activo', 'descripcion', 'plantillaOrigenId');"
 
 echo ""
-print_info "Columnas agregadas a empresas:"
+print_info "✅ Columnas agregadas a empresas:"
 docker exec "$DB_CONTAINER" psql -U "$DB_USER" -d "$DB_NAME" -c "SELECT column_name FROM information_schema.columns WHERE table_name = 'empresas' AND column_name = 'tipoEntidad';"
+
+echo ""
+print_info "✅ Columnas agregadas a users:"
+docker exec "$DB_CONTAINER" psql -U "$DB_USER" -d "$DB_NAME" -c "SELECT column_name FROM information_schema.columns WHERE table_name = 'users' AND column_name IN ('lastPasswordChange', 'mustChangePassword', 'resetToken', 'resetTokenExpiry');"
+
+echo ""
+print_info "✅ Tabla plantillas_tipo_unidad creada:"
+docker exec "$DB_CONTAINER" psql -U "$DB_USER" -d "$DB_NAME" -c "SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'plantillas_tipo_unidad') as tabla_existe;"
+
+echo ""
+print_info "✅ Foreign key plantillaOrigenId:"
+docker exec "$DB_CONTAINER" psql -U "$DB_USER" -d "$DB_NAME" -c "SELECT constraint_name FROM information_schema.table_constraints WHERE constraint_name = 'tipos_unidad_edificio_plantillaOrigenId_fkey';"
 
 echo ""
 echo "╔════════════════════════════════════════════════════════════╗"
@@ -182,8 +298,15 @@ echo "║                  ✅ PROCESO COMPLETADO                      ║"
 echo "╚════════════════════════════════════════════════════════════╝"
 echo ""
 
-print_success "Columnas agregadas exitosamente"
-print_info "Backup: $BACKUP_FILE"
+print_success "Estructura de base de datos actualizada exitosamente"
+print_info "Cambios aplicados:"
+echo "  - Enum EstadoLead: 7 valores nuevos agregados"
+echo "  - Tabla plantillas_tipo_unidad: CREADA"
+echo "  - Tabla tipos_unidad_edificio: 3 columnas agregadas + foreign key"
+echo "  - Tabla empresas: 1 columna agregada"
+echo "  - Tabla users: 4 columnas agregadas"
+echo ""
+print_info "Backup de seguridad: $BACKUP_FILE"
 echo ""
 
 print_warning "PRÓXIMO PASO: Reiniciar la aplicación"

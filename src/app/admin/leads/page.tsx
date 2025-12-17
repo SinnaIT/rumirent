@@ -496,9 +496,18 @@ export default function AdminLeadsPage() {
 
       if (data.success) {
         toast.success(data.message)
+
+        // Update the lead in the local state immediately with the response data
+        const updatedLead = data.lead
+        setLeads(prevLeads =>
+          prevLeads.map(lead => lead.id === updatedLead.id ? updatedLead : lead)
+        )
+        setFilteredLeads(prevLeads =>
+          prevLeads.map(lead => lead.id === updatedLead.id ? updatedLead : lead)
+        )
+
         setIsEditDialogOpen(false)
         resetForm()
-        fetchLeads()
       } else {
         toast.error(data.error)
       }
