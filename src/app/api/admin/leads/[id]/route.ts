@@ -239,6 +239,7 @@ export async function PUT(
       totalLead,
       montoUf,
       comision,
+      manualComision, // Flag to indicate if commission was manually set by admin
       estado,
       fechaPagoReserva,
       fechaPagoLead,
@@ -327,8 +328,8 @@ export async function PUT(
     let calculatedComisionId = comisionId || existingLead.comisionId
     const calculatedReglaComisionId = reglaComisionId || null
 
-    // First, update the lead with new field values so calculateLeadCommission can use them
-    if (commissionAffectingFieldsChanged) {
+    // Only auto-recalculate if commission-affecting fields changed AND commission was not manually set
+    if (commissionAffectingFieldsChanged && !manualComision) {
       console.log('🔄 Campos que afectan la comisión han cambiado, actualizando lead temporalmente...')
 
       await prisma.lead.update({
@@ -351,6 +352,8 @@ export async function PUT(
 
       calculatedComision = calculationResult.comision
       calculatedComisionId = calculationResult.comisionId
+    } else if (manualComision) {
+      console.log('✏️ Comisión establecida manualmente por el administrador, omitiendo recálculo automático')
     }
 
     // Actualizar lead

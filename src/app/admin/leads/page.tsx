@@ -155,6 +155,7 @@ export default function AdminLeadsPage() {
   const [selectedEstado, setSelectedEstado] = useState('todos')
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [editingLead, setEditingLead] = useState<Lead | null>(null)
+  const [manualComisionModified, setManualComisionModified] = useState(false)
 
   // Form state
   const [formData, setFormData] = useState<{
@@ -173,6 +174,7 @@ export default function AdminLeadsPage() {
     clienteId: string
     edificioId: string
     tipoUnidadEdificioId: string
+    unidadId: string
     reglaComisionId: string
     comisionId: string
   }>({
@@ -191,6 +193,7 @@ export default function AdminLeadsPage() {
     clienteId: 'none',
     edificioId: 'none',
     tipoUnidadEdificioId: 'none',
+    unidadId: 'none',
     reglaComisionId: 'none',
     comisionId: 'none'
   })
@@ -418,11 +421,13 @@ export default function AdminLeadsPage() {
       clienteId: 'none',
       edificioId: 'none',
       tipoUnidadEdificioId: 'none',
+      unidadId: 'none',
       reglaComisionId: 'none',
       comisionId: 'none'
     })
     setEditingLead(null)
     setTiposUnidad([])
+    setManualComisionModified(false)
   }
 
   const handleOpenEditDialog = (lead: Lead) => {
@@ -445,6 +450,7 @@ export default function AdminLeadsPage() {
       clienteId: (lead.cliente?.id && lead.cliente.id.trim() !== '') ? lead.cliente.id : 'none',
       edificioId: edificioId,
       tipoUnidadEdificioId: tipoUnidadId,
+      unidadId: (lead.unidad?.id && lead.unidad.id.trim() !== '') ? lead.unidad.id : 'none',
       reglaComisionId: (lead.reglaComision?.id && lead.reglaComision.id.trim() !== '') ? lead.reglaComision.id : 'none',
       comisionId: (lead.comisionBase?.id && lead.comisionBase.id.trim() !== '') ? lead.comisionBase.id : 'none'
     })
@@ -456,6 +462,7 @@ export default function AdminLeadsPage() {
 
     setEditingLead(lead)
     setIsEditDialogOpen(true)
+    setManualComisionModified(false)
   }
 
   const handleSubmit = async () => {
@@ -487,8 +494,10 @@ export default function AdminLeadsPage() {
           clienteId: formData.clienteId === 'none' ? null : formData.clienteId,
           edificioId: formData.edificioId === 'none' ? null : formData.edificioId,
           tipoUnidadEdificioId: formData.tipoUnidadEdificioId === 'none' ? null : formData.tipoUnidadEdificioId,
+          unidadId: formData.unidadId === 'none' ? null : formData.unidadId,
           reglaComisionId: formData.reglaComisionId === 'none' ? null : formData.reglaComisionId,
-          comisionId: formData.comisionId === 'none' ? null : formData.comisionId
+          comisionId: formData.comisionId === 'none' ? null : formData.comisionId,
+          manualComision: manualComisionModified
         })
       })
 
@@ -1016,9 +1025,17 @@ export default function AdminLeadsPage() {
                                         id="comision"
                                         type="number"
                                         value={formData.comision}
-                                        onChange={(e) => setFormData({ ...formData, comision: e.target.value })}
+                                        onChange={(e) => {
+                                          setFormData({ ...formData, comision: e.target.value })
+                                          setManualComisionModified(true)
+                                        }}
                                         placeholder="7500000"
                                       />
+                                      {manualComisionModified && (
+                                        <div className="text-xs text-amber-600 flex items-center gap-1">
+                                          ✏️ Comisión modificada manualmente - no se recalculará automáticamente
+                                        </div>
+                                      )}
                                     </div>
                                   </div>
 
@@ -1026,7 +1043,12 @@ export default function AdminLeadsPage() {
                                     <Label htmlFor="comisionBase">Comisión Base (Opcional)</Label>
                                     <Select
                                       value={formData.comisionId}
-                                      onValueChange={(value: string) => setFormData({ ...formData, comisionId: value })}
+                                      onValueChange={(value: string) => {
+                                        setFormData({ ...formData, comisionId: value })
+                                        if (editingLead && value !== (editingLead.comisionBase?.id || 'none')) {
+                                          setManualComisionModified(true)
+                                        }
+                                      }}
                                     >
                                       <SelectTrigger>
                                         <SelectValue placeholder="Seleccionar comisión base" />
@@ -1049,7 +1071,12 @@ export default function AdminLeadsPage() {
                                     <Label htmlFor="reglaComision">Regla de Comisión (Opcional)</Label>
                                     <Select
                                       value={formData.reglaComisionId}
-                                      onValueChange={(value: string) => setFormData({ ...formData, reglaComisionId: value })}
+                                      onValueChange={(value: string) => {
+                                        setFormData({ ...formData, reglaComisionId: value })
+                                        if (editingLead && value !== (editingLead.reglaComision?.id || 'none')) {
+                                          setManualComisionModified(true)
+                                        }
+                                      }}
                                     >
                                       <SelectTrigger>
                                         <SelectValue placeholder="Seleccionar regla de comisión" />
@@ -1067,7 +1094,7 @@ export default function AdminLeadsPage() {
                                           ))}
                                       </SelectContent>
                                     </Select>
-                                    {formData.reglaComisionId && formData.reglaComisionId !== 'none' && (
+                                    {formData.reglaComisionId && formData.reglaComisionId !== 'none' && !manualComisionModified && (
                                       <div className="text-xs text-muted-foreground">
                                         💡 Esta regla puede recalcular automáticamente la comisión según el monto del lead
                                       </div>
