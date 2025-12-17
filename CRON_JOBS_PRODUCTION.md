@@ -14,21 +14,44 @@ La aplicación ejecuta **2 procesos automáticos cada hora**:
 **Qué hace**:
 - Busca todos los leads con `fechaPagoReserva` en los últimos 2 meses
 - Excluye solo leads con estado `RECHAZADO` o `CANCELADO` (todos los demás son válidos)
-- Agrupa leads por comisión base asignada
+- **Agrupa leads por BROKER + MES + COMISIÓN BASE**
 - Aplica reglas de comisión según la cantidad de leads por grupo
-- Si no hay regla aplicable, usa la comisión base
+- Si no hay regla aplicable, usa la comisión base del lead
 - Actualiza automáticamente los montos si hubo cambios
 
+**Lógica de agrupación**:
+Cada broker tiene su propio conteo de leads por mes y por comisión.
+
+**Ejemplo real**:
+```
+Mes: Septiembre 2025
+
+Broker A:
+  - Comisión Estándar: 5 leads → Regla 4-10 leads = 8%
+  - Comisión Premium: 2 leads → Sin regla = Porcentaje base (3%)
+
+Broker B:
+  - Comisión Estándar: 1 lead → Sin regla = Porcentaje base (3%)
+
+Mes: Octubre 2025
+
+Broker A:
+  - Comisión Estándar: 8 leads → Regla 4-10 leads = 8%
+  (Se evalúa independiente de Septiembre)
+```
+
 **Lógica de cálculo**:
-1. Cuenta cuántos leads tiene cada grupo de comisión
-2. Busca la regla que aplica según esa cantidad (ej: 5-10 leads → 3.5%, 11-20 leads → 4%)
-3. Aplica el porcentaje correspondiente a **todos** los leads del grupo
-4. Si no hay regla, aplica el porcentaje base de la comisión
+1. Agrupa leads por `[brokerId][mes-año][comisionId]`
+2. Cuenta cuántos leads tiene cada grupo
+3. Busca la regla que aplica según esa cantidad
+4. Aplica el porcentaje correspondiente a **todos** los leads del grupo
+5. Si no hay regla, aplica el porcentaje base de `lead.comisionId`
 
 **Por qué es importante**:
-- Asegura que las reglas de comisión por cantidad se apliquen automáticamente
-- Mantiene sincronizadas las comisiones del mes actual y anterior
-- Permite ajustes automáticos cuando cambian las configuraciones
+- **Incentiva el rendimiento individual**: Cada broker acumula sus propias comisiones
+- **Evaluación mensual**: Las reglas se aplican por mes calendario
+- **Flexibilidad**: Diferentes comisiones base se evalúan por separado
+- **Mantiene sincronizados los últimos 2 meses**: Asegura que cambios de configuración se reflejen
 
 ### 2. Ejecución de Cambios Programados
 **Archivo**: `src/lib/cron/jobs/execute-commission-changes.ts`

@@ -19,7 +19,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json().catch(() => ({}))
     const { mes, año } = body
 
-    // Determinar el período a procesar
+    // Determinar el período a procesar (SOLO el mes especificado, no mes anterior)
     let firstDay: Date
     let lastDay: Date
 
@@ -53,16 +53,16 @@ export async function POST(request: NextRequest) {
 
     console.log(`📅 Recalculando comisiones para el período: ${firstDay.toISOString()} - ${lastDay.toISOString()}`)
 
-    // Obtener leads del mes actual filtrados por fecha de reserva
-    // Solo recalcular comisiones para leads en estado DEPARTAMENTO_ENTREGADO
+    // Obtener leads del mes filtrados por fecha de reserva
+    // Excluir RECHAZADO y CANCELADO
     const leadsDelMes = await prisma.lead.findMany({
       where: {
         fechaPagoReserva: {
           gte: firstDay,
           lte: lastDay
         },
-        estado:{
-         notIn: ['RECHAZADO']
+        estado: {
+          notIn: ['RECHAZADO', 'CANCELADO']
         },
         // Solo procesar leads que tienen una comisión base asignada
         comisionId: {
@@ -70,6 +70,12 @@ export async function POST(request: NextRequest) {
         }
       },
       include: {
+        broker: {
+          select: {
+            id: true,
+            nombre: true
+          }
+        },
         comisionBase: {
           select: {
             id: true,
@@ -111,7 +117,7 @@ export async function POST(request: NextRequest) {
             año: firstDay.getFullYear(),
             mesNombre: firstDay.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' })
           },
-          comisionesUnicas: 0
+          gruposProcesados: 0
         }
       })
     }
@@ -119,109 +125,126 @@ export async function POST(request: NextRequest) {
     let leadsActualizados = 0
     const resultados = []
 
-    // Agrupar leads por comisión base asignada para aplicar reglas
-    const leadsPorComision = new Map()
+    // Agrupar leads por BROKER + MES + COMISIÓN BASE
+    // Estructura: Map<brokerId, Map<comisionId, leads[]>>
+    const groupedLeads = new Map()
 
     for (const lead of leadsDelMes) {
-      // Usar la comisión base asignada directamente al lead
-      const comision = lead.comisionBase
-
-      if (comision) {
-        if (!leadsPorComision.has(comision.id)) {
-          leadsPorComision.set(comision.id, {
-            comision,
-            leads: []
-          })
-        }
-        leadsPorComision.get(comision.id).leads.push(lead)
-      } else {
+      if (!lead.comisionBase) {
         console.log(`⚠️ Lead ${lead.id} no tiene comisión base asignada, saltando...`)
+        continue
       }
+
+      const brokerId = lead.brokerId
+      const comisionId = lead.comisionBase.id
+
+      // Inicializar estructura si no existe
+      if (!groupedLeads.has(brokerId)) {
+        groupedLeads.set(brokerId, new Map())
+      }
+      if (!groupedLeads.get(brokerId).has(comisionId)) {
+        groupedLeads.get(brokerId).set(comisionId, {
+          commission: lead.comisionBase,
+          broker: lead.broker,
+          leads: []
+        })
+      }
+
+      // Agregar lead al grupo
+      groupedLeads.get(brokerId).get(comisionId).leads.push(lead)
     }
 
-    console.log(`leadsPorComision:`, leadsPorComision)
+    console.log(`📋 Agrupados en ${groupedLeads.size} brokers`)
 
-    // Procesar cada grupo de comisión
-    for (const [, grupo] of leadsPorComision) {
-      const { comision, leads: leadsGrupo } = grupo
-      const cantidadLeads = leadsGrupo.length
+    // Procesar cada grupo (broker + comisión)
+    let totalGroups = 0
+    for (const [brokerId, commissionsMap] of groupedLeads) {
+      for (const [comisionId, group] of commissionsMap) {
+        totalGroups++
+        const { commission, broker, leads: leadsGrupo } = group
+        const cantidadLeads = leadsGrupo.length
 
-      console.log(`🎯 Procesando ${cantidadLeads} leads para comisión: ${comision.nombre} (${comision.codigo}) - ${(comision.porcentaje * 100).toFixed(1)}%`)
+        console.log(`🎯 [${totalGroups}] Broker: ${broker.nombre} | Commission: ${commission.nombre} (${commission.codigo}) - ${(commission.porcentaje * 100).toFixed(1)}% | Leads: ${cantidadLeads}`)
 
-      // Buscar regla de comisión aplicable
-      const reglasComision = await prisma.reglaComision.findMany({
-        where: {
-          comisionId: comision.id,
-          cantidadMinima: { lte: cantidadLeads },
-          OR: [
-            { cantidadMaxima: null },
-            { cantidadMaxima: { gte: cantidadLeads } }
-          ]
-        },
-        orderBy: { cantidadMinima: 'desc' },
-        take: 1
-      })
+        // Buscar regla de comisión aplicable
+        const reglasComision = await prisma.reglaComision.findMany({
+          where: {
+            comisionId: commission.id,
+            cantidadMinima: { lte: cantidadLeads },
+            OR: [
+              { cantidadMaxima: null },
+              { cantidadMaxima: { gte: cantidadLeads } }
+            ]
+          },
+          orderBy: { cantidadMinima: 'desc' },
+          take: 1
+        })
 
-      const reglaAplicable = reglasComision[0]
+        const reglaAplicable = reglasComision[0]
 
-      console.log(`🔍 Reglas encontradas para ${cantidadLeads} leads:`, reglasComision)
-      console.log(`reglaAplicable:`, reglaAplicable)
+        console.log(`🔍 Reglas encontradas para ${cantidadLeads} leads:`, reglasComision)
+        console.log(`reglaAplicable:`, reglaAplicable)
 
-      if (reglaAplicable) {
-        console.log(`✅ Aplicando regla: ${(reglaAplicable.porcentaje * 100).toFixed(1)}% para ${cantidadLeads} leads (rango: ${reglaAplicable.cantidadMinima}-${reglaAplicable.cantidadMaxima || '∞'})`)
+        if (reglaAplicable) {
+          console.log(`✅ Aplicando regla: ${(reglaAplicable.porcentaje * 100).toFixed(1)}% para ${cantidadLeads} leads (rango: ${reglaAplicable.cantidadMinima}-${reglaAplicable.cantidadMaxima || '∞'})`)
 
-        // Actualizar todos los leads del grupo
-        for (const lead of leadsGrupo) {
-          console.log(`  📝 Actualizando lead ${lead.id}: $${lead.totalLead.toLocaleString()} -> comisión nueva: ${(reglaAplicable.porcentaje * 100).toFixed(1)}%`)
-          const nuevaComision = lead.totalLead * reglaAplicable.porcentaje
+          // Actualizar todos los leads del grupo
+          for (const lead of leadsGrupo) {
+            console.log(`  📝 Actualizando lead ${lead.id}: $${lead.totalLead.toLocaleString()} -> comisión nueva: ${(reglaAplicable.porcentaje * 100).toFixed(1)}%`)
+            const nuevaComision = lead.totalLead * reglaAplicable.porcentaje
 
-          await prisma.lead.update({
-            where: { id: lead.id },
-            data: {
-              comision: nuevaComision,
-              reglaComisionId: reglaAplicable.id,
-              comisionId: comision.id // Asegurar que la comisión base se mantenga
-            }
-          })
+            await prisma.lead.update({
+              where: { id: lead.id },
+              data: {
+                comision: nuevaComision,
+                reglaComisionId: reglaAplicable.id,
+                comisionId: commission.id // Asegurar que la comisión base se mantenga
+              }
+            })
 
-          leadsActualizados++
-          resultados.push({
-            leadId: lead.id,
-            comisionAnterior: lead.comision,
-            comisionNueva: nuevaComision,
-            reglaAplicada: {
-              id: reglaAplicable.id,
-              porcentaje: reglaAplicable.porcentaje,
-              cantidadMinima: reglaAplicable.cantidadMinima,
-              cantidadMaxima: reglaAplicable.cantidadMaxima
-            }
-          })
-        }
-      } else {
-        console.log(`⚠️  No se encontró regla aplicable para ${cantidadLeads} leads de la comisión ${comision.nombre}. Aplicando comisión base: ${(comision.porcentaje * 100).toFixed(1)}%`)
+            leadsActualizados++
+            resultados.push({
+              leadId: lead.id,
+              brokerId: broker.id,
+              brokerNombre: broker.nombre,
+              comisionAnterior: lead.comision,
+              comisionNueva: nuevaComision,
+              reglaAplicada: {
+                id: reglaAplicable.id,
+                porcentaje: reglaAplicable.porcentaje,
+                cantidadMinima: reglaAplicable.cantidadMinima,
+                cantidadMaxima: reglaAplicable.cantidadMaxima
+              }
+            })
+          }
+        } else {
+          console.log(`⚠️  No se encontró regla aplicable para ${cantidadLeads} leads de la comisión ${commission.nombre}. Aplicando comisión base: ${(commission.porcentaje * 100).toFixed(1)}%`)
 
-        // Mantener comisión base pero limpiar regla
-        for (const lead of leadsGrupo) {
-          console.log(`  📝 Aplicando comisión base a lead ${lead.id}: $${lead.totalLead.toLocaleString()} -> ${(comision.porcentaje * 100).toFixed(1)}%`)
-          const comisionBase = lead.totalLead * comision.porcentaje
+          // Mantener comisión base pero limpiar regla
+          for (const lead of leadsGrupo) {
+            console.log(`  📝 Aplicando comisión base a lead ${lead.id}: $${lead.totalLead.toLocaleString()} -> ${(commission.porcentaje * 100).toFixed(1)}%`)
+            const comisionBase = lead.totalLead * commission.porcentaje
 
-          await prisma.lead.update({
-            where: { id: lead.id },
-            data: {
-              comision: comisionBase,
-              reglaComisionId: null,
-              comisionId: comision.id // Asegurar que la comisión base se mantenga
-            }
-          })
+            await prisma.lead.update({
+              where: { id: lead.id },
+              data: {
+                comision: comisionBase,
+                reglaComisionId: null,
+                comisionId: commission.id // Asegurar que la comisión base se mantenga
+              }
+            })
 
-          leadsActualizados++
-          resultados.push({
-            leadId: lead.id,
-            comisionAnterior: lead.comision,
-            comisionNueva: comisionBase,
-            reglaAplicada: null,
-            comisionBase: comision.porcentaje
-          })
+            leadsActualizados++
+            resultados.push({
+              leadId: lead.id,
+              brokerId: broker.id,
+              brokerNombre: broker.nombre,
+              comisionAnterior: lead.comision,
+              comisionNueva: comisionBase,
+              reglaAplicada: null,
+              comisionBase: commission.porcentaje
+            })
+          }
         }
       }
     }
@@ -243,7 +266,8 @@ export async function POST(request: NextRequest) {
           año: firstDay.getFullYear(),
           mesNombre
         },
-        comisionesUnicas: leadsPorComision.size
+        gruposProcesados: totalGroups,
+        brokersAfectados: groupedLeads.size
       },
       resultados
     })
@@ -251,7 +275,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('❌ Error al recalcular comisiones:', error)
     return NextResponse.json(
-      { error: 'Error interno del servidor', details: error.message },
+      { error: 'Error interno del servidor', details: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }
     )
   }

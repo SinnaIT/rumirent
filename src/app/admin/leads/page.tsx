@@ -1231,7 +1231,7 @@ export default function AdminLeadsPage() {
                         </td>
                         <td className="p-2 align-middle whitespace-nowrap">
                           <div className="text-sm">
-                            {new Date(lead.createdAt).toLocaleDateString('es-ES')}
+                            {new Date(lead.fechaPagoReserva?lead.fechaPagoReserva:lead.createdAt).toLocaleDateString('es-ES')}
                           </div>
                         </td>
                       </tr>
