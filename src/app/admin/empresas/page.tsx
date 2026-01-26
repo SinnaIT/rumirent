@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import {
   Table,
   TableBody,
@@ -326,70 +327,20 @@ export default function EmpresasPage() {
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead>Acciones</TableHead>
               <TableHead>{activeTab === 'COMPANY' ? 'Empresa' : 'Inversionista'}</TableHead>
               <TableHead>RUT</TableHead>
               <TableHead>Razón Social</TableHead>
               <TableHead>Contacto</TableHead>
               <TableHead>Edificios</TableHead>
               <TableHead>Estado</TableHead>
-              <TableHead className="text-right">Acciones</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {filteredEmpresas.map((empresa) => (
               <TableRow key={empresa.id}>
                 <TableCell>
-                  <div className="font-medium">{empresa.nombre}</div>
-                  {empresa.direccion && (
-                    <div className="text-sm text-muted-foreground flex items-center mt-1">
-                      <MapPin className="w-3 h-3 mr-1" />
-                      {empresa.direccion}
-                    </div>
-                  )}
-                </TableCell>
-                <TableCell className="font-mono text-sm">
-                  {empresa.rut}
-                </TableCell>
-                <TableCell>{empresa.razonSocial}</TableCell>
-                <TableCell>
-                  <div className="space-y-1">
-                    {empresa.email && (
-                      <div className="text-sm flex items-center text-muted-foreground">
-                        <Mail className="w-3 h-3 mr-1" />
-                        {empresa.email}
-                      </div>
-                    )}
-                    {empresa.telefono && (
-                      <div className="text-sm flex items-center text-muted-foreground">
-                        <Phone className="w-3 h-3 mr-1" />
-                        {empresa.telefono}
-                      </div>
-                    )}
-                    {!empresa.email && !empresa.telefono && (
-                      <span className="text-sm text-muted-foreground">Sin contacto</span>
-                    )}
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <div className="text-center">
-                    <span className="font-medium">{empresa.totalEdificios}</span>
-                  </div>
-                </TableCell>
-                <TableCell>
-                  {empresa.activa ? (
-                    <Badge variant="default" className="bg-green-600">
-                      <CheckCircle2 className="w-3 h-3 mr-1" />
-                      Activa
-                    </Badge>
-                  ) : (
-                    <Badge variant="secondary">
-                      <XCircle className="w-3 h-3 mr-1" />
-                      Inactiva
-                    </Badge>
-                  )}
-                </TableCell>
-                <TableCell className="text-right">
-                  <div className="flex items-center justify-end space-x-2">
+                  <div className="flex items-center space-x-2">
                     <Button
                       variant="ghost"
                       size="sm"
@@ -443,6 +394,56 @@ export default function EmpresasPage() {
                       </AlertDialogContent>
                     </AlertDialog>
                   </div>
+                </TableCell>
+                <TableCell>
+                  <div className="font-medium">{empresa.nombre}</div>
+                  {empresa.direccion && (
+                    <div className="text-sm text-muted-foreground flex items-center mt-1">
+                      <MapPin className="w-3 h-3 mr-1" />
+                      {empresa.direccion}
+                    </div>
+                  )}
+                </TableCell>
+                <TableCell className="font-mono text-sm">
+                  {empresa.rut}
+                </TableCell>
+                <TableCell>{empresa.razonSocial}</TableCell>
+                <TableCell>
+                  <div className="space-y-1">
+                    {empresa.email && (
+                      <div className="text-sm flex items-center text-muted-foreground">
+                        <Mail className="w-3 h-3 mr-1" />
+                        {empresa.email}
+                      </div>
+                    )}
+                    {empresa.telefono && (
+                      <div className="text-sm flex items-center text-muted-foreground">
+                        <Phone className="w-3 h-3 mr-1" />
+                        {empresa.telefono}
+                      </div>
+                    )}
+                    {!empresa.email && !empresa.telefono && (
+                      <span className="text-sm text-muted-foreground">Sin contacto</span>
+                    )}
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <div className="text-center">
+                    <span className="font-medium">{empresa.totalEdificios}</span>
+                  </div>
+                </TableCell>
+                <TableCell>
+                  {empresa.activa ? (
+                    <Badge variant="default" className="bg-green-600">
+                      <CheckCircle2 className="w-3 h-3 mr-1" />
+                      Activa
+                    </Badge>
+                  ) : (
+                    <Badge variant="secondary">
+                      <XCircle className="w-3 h-3 mr-1" />
+                      Inactiva
+                    </Badge>
+                  )}
                 </TableCell>
               </TableRow>
             ))}
@@ -725,6 +726,22 @@ export default function EmpresasPage() {
                   placeholder={formData.tipoEntidad === 'COMPANY' ? 'ej: Inmobiliaria ABC SpA' : 'ej: Juan Pérez García'}
                   required
                 />
+              </div>
+
+              <div className="col-span-2">
+                <Label htmlFor="edit-tipoEntidad">Tipo de Entidad *</Label>
+                <Select
+                  value={formData.tipoEntidad}
+                  onValueChange={(value: TipoEntidad) => setFormData({ ...formData, tipoEntidad: value })}
+                >
+                  <SelectTrigger id="edit-tipoEntidad">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="COMPANY">🏢 Empresa</SelectItem>
+                    <SelectItem value="INVESTOR">💼 Inversionista</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
 
               <div className="col-span-2">

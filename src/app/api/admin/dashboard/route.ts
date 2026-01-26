@@ -329,7 +329,14 @@ export async function GET(request: NextRequest) {
         leadsCount: broker.leads.length,
       }))
       .filter((broker) => broker.leadsCount > 0)
-      .sort((a, b) => b.totalCommission - a.totalCommission)
+      .sort((a, b) => {
+        // Ordenar primero por número de reservas (descendente)
+        if (b.leadsCount !== a.leadsCount) {
+          return b.leadsCount - a.leadsCount
+        }
+        // Si tienen el mismo número de reservas, ordenar por comisiones (descendente)
+        return b.totalCommission - a.totalCommission
+      })
       .slice(0, 5)
       .map((broker, index) => ({
         ...broker,
@@ -459,10 +466,28 @@ export async function GET(request: NextRequest) {
       }
     })
 
-    // Get all units with their typology information
-    const allUnits = await prisma.unidad.findMany({
+    // Get typology data from reservations in selected period (excluding rejected)
+    const leadsWithTypology = await prisma.lead.findMany({
+      where: {
+        fechaPagoReserva: {
+          gte: startOfMonth,
+          lte: endOfMonth,
+        },
+        estado: {
+          notIn: ['RECHAZADO'],
+        },
+      },
       select: {
-        id: true,
+        unidad: {
+          select: {
+            tipoUnidadEdificio: {
+              select: {
+                codigo: true,
+                nombre: true,
+              },
+            },
+          },
+        },
         tipoUnidadEdificio: {
           select: {
             codigo: true,
@@ -472,12 +497,28 @@ export async function GET(request: NextRequest) {
       },
     })
 
-    // Group by typology code (sum units with same code across different projects)
+    // Group by typology code (sum leads with same typology code)
     const typologyMap = new Map<string, { code: string; name: string; count: number }>()
 
-    allUnits.forEach((unit) => {
-      const code = unit.tipoUnidadEdificio?.codigo || 'SIN_CODIGO'
-      const name = unit.tipoUnidadEdificio?.nombre || 'Sin tipo'
+    leadsWithTypology.forEach((lead) => {
+      let code: string
+      let name: string
+
+      // Try to get typology from the unidad first
+      if (lead.unidad?.tipoUnidadEdificio) {
+        code = lead.unidad.tipoUnidadEdificio.codigo
+        name = lead.unidad.tipoUnidadEdificio.nombre
+      }
+      // Fallback to direct tipoUnidadEdificio relation (for manual leads)
+      else if (lead.tipoUnidadEdificio) {
+        code = lead.tipoUnidadEdificio.codigo
+        name = lead.tipoUnidadEdificio.nombre
+      }
+      // Default for leads without typology
+      else {
+        code = 'SIN_TIPO'
+        name = 'Sin tipo'
+      }
 
       if (typologyMap.has(code)) {
         const existing = typologyMap.get(code)!
@@ -668,11 +709,15 @@ export async function GET(request: NextRequest) {
       })
     }
 
-    // Get leads by comuna (Top comunas with most leads)
+    // Get leads by comuna (Top comunas with most leads in selected period)
     const leadsWithComuna = await prisma.lead.findMany({
       where: {
+        fechaPagoReserva: {
+          gte: startOfMonth,
+          lte: endOfMonth,
+        },
         estado: {
-          in: ['RESERVA_PAGADA', 'APROBADO'],
+          notIn: ['RECHAZADO'],
         },
       },
       select: {

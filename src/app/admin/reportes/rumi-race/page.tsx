@@ -155,7 +155,7 @@ export default function RumiRacePage() {
             RumiRace - Ranking de Brokers
           </h1>
           <p className="text-muted-foreground mt-1">
-            Competencia mensual basada en comisiones generadas
+            Competencia mensual basada en número de reservas (desempate: comisiones)
           </p>
         </div>
       </div>

@@ -23,8 +23,8 @@ import { Logo } from '@/components/logo'
 const menuItems = [
   { icon: Home, label: 'Dashboard', href: '/broker' },
   { icon: Building2, label: 'Proyectos', href: '/broker/proyectos' },
-  { icon: User, label: 'Mis Leads', href: '/broker/leads' },
   { icon: Plus, label: 'Generar Lead', href: '/broker/generar-lead' },
+  { icon: User, label: 'Mis Leads', href: '/broker/leads' },
   { icon: Calculator, label: 'Mis Prospectos', href: '/broker/ventas' },
   { icon: BarChart3, label: 'Reportes', href: '/broker/reportes' },
   { icon: DollarSign, label: 'Flujo de Caja', href: '/broker/reportes/flujo-caja' },

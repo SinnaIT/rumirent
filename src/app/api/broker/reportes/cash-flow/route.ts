@@ -30,13 +30,16 @@ export async function GET(request: NextRequest) {
       fechaFin,
     })
 
-    // Buscar leads del broker en el rango de fechas
+    // Buscar leads del broker en el rango de fechas (excluyendo rechazados)
     const leads = await prisma.lead.findMany({
       where: {
         brokerId: authResult.user.id,
         createdAt: {
           gte: fechaInicio,
           lte: fechaFin,
+        },
+        estado: {
+          not: 'RECHAZADO'
         },
       },
       include: {
@@ -122,6 +125,7 @@ export async function GET(request: NextRequest) {
       month: string
       reservas: number
       checkins: number
+      brutoReservas: number
       bruto: number
       liquido: number
     }>()
@@ -134,6 +138,7 @@ export async function GET(request: NextRequest) {
           month: monthKey,
           reservas: 0,
           checkins: 0,
+          brutoReservas: 0,
           bruto: 0,
           liquido: 0,
         })
@@ -141,21 +146,25 @@ export async function GET(request: NextRequest) {
 
       const monthData = monthlyData.get(monthKey)!
 
-      // Contar reservas pagadas
-      if (lead.estado === 'RESERVA_PAGADA') {
-        monthData.reservas += 1
-      }
+      // Contar todas las reservas (ya excluye rechazados en la query)
+      monthData.reservas += 1
 
-      // Contar checkins (leads con fecha de checkin)
-      if (lead.fechaCheckin) {
+      // Contar checkins (solo departamentos entregados)
+      if (lead.estado === 'DEPARTAMENTO_ENTREGADO') {
         monthData.checkins += 1
       }
 
-      // Sumar bruto (total del lead)
-      monthData.bruto += lead.totalLead || 0
+      // Solo sumar montos de leads con estado DEPARTAMENTO_ENTREGADO
+      if (lead.estado === 'DEPARTAMENTO_ENTREGADO') {
+        // Bruto de reservas: suma del total de los leads
+        monthData.brutoReservas += lead.totalLead || 0
 
-      // Sumar liquido (comisión)
-      monthData.liquido += lead.comision || 0
+        // Bruto: suma de las comisiones
+        monthData.bruto += lead.comision || 0
+
+        // Liquido: por ahora igual al bruto
+        monthData.liquido += lead.comision || 0
+      }
     })
 
     const monthlyBreakdown = Array.from(monthlyData.values())
@@ -164,6 +173,7 @@ export async function GET(request: NextRequest) {
     const totals = {
       reservas: monthlyBreakdown.reduce((sum, m) => sum + m.reservas, 0),
       checkins: monthlyBreakdown.reduce((sum, m) => sum + m.checkins, 0),
+      brutoReservas: monthlyBreakdown.reduce((sum, m) => sum + m.brutoReservas, 0),
       bruto: monthlyBreakdown.reduce((sum, m) => sum + m.bruto, 0),
       liquido: monthlyBreakdown.reduce((sum, m) => sum + m.liquido, 0),
     }

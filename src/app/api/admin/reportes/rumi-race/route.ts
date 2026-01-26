@@ -131,9 +131,16 @@ export async function GET(request: NextRequest) {
       brokerData.montoTotalComisiones += lead.comision
     })
 
-    // Convert map to array and sort by total commission amount (DESC)
+    // Convert map to array and sort by total reservas (DESC), then by commission as tiebreaker
     const rankingData = Array.from(brokerMap.values())
-      .sort((a, b) => b.montoTotalComisiones - a.montoTotalComisiones)
+      .sort((a, b) => {
+        // Ordenar primero por número de reservas (descendente)
+        if (b.totalReservas !== a.totalReservas) {
+          return b.totalReservas - a.totalReservas
+        }
+        // Si tienen el mismo número de reservas, ordenar por comisiones (descendente)
+        return b.montoTotalComisiones - a.montoTotalComisiones
+      })
       .map((broker, index) => ({
         ...broker,
         posicion: index + 1, // Position starts at 1

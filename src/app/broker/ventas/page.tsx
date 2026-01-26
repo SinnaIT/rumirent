@@ -270,6 +270,32 @@ export default function BrokerVentasPage() {
     }
   }
 
+  const cambiarEstadoLead = async (leadId: string, nuevoEstado: string) => {
+    try {
+      const response = await fetch(`/api/broker/leads/${leadId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          estado: nuevoEstado
+        })
+      })
+
+      const data = await response.json()
+
+      if (data.success) {
+        toast.success('Estado actualizado exitosamente')
+        fetchVentas() // Recargar la lista
+      } else {
+        toast.error(data.error || 'Error al actualizar estado')
+      }
+    } catch (error) {
+      console.error('Error:', error)
+      toast.error('Error de conexión')
+    }
+  }
+
   const limpiarFiltros = () => {
     setFiltros({
       busqueda: '',
@@ -511,11 +537,13 @@ export default function BrokerVentasPage() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="todos">Todos los estados</SelectItem>
-                  {ESTADOS_CONTRATO.map((estado) => (
-                    <SelectItem key={estado.value} value={estado.value}>
-                      {estado.label}
-                    </SelectItem>
-                  ))}
+                  {ESTADOS_CONTRATO
+                    .filter(estado => !estado.label.includes('Legacy'))
+                    .map((estado) => (
+                      <SelectItem key={estado.value} value={estado.value}>
+                        {estado.label}
+                      </SelectItem>
+                    ))}
                 </SelectContent>
               </Select>
               <Button
@@ -650,24 +678,25 @@ export default function BrokerVentasPage() {
                           <div className="flex items-center gap-2">
                             <User className="h-4 w-4 text-muted-foreground" />
                             <span className="font-semibold text-base">{clienteAgrupado.cliente.nombre}</span>
-                            {clienteAgrupado.cliente.hasActiveLead ? (
-                              <Badge variant="destructive" className="text-xs">
-                                Lead Activo
-                              </Badge>
-                            ) : (
-                              <Badge variant="outline" className="text-xs bg-green-50 dark:bg-green-950 text-green-700 dark:text-green-400 border-green-200 dark:border-green-800">
-                                Disponible
-                              </Badge>
-                            )}
+                            {(() => {
+                              // Obtener el último lead (más reciente)
+                              const ultimoLead = clienteAgrupado.leads.sort((a, b) =>
+                                new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+                              )[0]
+                              const estadoUltimoLead = formatearEstado(ultimoLead.estado)
+                              const IconoEstado = estadoUltimoLead.icon
+
+                              return (
+                                <Badge variant="outline" className={estadoUltimoLead.color}>
+                                  <IconoEstado className="w-3 h-3 mr-1" />
+                                  {estadoUltimoLead.label}
+                                </Badge>
+                              )
+                            })()}
                           </div>
                           <div className="flex items-center gap-2 mt-1">
                             <CreditCard className="h-3 w-3 text-muted-foreground" />
                             <span className="text-sm text-muted-foreground">{clienteAgrupado.cliente.rut}</span>
-                            {clienteAgrupado.cliente.hasActiveLead && clienteAgrupado.cliente.activeLead && (
-                              <span className="text-xs text-destructive dark:text-red-400">
-                                • Lead desde {new Date(clienteAgrupado.cliente.activeLead.createdAt).toLocaleDateString('es-CL')}
-                              </span>
-                            )}
                           </div>
                         </div>
 
@@ -713,7 +742,6 @@ export default function BrokerVentasPage() {
                           <TableHeader>
                             <TableRow>
                               <TableHead className="text-xs text-center">Acciones</TableHead>
-                              <TableHead className="text-xs">Disponibilidad Cliente</TableHead>
                               <TableHead className="text-xs">Edificio / Unidad</TableHead>
                               <TableHead className="text-xs">Estado Lead</TableHead>
                               <TableHead className="text-xs text-right">Total</TableHead>
@@ -740,24 +768,6 @@ export default function BrokerVentasPage() {
                                     </Button>
                                   </TableCell>
                                   <TableCell>
-                                    {lead.cliente?.hasActiveLead ? (
-                                      <div className="flex flex-col gap-1">
-                                        <Badge variant="destructive" className="w-fit text-xs">
-                                          🚫 Lead Activo
-                                        </Badge>
-                                        {lead.cliente.activeLead && (
-                                          <span className="text-xs text-destructive dark:text-red-400">
-                                            Desde {new Date(lead.cliente.activeLead.createdAt).toLocaleDateString('es-CL')}
-                                          </span>
-                                        )}
-                                      </div>
-                                    ) : (
-                                      <Badge variant="outline" className="w-fit text-xs bg-green-50 dark:bg-green-950 text-green-700 dark:text-green-400 border-green-200 dark:border-green-800">
-                                        ✓ Disponible
-                                      </Badge>
-                                    )}
-                                  </TableCell>
-                                  <TableCell>
                                     {lead.unidad ? (
                                       <>
                                         <div className="font-medium">
@@ -779,10 +789,32 @@ export default function BrokerVentasPage() {
                                     )}
                                   </TableCell>
                                   <TableCell>
-                                    <Badge variant="outline" className={estado.color}>
-                                      <IconoEstado className="w-3 h-3 mr-1" />
-                                      {estado.label}
-                                    </Badge>
+                                    <Select
+                                      value={lead.estado}
+                                      onValueChange={(value) => cambiarEstadoLead(lead.id, value)}
+                                    >
+                                      <SelectTrigger className={`w-[180px] ${estado.color} border`}>
+                                        <div className="flex items-center">
+                                          <IconoEstado className="w-3 h-3 mr-2" />
+                                          <SelectValue />
+                                        </div>
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        {ESTADOS_CONTRATO
+                                          .filter(estadoOption => !estadoOption.label.includes('Legacy'))
+                                          .map((estadoOption) => {
+                                            const IconoOpcion = estadoOption.icon
+                                            return (
+                                              <SelectItem key={estadoOption.value} value={estadoOption.value}>
+                                                <div className="flex items-center">
+                                                  <IconoOpcion className="w-3 h-3 mr-2" />
+                                                  {estadoOption.label}
+                                                </div>
+                                              </SelectItem>
+                                            )
+                                          })}
+                                      </SelectContent>
+                                    </Select>
                                   </TableCell>
                                   <TableCell className="text-right">
                                     <div className="font-medium">{formatCurrency(lead.totalLead)}</div>
@@ -835,11 +867,13 @@ export default function BrokerVentasPage() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {ESTADOS_CONTRATO.map((estado) => (
-                    <SelectItem key={estado.value} value={estado.value}>
-                      {estado.label}
-                    </SelectItem>
-                  ))}
+                  {ESTADOS_CONTRATO
+                    .filter(estado => !estado.label.includes('Legacy'))
+                    .map((estado) => (
+                      <SelectItem key={estado.value} value={estado.value}>
+                        {estado.label}
+                      </SelectItem>
+                    ))}
                 </SelectContent>
               </Select>
             </div>

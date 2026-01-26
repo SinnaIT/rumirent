@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
 import { toast } from 'sonner'
 import {
   Building2,
@@ -13,7 +14,9 @@ import {
   Plus,
   Calculator,
   Eye,
-  Image as ImageIcon
+  Image as ImageIcon,
+  Search,
+  X
 } from 'lucide-react'
 import * as LucideIcons from 'lucide-react'
 
@@ -95,6 +98,7 @@ export default function BrokerProyectosPage() {
   const router = useRouter()
   const [proyectos, setProyectos] = useState<Proyecto[]>([])
   const [loading, setLoading] = useState(true)
+  const [searchFilter, setSearchFilter] = useState('')
 
   useEffect(() => {
     fetchProyectos()
@@ -159,33 +163,69 @@ export default function BrokerProyectosPage() {
     )
   }
 
-  const totalUnidadesDisponibles = proyectos.reduce((sum, p) => sum + p.unidadesDisponibles, 0)
+  // Filter projects by name or code
+  const filteredProyectos = proyectos.filter(proyecto => {
+    if (!searchFilter.trim()) return true
+
+    const searchLower = searchFilter.toLowerCase().trim()
+    const matchesName = proyecto.nombre.toLowerCase().includes(searchLower)
+
+    // Check if project has a codigo field, if not we'll just search by name
+    const matchesCode = proyecto.id.toLowerCase().includes(searchLower)
+
+    return matchesName || matchesCode
+  })
+
+  const totalUnidadesDisponibles = filteredProyectos.reduce((sum, p) => sum + p.unidadesDisponibles, 0)
 
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">Proyectos Disponibles</h1>
-          <p className="text-muted-foreground">
-            Explora los proyectos con unidades disponibles para la venta
-          </p>
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-foreground">Proyectos Disponibles</h1>
+            <p className="text-muted-foreground">
+              Explora los proyectos con unidades disponibles para la venta
+            </p>
+          </div>
+          <div className="flex space-x-2">
+            <Button
+              variant="outline"
+              onClick={fetchProyectos}
+              disabled={loading}
+            >
+              <RefreshCw className="w-4 h-4 mr-2" />
+              Actualizar
+            </Button>
+            <Button
+              onClick={() => router.push('/broker/generar-lead')}
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              Generar Lead
+            </Button>
+          </div>
         </div>
-        <div className="flex space-x-2">
-          <Button
-            variant="outline"
-            onClick={fetchProyectos}
-            disabled={loading}
-          >
-            <RefreshCw className="w-4 h-4 mr-2" />
-            Actualizar
-          </Button>
-          <Button
-            onClick={() => router.push('/broker/generar-lead')}
-          >
-            <Plus className="w-4 h-4 mr-2" />
-            Generar Lead
-          </Button>
+
+        {/* Filtro de búsqueda */}
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            type="text"
+            placeholder="Buscar por nombre o código del proyecto..."
+            value={searchFilter}
+            onChange={(e) => setSearchFilter(e.target.value)}
+            className="pl-10 pr-10"
+          />
+          {searchFilter && (
+            <button
+              onClick={() => setSearchFilter('')}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+              aria-label="Limpiar búsqueda"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          )}
         </div>
       </div>
 
@@ -196,8 +236,11 @@ export default function BrokerProyectosPage() {
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-muted-foreground">Proyectos Activos</p>
-                  <p className="text-2xl font-bold">{proyectos.length}</p>
+                  <p className="text-sm font-medium text-muted-foreground">Proyectos {searchFilter ? 'Filtrados' : 'Activos'}</p>
+                  <p className="text-2xl font-bold">{filteredProyectos.length}</p>
+                  {searchFilter && proyectos.length !== filteredProyectos.length && (
+                    <p className="text-xs text-muted-foreground">de {proyectos.length} totales</p>
+                  )}
                 </div>
                 <Building2 className="h-8 w-8 text-muted-foreground" />
               </div>
@@ -222,7 +265,7 @@ export default function BrokerProyectosPage() {
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">Total Unidades</p>
                   <p className="text-2xl font-bold">
-                    {proyectos.reduce((sum, p) => sum + p.totalUnidades, 0)}
+                    {filteredProyectos.reduce((sum, p) => sum + p.totalUnidades, 0)}
                   </p>
                 </div>
                 <Calculator className="h-8 w-8 text-muted-foreground" />
@@ -246,9 +289,25 @@ export default function BrokerProyectosPage() {
               </div>
             </CardContent>
           </Card>
+        ) : filteredProyectos.length === 0 ? (
+          <Card>
+            <CardContent className="p-12">
+              <div className="text-center">
+                <Search className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-foreground mb-2">No se encontraron proyectos</h3>
+                <p className="text-muted-foreground mb-4">
+                  No hay proyectos que coincidan con tu búsqueda &quot;{searchFilter}&quot;
+                </p>
+                <Button variant="outline" onClick={() => setSearchFilter('')}>
+                  <X className="h-4 w-4 mr-2" />
+                  Limpiar filtro
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {proyectos.map((proyecto) => (
+            {filteredProyectos.map((proyecto) => (
               <Card key={proyecto.id} className="overflow-hidden hover:shadow-xl transition-shadow group">
                 {/* Imagen del proyecto */}
                 <div className="relative aspect-video bg-muted overflow-hidden">

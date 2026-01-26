@@ -40,13 +40,16 @@ export async function GET(request: NextRequest) {
     })
     console.log(`Total leads del broker: ${totalLeads}`)
 
-    // Buscar leads del broker en el mes específico
+    // Buscar leads del broker en el mes específico (excluyendo rechazados)
     const leads = await prisma.lead.findMany({
       where: {
         brokerId: authResult.user.id,
         createdAt: {
           gte: fechaInicio,
           lte: fechaFin,
+        },
+        estado: {
+          not: 'RECHAZADO'
         },
       },
       include: {
@@ -71,8 +74,8 @@ export async function GET(request: NextRequest) {
 
     // Calcular comisiones para cada lead
     const comisionesMensuales = leads.map((lead) => {
-      // El schema muestra que la comisión ya está calculada en el campo 'comision'
-      const montoComision = lead.comision || 0
+      // Solo mostrar comisión si el lead está en estado DEPARTAMENTO_ENTREGADO
+      const montoComision = lead.estado === 'DEPARTAMENTO_ENTREGADO' ? (lead.comision || 0) : 0
 
       // Calcular porcentaje basado en el tipo de unidad si existe
       let porcentajeComision = 0

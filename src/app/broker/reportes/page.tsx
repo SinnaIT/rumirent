@@ -283,7 +283,7 @@ export default function ReportesPage() {
             </Card>
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Ventas del Mes</CardTitle>
+                <CardTitle className="text-sm font-medium">Reservas del Mes</CardTitle>
                 <TrendingUp className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
@@ -409,7 +409,7 @@ export default function ReportesPage() {
             </Card>
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Total Ventas</CardTitle>
+                <CardTitle className="text-sm font-medium">Total Reservas</CardTitle>
                 <TrendingUp className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
@@ -450,7 +450,7 @@ export default function ReportesPage() {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Mes</TableHead>
-                      <TableHead>Cantidad Ventas</TableHead>
+                      <TableHead>Cantidad Reservas</TableHead>
                       <TableHead>Total Comisiones</TableHead>
                       <TableHead>Promedio por Venta</TableHead>
                     </TableRow>

@@ -387,7 +387,7 @@ export default function AdminDashboard() {
                   className="flex items-center justify-between p-3 rounded-lg hover:bg-muted/30 transition-colors"
                 >
                   <div className="flex items-center space-x-2">
-                    <div className={`flex items-center justify-center w-7 h-7 rounded-full font-bold text-sm ${
+                    <div className={`flex items-center justify-center w-7 h-7 rounded-full font-bold text-sm flex-shrink-0 ${
                       broker.rank === 1 ? 'bg-yellow-500 text-white' :
                       broker.rank === 2 ? 'bg-gray-400 text-white' :
                       broker.rank === 3 ? 'bg-orange-600 text-white' :
@@ -395,13 +395,14 @@ export default function AdminDashboard() {
                     }`}>
                       {broker.rank}
                     </div>
-                    <div>
-                      <p className="font-semibold text-sm text-card-foreground">{broker.name}</p>
-                      <p className="text-xs text-muted-foreground">{broker.leadsCount} ventas</p>
+                    <div className="min-w-0 flex-1">
+                      <p className="font-semibold text-sm text-card-foreground truncate">{broker.name}</p>
+                      <p className="text-xs text-muted-foreground">{broker.leadsCount} reservas</p>
                     </div>
                   </div>
-                  <div className="text-right">
-                    <p className="font-bold text-sm text-success">{formatCurrency(broker.totalCommission)}</p>
+                  <div className="text-right ml-2">
+                    <p className="font-bold text-sm text-success whitespace-nowrap">{formatCurrency(broker.totalCommission)}</p>
+                    <p className="text-xs text-muted-foreground">comisión</p>
                   </div>
                 </div>
               ))
@@ -455,7 +456,7 @@ export default function AdminDashboard() {
         <div className="bg-card border border-border rounded-xl p-6 shadow-sm hover:shadow-md transition-shadow duration-300">
           <div className="mb-6">
             <h3 className="text-lg font-bold text-card-foreground mb-2">Tipología</h3>
-            <p className="text-xs text-muted-foreground">Distribución</p>
+            <p className="text-xs text-muted-foreground">Reservas del período</p>
           </div>
           {dashboardData && dashboardData.typologyData.length > 0 ? (
             <div className="flex flex-col items-center">
@@ -523,7 +524,7 @@ export default function AdminDashboard() {
                   <p className="text-3xl font-bold text-card-foreground">
                     {dashboardData.typologyData.reduce((sum, t) => sum + t.count, 0)}
                   </p>
-                  <p className="text-xs text-muted-foreground">Unidades</p>
+                  <p className="text-xs text-muted-foreground">Reservas</p>
                 </div>
               </div>
 
@@ -559,7 +560,7 @@ export default function AdminDashboard() {
         <div className="bg-card border border-border rounded-xl p-6 shadow-sm hover:shadow-md transition-shadow duration-300">
           <div className="mb-6">
             <h3 className="text-lg font-bold text-card-foreground mb-2">Comunas con más arriendos</h3>
-            <p className="text-xs text-muted-foreground">Top 10</p>
+            <p className="text-xs text-muted-foreground">Reservas del período</p>
           </div>
           {dashboardData && dashboardData.comunasConMasArriendos && dashboardData.comunasConMasArriendos.length > 0 ? (
             <div className="flex flex-col items-center">
@@ -634,7 +635,7 @@ export default function AdminDashboard() {
                   <p className="text-3xl font-bold text-card-foreground">
                     {dashboardData.comunasConMasArriendos.reduce((sum, t) => sum + t.count, 0)}
                   </p>
-                  <p className="text-xs text-muted-foreground">Arriendos</p>
+                  <p className="text-xs text-muted-foreground">Reservas</p>
                 </div>
               </div>
 

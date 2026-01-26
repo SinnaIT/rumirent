@@ -10,6 +10,7 @@ interface MonthlyData {
   month: string
   reservas: number
   checkins: number
+  brutoReservas: number
   bruto: number
   liquido: number
 }
@@ -17,6 +18,7 @@ interface MonthlyData {
 interface CashFlowTotals {
   reservas: number
   checkins: number
+  brutoReservas: number
   bruto: number
   liquido: number
 }
@@ -190,13 +192,13 @@ export default function FlujoCajaPage() {
                     </div>
                   </div>
 
-                  {/* Cobro */}
+                  {/* Bruto de Reservas */}
                   <div className="pb-3 border-b border-border">
-                    <p className="text-sm font-medium text-primary">Cobro:</p>
-                    <p className="text-2xl font-bold text-right">{month.reservas + month.checkins}</p>
+                    <p className="text-sm font-medium text-primary">Bruto de Reservas</p>
+                    <p className="text-xl font-bold text-right">{formatCurrency(month.brutoReservas)}</p>
                   </div>
 
-                  {/* Bruto */}
+                  {/* Bruto (Comisiones) */}
                   <div className="pb-3 border-b border-border">
                     <p className="text-sm font-medium text-primary">Bruto</p>
                     <p className="text-xl font-bold text-right">{formatCurrency(month.bruto)}</p>
@@ -206,11 +208,6 @@ export default function FlujoCajaPage() {
                   <div>
                     <p className="text-sm font-medium text-primary">Liquido</p>
                     <p className="text-xl font-bold text-right text-green-600">{formatCurrency(month.liquido)}</p>
-                  </div>
-
-                  {/* vs mes anterior */}
-                  <div className="pt-2 text-xs text-muted-foreground">
-                    vs mes anterior:
                   </div>
                 </CardContent>
               </Card>
@@ -223,7 +220,7 @@ export default function FlujoCajaPage() {
               <CardTitle>Totales del Periodo</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">Total Reservas</p>
                   <p className="text-2xl font-bold">{totals.reservas}</p>
@@ -231,6 +228,10 @@ export default function FlujoCajaPage() {
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">Total Checkins</p>
                   <p className="text-2xl font-bold">{totals.checkins}</p>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Bruto de Reservas</p>
+                  <p className="text-2xl font-bold">{formatCurrency(totals.brutoReservas)}</p>
                 </div>
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">Total Bruto</p>

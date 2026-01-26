@@ -153,6 +153,9 @@ export default function AdminLeadsPage() {
   const [selectedBroker, setSelectedBroker] = useState('todos')
   const [selectedCliente, setSelectedCliente] = useState('todos')
   const [selectedEstado, setSelectedEstado] = useState('todos')
+  const [campoFecha, setCampoFecha] = useState<'fechaPagoReserva' | 'fechaPagoLead' | 'fechaCheckin'>('fechaPagoReserva')
+  const [fechaDesde, setFechaDesde] = useState('')
+  const [fechaHasta, setFechaHasta] = useState('')
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [editingLead, setEditingLead] = useState<Lead | null>(null)
   const [manualComisionModified, setManualComisionModified] = useState(false)
@@ -248,8 +251,32 @@ export default function AdminLeadsPage() {
       filtered = filtered.filter(lead => lead.estado === selectedEstado)
     }
 
+    // Filtro por rango de fechas (usa el campo seleccionado)
+    if (fechaDesde) {
+      const fechaDesdeDate = new Date(fechaDesde)
+      fechaDesdeDate.setHours(0, 0, 0, 0)
+      filtered = filtered.filter(lead => {
+        const leadDateValue = lead[campoFecha]
+        if (!leadDateValue) return false // Excluir leads sin fecha en el campo seleccionado
+        const leadDate = new Date(leadDateValue)
+        leadDate.setHours(0, 0, 0, 0)
+        return leadDate >= fechaDesdeDate
+      })
+    }
+
+    if (fechaHasta) {
+      const fechaHastaDate = new Date(fechaHasta)
+      fechaHastaDate.setHours(23, 59, 59, 999)
+      filtered = filtered.filter(lead => {
+        const leadDateValue = lead[campoFecha]
+        if (!leadDateValue) return false // Excluir leads sin fecha en el campo seleccionado
+        const leadDate = new Date(leadDateValue)
+        return leadDate <= fechaHastaDate
+      })
+    }
+
     setFilteredLeads(filtered)
-  }, [leads, searchTerm, selectedBroker, selectedCliente, selectedEstado])
+  }, [leads, searchTerm, selectedBroker, selectedCliente, selectedEstado, campoFecha, fechaDesde, fechaHasta])
 
   const fetchLeads = async () => {
     try {
@@ -671,76 +698,145 @@ export default function AdminLeadsPage() {
       {/* Filters */}
       <Card>
         <CardContent className="p-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-            <div className="flex items-center space-x-2">
-              <Search className="h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Buscar leads..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="flex-1"
-              />
+          <div className="space-y-4">
+            {/* First Row: Search, Broker, Cliente, Estado */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+              <div className="flex items-center space-x-2">
+                <Search className="h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Buscar leads..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="flex-1"
+                />
+              </div>
+
+              <div>
+                <Select value={selectedBroker} onValueChange={setSelectedBroker}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Todos los brokers" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="todos">Todos los brokers</SelectItem>
+                    {brokers.map((broker) => (
+                      <SelectItem key={broker.id} value={broker.id}>
+                        {broker.nombre}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <Select value={selectedCliente} onValueChange={setSelectedCliente}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Todos los clientes" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="todos">Todos los clientes</SelectItem>
+                    {clientes.map((cliente) => (
+                      <SelectItem key={cliente.id} value={cliente.id}>
+                        {cliente.nombre}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <Select value={selectedEstado} onValueChange={setSelectedEstado}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Todos los estados" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="todos">Todos los estados</SelectItem>
+                    {ESTADOS_LEAD.map((estado) => (
+                      <SelectItem key={estado.value} value={estado.value}>
+                        {estado.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setSearchTerm('')
+                  setSelectedBroker('todos')
+                  setSelectedCliente('todos')
+                  setSelectedEstado('todos')
+                  setFechaDesde('')
+                  setFechaHasta('')
+                }}
+              >
+                Limpiar Filtros
+              </Button>
             </div>
 
-            <div>
-              <Select value={selectedBroker} onValueChange={setSelectedBroker}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Todos los brokers" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="todos">Todos los brokers</SelectItem>
-                  {brokers.map((broker) => (
-                    <SelectItem key={broker.id} value={broker.id}>
-                      {broker.nombre}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            {/* Second Row: Date Range Filter */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 border-t pt-4">
+              <div className="space-y-2">
+                <Label htmlFor="campoFecha" className="text-sm font-medium">
+                  Filtrar por Fecha
+                </Label>
+                <Select value={campoFecha} onValueChange={(value) => setCampoFecha(value as typeof campoFecha)}>
+                  <SelectTrigger id="campoFecha">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="fechaPagoReserva">Pago Reserva</SelectItem>
+                    <SelectItem value="fechaPagoLead">Pago Lead</SelectItem>
+                    <SelectItem value="fechaCheckin">Check-in</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
 
-            <div>
-              <Select value={selectedCliente} onValueChange={setSelectedCliente}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Todos los clientes" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="todos">Todos los clientes</SelectItem>
-                  {clientes.map((cliente) => (
-                    <SelectItem key={cliente.id} value={cliente.id}>
-                      {cliente.nombre}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+              <div className="space-y-2">
+                <Label htmlFor="fechaDesde" className="text-sm font-medium">
+                  Fecha Desde
+                </Label>
+                <Input
+                  id="fechaDesde"
+                  type="date"
+                  value={fechaDesde}
+                  onChange={(e) => setFechaDesde(e.target.value)}
+                  className="w-full"
+                />
+              </div>
 
-            <div>
-              <Select value={selectedEstado} onValueChange={setSelectedEstado}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Todos los estados" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="todos">Todos los estados</SelectItem>
-                  {ESTADOS_LEAD.map((estado) => (
-                    <SelectItem key={estado.value} value={estado.value}>
-                      {estado.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+              <div className="space-y-2">
+                <Label htmlFor="fechaHasta" className="text-sm font-medium">
+                  Fecha Hasta
+                </Label>
+                <Input
+                  id="fechaHasta"
+                  type="date"
+                  value={fechaHasta}
+                  onChange={(e) => setFechaHasta(e.target.value)}
+                  className="w-full"
+                />
+              </div>
 
-            <Button
-              variant="outline"
-              onClick={() => {
-                setSearchTerm('')
-                setSelectedBroker('todos')
-                setSelectedCliente('todos')
-                setSelectedEstado('todos')
-              }}
-            >
-              Limpiar Filtros
-            </Button>
+              {(fechaDesde || fechaHasta) && (
+                <div className="flex items-end">
+                  <div className="p-3 bg-blue-50 dark:bg-blue-950/20 rounded-lg border border-blue-200 dark:border-blue-800 w-full">
+                    <p className="text-xs text-blue-700 dark:text-blue-300 font-medium mb-1">
+                      {campoFecha === 'fechaPagoReserva' ? '📅 Pago Reserva' :
+                       campoFecha === 'fechaPagoLead' ? '💰 Pago Lead' :
+                       '🏠 Check-in'}
+                    </p>
+                    <p className="text-xs text-blue-600 dark:text-blue-400">
+                      {fechaDesde && fechaHasta
+                        ? `${new Date(fechaDesde).toLocaleDateString('es-CL')} - ${new Date(fechaHasta).toLocaleDateString('es-CL')}`
+                        : fechaDesde
+                        ? `Desde ${new Date(fechaDesde).toLocaleDateString('es-CL')}`
+                        : `Hasta ${new Date(fechaHasta).toLocaleDateString('es-CL')}`}
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -751,7 +847,7 @@ export default function AdminLeadsPage() {
           <CardTitle>Leads Registrados</CardTitle>
           <CardDescription>
             Lista de todos los leads con filtros aplicados
-            {(searchTerm || selectedBroker !== 'todos' || selectedCliente !== 'todos' || selectedEstado !== 'todos') &&
+            {(searchTerm || selectedBroker !== 'todos' || selectedCliente !== 'todos' || selectedEstado !== 'todos' || fechaDesde || fechaHasta) &&
               ` (${filteredLeads.length} de ${leads.length} leads)`
             }
           </CardDescription>

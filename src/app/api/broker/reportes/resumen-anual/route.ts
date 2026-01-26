@@ -22,13 +22,16 @@ export async function GET(request: NextRequest) {
     const fechaInicio = new Date(yearNum, 0, 1)
     const fechaFin = new Date(yearNum, 11, 31, 23, 59, 59, 999)
 
-    // Buscar todos los leads del broker en el año
+    // Buscar todos los leads del broker en el año (excluyendo rechazados)
     const leads = await prisma.lead.findMany({
       where: {
         brokerId: authResult.user.id,
         createdAt: {
           gte: fechaInicio,
           lte: fechaFin,
+        },
+        estado: {
+          not: 'RECHAZADO'
         },
       },
       include: {
@@ -65,9 +68,11 @@ export async function GET(request: NextRequest) {
       const cantidadVentas = leadsMes.length
 
       leadsMes.forEach(lead => {
-        // Usar el campo comision que ya está calculado en la BD
-        const montoComision = lead.comision || 0
-        totalComisiones += montoComision
+        // Solo sumar comisiones de leads con estado DEPARTAMENTO_ENTREGADO
+        if (lead.estado === 'DEPARTAMENTO_ENTREGADO') {
+          const montoComision = lead.comision || 0
+          totalComisiones += montoComision
+        }
       })
 
       const promedioComision = cantidadVentas > 0 ? totalComisiones / cantidadVentas : 0

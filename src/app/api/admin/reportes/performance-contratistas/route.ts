@@ -54,6 +54,11 @@ export async function GET(request: NextRequest) {
         nombre: true,
         email: true,
         leads: {
+          where: {
+            estado: {
+              not: 'RECHAZADO'
+            }
+          },
           include: {
             cliente: true,
             unidad: {
@@ -80,17 +85,15 @@ export async function GET(request: NextRequest) {
 
       // Calcular métricas totales (todos los leads)
       const totalVentas = broker.leads.length
-      const totalComisiones = broker.leads.reduce(
-        (sum, lead) => sum + (lead.comision || 0),
-        0
-      )
+      const totalComisiones = broker.leads
+        .filter(lead => lead.estado === 'DEPARTAMENTO_ENTREGADO')
+        .reduce((sum, lead) => sum + (lead.comision || 0), 0)
 
       // Métricas del período actual
       const ventasEsteMes = leadsDelPeriodo.length
-      const comisionesEsteMes = leadsDelPeriodo.reduce(
-        (sum, lead) => sum + (lead.comision || 0),
-        0
-      )
+      const comisionesEsteMes = leadsDelPeriodo
+        .filter(lead => lead.estado === 'DEPARTAMENTO_ENTREGADO')
+        .reduce((sum, lead) => sum + (lead.comision || 0), 0)
 
       // Calcular promedio mensual (últimos 12 meses)
       const hace12Meses = new Date()
@@ -127,7 +130,9 @@ export async function GET(request: NextRequest) {
         ventasPorMes.push({
           mes: mesDate.toLocaleDateString('es-CL', { month: 'short' }),
           ventas: leadsMes.length,
-          comisiones: leadsMes.reduce((sum, lead) => sum + (lead.comision || 0), 0),
+          comisiones: leadsMes
+            .filter(lead => lead.estado === 'DEPARTAMENTO_ENTREGADO')
+            .reduce((sum, lead) => sum + (lead.comision || 0), 0),
         })
       }
 
