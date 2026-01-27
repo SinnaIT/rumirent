@@ -23,6 +23,18 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
 import { Calendar, DollarSign, Users, FileText, Eye, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog'
+import { Label } from '@/components/ui/label'
+import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
+import { Checkbox } from '@/components/ui/checkbox'
 
 const MESES = [
   { value: '1', label: 'Enero' },
@@ -129,6 +141,8 @@ export default function ResumenComisionesPage() {
   const [loading, setLoading] = useState(false)
   const [data, setData] = useState<ReportData | null>(null)
   const [brokersList, setBrokersList] = useState<{ id: string; nombre: string }[]>([])
+  const [selectedLead, setSelectedLead] = useState<Lead | null>(null)
+  const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false)
 
   // Fetch data from API
   const fetchData = async () => {
@@ -188,6 +202,12 @@ export default function ResumenComisionesPage() {
   const handleViewDetail = (brokerId: string) => {
     setSelectedBroker(brokerId)
     setActiveTab('detalle')
+  }
+
+  // Handle "Ver Detalle" lead modal
+  const handleViewLeadDetail = (lead: Lead) => {
+    setSelectedLead(lead)
+    setIsDetailDialogOpen(true)
   }
 
   // Format currency
@@ -401,9 +421,9 @@ export default function ResumenComisionesPage() {
                         <TableHead>Broker</TableHead>
                         <TableHead className="text-right">Reservas</TableHead>
                         <TableHead className="text-right">Check-in</TableHead>
-                        <TableHead className="text-right">Monto Bruto</TableHead>
+                        <TableHead className="text-right">Total Arriendo</TableHead>
+                        <TableHead className="text-right">Bruto (Comisión)</TableHead>
                         <TableHead className="text-right">Anticipos</TableHead>
-                        <TableHead className="text-right">Desp. Anticipos</TableHead>
                         <TableHead className="text-right">Líquido</TableHead>
                         <TableHead className="text-right">Conciliado</TableHead>
                         <TableHead className="text-center">Acciones</TableHead>
@@ -432,12 +452,6 @@ export default function ResumenComisionesPage() {
                           <TableCell className="text-right">
                             {formatCurrency(broker.totalMontoBruto)}
                           </TableCell>
-                          <TableCell className="text-right">
-                            {formatCurrency(broker.anticipos)}
-                          </TableCell>
-                          <TableCell className="text-right">
-                            {formatCurrency(broker.despAnticipo)}
-                          </TableCell>
                           <TableCell className="text-right font-medium">
                             <div>
                               <div>{formatCurrency(broker.totalComisionValida)}</div>
@@ -445,6 +459,12 @@ export default function ResumenComisionesPage() {
                                 De {formatCurrency(broker.totalComision)}
                               </div>
                             </div>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            {formatCurrency(broker.anticipos)}
+                          </TableCell>
+                          <TableCell className="text-right font-bold">
+                            {formatCurrency(broker.totalComisionValida - broker.anticipos)}
                           </TableCell>
                           <TableCell className="text-right">
                             <div>
@@ -484,18 +504,18 @@ export default function ResumenComisionesPage() {
                           {formatCurrency(data.totales.totalMontoBruto)}
                         </TableCell>
                         <TableCell className="text-right">
-                          {formatCurrency(data.totales.anticipos)}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          {formatCurrency(data.totales.despAnticipo)}
-                        </TableCell>
-                        <TableCell className="text-right">
                           <div>
                             <div>{formatCurrency(data.totales.totalComisionValida)}</div>
                             <div className="text-xs text-muted-foreground">
                               De {formatCurrency(data.totales.totalComision)}
                             </div>
                           </div>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {formatCurrency(data.totales.anticipos)}
+                        </TableCell>
+                        <TableCell className="text-right font-bold">
+                          {formatCurrency(data.totales.totalComisionValida - data.totales.anticipos)}
                         </TableCell>
                         <TableCell className="text-right">
                           <div>
@@ -600,6 +620,7 @@ export default function ResumenComisionesPage() {
                                 <TableHead className="text-center">Conciliado</TableHead>
                                 <TableHead className="text-center">Check-in</TableHead>
                                 <TableHead className="text-center">Válido</TableHead>
+                                <TableHead className="text-center">Acciones</TableHead>
                               </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -659,6 +680,15 @@ export default function ResumenComisionesPage() {
                                     ) : (
                                       <Badge variant="destructive">No</Badge>
                                     )}
+                                  </TableCell>
+                                  <TableCell className="text-center">
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => handleViewLeadDetail(lead)}
+                                    >
+                                      <Eye className="h-4 w-4" />
+                                    </Button>
                                   </TableCell>
                                 </TableRow>
                               ))}
@@ -725,6 +755,7 @@ export default function ResumenComisionesPage() {
                               <TableHead className="text-center">Conciliado</TableHead>
                               <TableHead className="text-center">Check-in</TableHead>
                               <TableHead className="text-center">Válido</TableHead>
+                              <TableHead className="text-center">Acciones</TableHead>
                             </TableRow>
                           </TableHeader>
                           <TableBody>
@@ -782,6 +813,15 @@ export default function ResumenComisionesPage() {
                                     <Badge variant="destructive">No</Badge>
                                   )}
                                 </TableCell>
+                                <TableCell className="text-center">
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handleViewLeadDetail(lead)}
+                                  >
+                                    <Eye className="h-4 w-4" />
+                                  </Button>
+                                </TableCell>
                               </TableRow>
                             ))}
                           </TableBody>
@@ -795,6 +835,164 @@ export default function ResumenComisionesPage() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Lead Detail Modal */}
+      <Dialog open={isDetailDialogOpen} onOpenChange={setIsDetailDialogOpen}>
+        <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center">
+              <FileText className="w-5 h-5 mr-2" />
+              Detalle del Lead
+            </DialogTitle>
+            <DialogDescription>
+              Información completa del lead en modo solo lectura
+            </DialogDescription>
+          </DialogHeader>
+
+          {selectedLead && (
+            <div className="grid gap-4 py-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 gap-2">
+                  <Label>Cliente</Label>
+                  <Input
+                    value={selectedLead.cliente.nombre}
+                    disabled
+                    className="bg-muted"
+                  />
+                  <Input
+                    value={selectedLead.cliente.rut}
+                    disabled
+                    className="bg-muted text-xs"
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 gap-2">
+                  <Label>Proyecto (Edificio)</Label>
+                  <Input
+                    value={selectedLead.edificio.nombre}
+                    disabled
+                    className="bg-muted"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 gap-2">
+                  <Label>Tipo de Unidad</Label>
+                  <Input
+                    value={selectedLead.tipoUnidad}
+                    disabled
+                    className="bg-muted"
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 gap-2">
+                  <Label>Código Unidad</Label>
+                  <Input
+                    value={selectedLead.codigoUnidad || 'N/A'}
+                    disabled
+                    className="bg-muted"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 gap-2">
+                <Label>Estado</Label>
+                <div className="p-2 bg-muted rounded-md">
+                  <Badge variant={getEstadoBadge(selectedLead.estado)}>
+                    {selectedLead.estado.replace(/_/g, ' ')}
+                  </Badge>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 gap-2">
+                  <Label>Total Lead (CLP)</Label>
+                  <Input
+                    value={formatCurrency(selectedLead.totalLead)}
+                    disabled
+                    className="bg-muted"
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 gap-2">
+                  <Label>Monto UF</Label>
+                  <Input
+                    value={selectedLead.montoUf ? selectedLead.montoUf.toFixed(2) : 'N/A'}
+                    disabled
+                    className="bg-muted"
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 gap-2">
+                  <Label>Comisión (CLP)</Label>
+                  <Input
+                    value={formatCurrency(selectedLead.comision)}
+                    disabled
+                    className="bg-muted font-semibold"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 gap-2">
+                  <Label>Fecha Pago Reserva</Label>
+                  <Input
+                    value={selectedLead.fechaPagoReserva ? formatDate(selectedLead.fechaPagoReserva) : 'N/A'}
+                    disabled
+                    className="bg-muted"
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 gap-2">
+                  <Label>Fecha Conciliación</Label>
+                  <Input
+                    value={selectedLead.fechaConciliacion ? formatDate(selectedLead.fechaConciliacion) : 'N/A'}
+                    disabled
+                    className="bg-muted"
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 gap-2">
+                  <Label>Fecha Check-in</Label>
+                  <Input
+                    value={selectedLead.fechaCheckin ? formatDate(selectedLead.fechaCheckin) : 'N/A'}
+                    disabled
+                    className="bg-muted"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="flex items-center space-x-2 p-3 bg-muted rounded-md">
+                  <Checkbox
+                    checked={selectedLead.conciliado}
+                    disabled
+                  />
+                  <Label>Lead conciliado</Label>
+                </div>
+
+                <div className="flex items-center space-x-2 p-3 bg-muted rounded-md">
+                  <Checkbox
+                    checked={selectedLead.isValid}
+                    disabled
+                  />
+                  <Label>Lead válido para comisión</Label>
+                </div>
+              </div>
+
+              <div className="flex justify-end">
+                <Button
+                  variant="outline"
+                  onClick={() => setIsDetailDialogOpen(false)}
+                >
+                  Cerrar
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
