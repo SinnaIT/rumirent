@@ -40,16 +40,27 @@ export async function GET(request: NextRequest) {
     })
     console.log(`Total leads del broker: ${totalLeads}`)
 
-    // Buscar leads del broker en el mes específico (excluyendo rechazados)
+    // Buscar leads del broker que tengan fechaPagoReserva O fechaCheckin en el período
+    // Excluye rechazados y cancelados
     const leads = await prisma.lead.findMany({
       where: {
         brokerId: authResult.user.id,
-        createdAt: {
-          gte: fechaInicio,
-          lte: fechaFin,
-        },
+        OR: [
+          {
+            fechaPagoReserva: {
+              gte: fechaInicio,
+              lte: fechaFin,
+            },
+          },
+          {
+            fechaCheckin: {
+              gte: fechaInicio,
+              lte: fechaFin,
+            },
+          },
+        ],
         estado: {
-          not: 'RECHAZADO'
+          notIn: ['RECHAZADO', 'CANCELADO']
         },
       },
       include: {
@@ -65,25 +76,40 @@ export async function GET(request: NextRequest) {
           },
         },
       },
-      orderBy: {
-        createdAt: 'desc',
-      },
+      orderBy: [
+        { fechaPagoReserva: 'desc' },
+        { fechaCheckin: 'desc' },
+      ],
     })
 
     console.log(`Encontrados ${leads.length} leads para el usuario ${authResult.user.id}`)
 
     // Calcular comisiones para cada lead
     const comisionesMensuales = leads.map((lead) => {
-      // Solo mostrar comisión si el lead está en estado DEPARTAMENTO_ENTREGADO
-      const montoComision = lead.estado === 'DEPARTAMENTO_ENTREGADO' ? (lead.comision || 0) : 0
+      // Verificar si las fechas están en el período consultado
+      const reservaEnPeriodo = lead.fechaPagoReserva &&
+        lead.fechaPagoReserva >= fechaInicio &&
+        lead.fechaPagoReserva <= fechaFin
+
+      const checkinEnPeriodo = lead.fechaCheckin &&
+        lead.fechaCheckin >= fechaInicio &&
+        lead.fechaCheckin <= fechaFin
+
+      // Comisión proyectada: Basada en la reserva (sin validar estado ni checkin)
+      const comisionProyectada = reservaEnPeriodo ? (lead.comision || 0) : 0
+
+      // Comisión confirmada: Solo si tiene checkin en el período y estado DEPARTAMENTO_ENTREGADO
+      const comisionConfirmada = (checkinEnPeriodo && lead.estado === 'DEPARTAMENTO_ENTREGADO')
+        ? (lead.comision || 0)
+        : 0
 
       // Calcular porcentaje basado en el tipo de unidad si existe
       let porcentajeComision = 0
       if (lead.unidad?.tipoUnidadEdificio?.comision) {
         porcentajeComision = lead.unidad.tipoUnidadEdificio.comision.porcentaje
-      } else if (lead.totalLead && montoComision) {
+      } else if (lead.totalLead && lead.comision) {
         // Calcular porcentaje retroactivamente si no hay tipo de unidad
-        porcentajeComision = (montoComision / lead.totalLead) * 100
+        porcentajeComision = (lead.comision / lead.totalLead) * 100
       }
 
       return {
@@ -92,14 +118,32 @@ export async function GET(request: NextRequest) {
         clienteNombre: lead.cliente.nombre,
         edificioNombre: lead.edificio?.nombre || 'Sin edificio',
         unidadCodigo: lead.unidad?.numero || lead.codigoUnidad || 'Sin código',
-        montoComision,
-        porcentajeComision: Math.round(porcentajeComision * 100) / 100, // Redondear a 2 decimales
-        fechaLead: lead.createdAt.toISOString(),
+        totalLead: lead.totalLead,
+        comision: lead.comision,
+        comisionProyectada,
+        comisionConfirmada,
+        porcentajeComision: Math.round(porcentajeComision * 100) / 100,
+        fechaPagoReserva: lead.fechaPagoReserva?.toISOString() || null,
+        fechaCheckin: lead.fechaCheckin?.toISOString() || null,
+        reservaEnPeriodo,
+        checkinEnPeriodo,
         estadoLead: lead.estado,
       }
     })
 
-    return NextResponse.json(comisionesMensuales)
+    // Calcular totales
+    const totales = {
+      comisionesProyectadas: comisionesMensuales.reduce((sum, lead) => sum + lead.comisionProyectada, 0),
+      comisionesConfirmadas: comisionesMensuales.reduce((sum, lead) => sum + lead.comisionConfirmada, 0),
+      totalLeads: comisionesMensuales.length,
+      leadsConReservaEnPeriodo: comisionesMensuales.filter(l => l.reservaEnPeriodo).length,
+      leadsConCheckinEnPeriodo: comisionesMensuales.filter(l => l.checkinEnPeriodo).length,
+    }
+
+    return NextResponse.json({
+      leads: comisionesMensuales,
+      totales,
+    })
   } catch (error) {
     console.error('Error fetching comisiones mensuales:', error)
     return NextResponse.json(
