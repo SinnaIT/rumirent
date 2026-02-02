@@ -15,9 +15,17 @@ interface ComisionMensual {
   clienteNombre: string
   edificioNombre: string
   unidadCodigo: string
-  montoComision: number
+  totalLead: number
+  comision: number
+  comisionProyectada: number
+  comisionConfirmada: number
+  montoComision?: number // Para compatibilidad con código anterior
   porcentajeComision: number
-  fechaLead: string
+  fechaPagoReserva: string | null
+  fechaCheckin: string | null
+  reservaEnPeriodo: boolean
+  checkinEnPeriodo: boolean
+  fechaLead?: string // Para compatibilidad con código anterior
   estadoLead: string
 }
 
@@ -100,7 +108,8 @@ export default function ReportesPage() {
       if (response.ok) {
         const data = await response.json()
         console.log('Data received:', data)
-        setComisionesMensuales(data)
+        // La API ahora devuelve { leads: [], totales: {} }
+        setComisionesMensuales(data.leads || data)
       } else {
         const errorData = await response.text()
         console.error('Error response:', errorData)
@@ -202,7 +211,6 @@ export default function ReportesPage() {
     }
   }
 
-  const totalComisionesMes = comisionesMensuales.reduce((sum, comision) => sum + comision.montoComision, 0)
   const totalComisionesAño = resumenAnual.reduce((sum, mes) => sum + mes.totalComisiones, 0)
   const totalVentasAño = resumenAnual.reduce((sum, mes) => sum + mes.cantidadVentas, 0)
 
@@ -268,45 +276,60 @@ export default function ReportesPage() {
           </Card>
 
           {/* Resumen mensual */}
-          <div className="grid gap-4 md:grid-cols-3">
+          <div className="grid gap-4 md:grid-cols-4">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Total Comisiones</CardTitle>
-                <DollarSign className="h-4 w-4 text-muted-foreground" />
+                <CardTitle className="text-sm font-medium">Comisiones Proyectadas</CardTitle>
+                <TrendingUp className="h-4 w-4 text-blue-500 dark:text-blue-400" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{formatCurrency(totalComisionesMes)}</div>
+                <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+                  {formatCurrency(comisionesMensuales.reduce((sum, c) => sum + c.comisionProyectada, 0))}
+                </div>
                 <p className="text-xs text-muted-foreground">
-                  {meses[parseInt(selectedMonth)]?.label} {selectedYear}
+                  Basadas en reservas pagadas
                 </p>
               </CardContent>
             </Card>
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Reservas del Mes</CardTitle>
-                <TrendingUp className="h-4 w-4 text-muted-foreground" />
+                <CardTitle className="text-sm font-medium">Comisiones Confirmadas</CardTitle>
+                <DollarSign className="h-4 w-4 text-green-500 dark:text-green-400" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{comisionesMensuales.length}</div>
+                <div className="text-2xl font-bold text-green-600 dark:text-green-400">
+                  {formatCurrency(comisionesMensuales.reduce((sum, c) => sum + c.comisionConfirmada, 0))}
+                </div>
                 <p className="text-xs text-muted-foreground">
-                  Leads registrados
+                  Departamentos entregados
                 </p>
               </CardContent>
             </Card>
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Comisión Promedio</CardTitle>
+                <CardTitle className="text-sm font-medium">Reservas</CardTitle>
                 <FileText className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">
-                  {comisionesMensuales.length > 0
-                    ? formatCurrency(totalComisionesMes / comisionesMensuales.length)
-                    : formatCurrency(0)
-                  }
+                  {comisionesMensuales.filter(c => c.reservaEnPeriodo).length}
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Por venta
+                  En el período
+                </p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Check-ins</CardTitle>
+                <FileText className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">
+                  {comisionesMensuales.filter(c => c.checkinEnPeriodo).length}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  En el período
                 </p>
               </CardContent>
             </Card>
@@ -316,6 +339,12 @@ export default function ReportesPage() {
           <Card>
             <CardHeader>
               <CardTitle>Detalle de Comisiones</CardTitle>
+              <p className="text-sm text-muted-foreground mt-2">
+                <span className="inline-block w-3 h-3 bg-blue-100 dark:bg-blue-900/40 border border-blue-300 dark:border-blue-600 rounded mr-1"></span>
+                Reserva en período
+                <span className="inline-block w-3 h-3 bg-green-100 dark:bg-green-900/40 border border-green-300 dark:border-green-600 rounded ml-4 mr-1"></span>
+                Check-in en período
+              </p>
             </CardHeader>
             <CardContent>
               {loading ? (
@@ -323,40 +352,54 @@ export default function ReportesPage() {
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
                 </div>
               ) : comisionesMensuales.length > 0 ? (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Cliente</TableHead>
-                      <TableHead>Edificio</TableHead>
-                      <TableHead>Unidad</TableHead>
-                      <TableHead>Comisión %</TableHead>
-                      <TableHead>Monto Comisión</TableHead>
-                      <TableHead>Estado</TableHead>
-                      <TableHead>Fecha</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {comisionesMensuales.map((comision) => (
-                      <TableRow key={comision.id}>
-                        <TableCell className="font-medium">{comision.clienteNombre}</TableCell>
-                        <TableCell>{comision.edificioNombre}</TableCell>
-                        <TableCell>{comision.unidadCodigo}</TableCell>
-                        <TableCell>{comision.porcentajeComision}%</TableCell>
-                        <TableCell className="font-semibold">
-                          {formatCurrency(comision.montoComision)}
-                        </TableCell>
-                        <TableCell>
-                          <Badge className={getEstadoBadgeColor(comision.estadoLead)}>
-                            {comision.estadoLead.replace('_', ' ')}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          {new Date(comision.fechaLead).toLocaleDateString('es-CL')}
-                        </TableCell>
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Cliente</TableHead>
+                        <TableHead>Edificio</TableHead>
+                        <TableHead>Unidad</TableHead>
+                        <TableHead>Total Lead</TableHead>
+                        <TableHead>Comisión %</TableHead>
+                        <TableHead>Comisión</TableHead>
+                        <TableHead>Fecha Reserva</TableHead>
+                        <TableHead>Fecha Check-in</TableHead>
+                        <TableHead>Estado</TableHead>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                    </TableHeader>
+                    <TableBody>
+                      {comisionesMensuales.map((comision) => (
+                        <TableRow key={comision.id}>
+                          <TableCell className="font-medium">{comision.clienteNombre}</TableCell>
+                          <TableCell>{comision.edificioNombre}</TableCell>
+                          <TableCell>{comision.unidadCodigo}</TableCell>
+                          <TableCell>{formatCurrency(comision.totalLead)}</TableCell>
+                          <TableCell>{comision.porcentajeComision}%</TableCell>
+                          <TableCell className="font-semibold">
+                            {formatCurrency(comision.comision)}
+                          </TableCell>
+                          <TableCell className={comision.reservaEnPeriodo ? 'bg-blue-50 dark:bg-blue-900/20 font-medium' : ''}>
+                            {comision.fechaPagoReserva
+                              ? new Date(comision.fechaPagoReserva).toLocaleDateString('es-CL')
+                              : '-'
+                            }
+                          </TableCell>
+                          <TableCell className={comision.checkinEnPeriodo ? 'bg-green-50 dark:bg-green-900/20 font-medium' : ''}>
+                            {comision.fechaCheckin
+                              ? new Date(comision.fechaCheckin).toLocaleDateString('es-CL')
+                              : '-'
+                            }
+                          </TableCell>
+                          <TableCell>
+                            <Badge className={getEstadoBadgeColor(comision.estadoLead)}>
+                              {comision.estadoLead.replace('_', ' ')}
+                            </Badge>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
               ) : (
                 <div className="text-center py-8 text-muted-foreground">
                   No hay comisiones registradas para este período
