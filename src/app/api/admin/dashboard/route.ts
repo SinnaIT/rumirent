@@ -574,6 +574,7 @@ export async function GET(request: NextRequest) {
       : 0
 
     // Get monthly reservations for the last 5 months (ending in selected month)
+    // Counts reservations by fechaPagoReserva date
     const monthlyReservations = []
     const monthNames = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre']
 
@@ -584,12 +585,12 @@ export async function GET(request: NextRequest) {
 
       const count = await prisma.lead.count({
         where: {
-          createdAt: {
+          fechaPagoReserva: {
             gte: monthStart,
             lte: monthEnd,
           },
           estado: {
-            in: ['RESERVA_PAGADA', 'APROBADO'],
+            notIn: ['RECHAZADO', 'CANCELADO'],
           },
         },
       })
@@ -647,6 +648,7 @@ export async function GET(request: NextRequest) {
     ]
 
     // Get all brokers who have had sales in the last 4 months (ending in selected month)
+    // Counts reservations by fechaPagoReserva date
     const fourMonthsAgo = new Date(selectedYear, selectedMonth - 4, 1)
     const brokersWithSales = await prisma.user.findMany({
       where: {
@@ -654,11 +656,11 @@ export async function GET(request: NextRequest) {
         activo: true,
         leads: {
           some: {
-            createdAt: {
+            fechaPagoReserva: {
               gte: fourMonthsAgo,
             },
             estado: {
-              in: ['RESERVA_PAGADA', 'APROBADO'],
+              notIn: ['RECHAZADO', 'CANCELADO'],
             },
           },
         },
@@ -673,6 +675,7 @@ export async function GET(request: NextRequest) {
     })
 
     // For each broker, get their monthly counts for the last 4 months
+    // Counts reservations by fechaPagoReserva date
     for (let brokerIndex = 0; brokerIndex < brokersWithSales.length; brokerIndex++) {
       const broker = brokersWithSales[brokerIndex]
       const monthlyData = []
@@ -685,12 +688,12 @@ export async function GET(request: NextRequest) {
         const count = await prisma.lead.count({
           where: {
             brokerId: broker.id,
-            createdAt: {
+            fechaPagoReserva: {
               gte: monthStart,
               lte: monthEnd,
             },
             estado: {
-              in: ['RESERVA_PAGADA', 'APROBADO'],
+              notIn: ['RECHAZADO', 'CANCELADO'],
             },
           },
         })

@@ -30,16 +30,27 @@ export async function GET(request: NextRequest) {
       fechaFin,
     })
 
-    // Buscar leads del broker en el rango de fechas (excluyendo rechazados)
+    // Buscar leads del broker en el rango de fechas (excluyendo rechazados y cancelados)
+    // Traemos leads que tengan fechaPagoReserva O fechaCheckin en el período
     const leads = await prisma.lead.findMany({
       where: {
         brokerId: authResult.user.id,
-        createdAt: {
-          gte: fechaInicio,
-          lte: fechaFin,
-        },
+        OR: [
+          {
+            fechaPagoReserva: {
+              gte: fechaInicio,
+              lte: fechaFin,
+            },
+          },
+          {
+            fechaCheckin: {
+              gte: fechaInicio,
+              lte: fechaFin,
+            },
+          },
+        ],
         estado: {
-          not: 'RECHAZADO'
+          notIn: ['RECHAZADO', 'CANCELADO'],
         },
       },
       include: {
@@ -56,18 +67,21 @@ export async function GET(request: NextRequest) {
           },
         },
       },
-      orderBy: {
-        createdAt: 'asc',
-      },
+      orderBy: [
+        { fechaPagoReserva: 'asc' },
+        { fechaCheckin: 'asc' },
+      ],
     })
 
     console.log(`Encontrados ${leads.length} leads para flujo de caja`)
 
     // Agrupar por fecha (día)
+    // Agrupa tanto por fechaPagoReserva como por fechaCheckin
     const cashFlowByDate = new Map<string, {
       fecha: string
       totalComisiones: number
-      cantidadLeads: number
+      cantidadReservas: number
+      cantidadCheckins: number
       leads: Array<{
         id: string
         clienteNombre: string
@@ -75,34 +89,76 @@ export async function GET(request: NextRequest) {
         unidadCodigo: string
         montoComision: number
         estado: string
+        tipo: 'reserva' | 'checkin'
       }>
     }>()
 
+    // Procesar reservas (por fechaPagoReserva)
     leads.forEach((lead) => {
-      const fecha = lead.createdAt.toISOString().split('T')[0] // YYYY-MM-DD
+      if (!lead.fechaPagoReserva) return
 
-      if (!cashFlowByDate.has(fecha)) {
-        cashFlowByDate.set(fecha, {
-          fecha,
-          totalComisiones: 0,
-          cantidadLeads: 0,
-          leads: [],
+      const reservaDate = new Date(lead.fechaPagoReserva)
+      if (reservaDate >= fechaInicio && reservaDate <= fechaFin) {
+        const fecha = reservaDate.toISOString().split('T')[0] // YYYY-MM-DD
+
+        if (!cashFlowByDate.has(fecha)) {
+          cashFlowByDate.set(fecha, {
+            fecha,
+            totalComisiones: 0,
+            cantidadReservas: 0,
+            cantidadCheckins: 0,
+            leads: [],
+          })
+        }
+
+        const dayData = cashFlowByDate.get(fecha)!
+
+        dayData.cantidadReservas += 1
+        dayData.leads.push({
+          id: lead.id,
+          clienteNombre: lead.cliente.nombre,
+          edificioNombre: lead.edificio?.nombre || 'Sin edificio',
+          unidadCodigo: lead.unidad?.numero || lead.codigoUnidad || 'Sin código',
+          montoComision: 0, // Las reservas no generan comisión hasta el checkin
+          estado: lead.estado,
+          tipo: 'reserva',
         })
       }
+    })
 
-      const dayData = cashFlowByDate.get(fecha)!
-      const montoComision = lead.comision || 0
+    // Procesar checkins (por fechaCheckin)
+    leads.forEach((lead) => {
+      if (!lead.fechaCheckin) return
 
-      dayData.totalComisiones += montoComision
-      dayData.cantidadLeads += 1
-      dayData.leads.push({
-        id: lead.id,
-        clienteNombre: lead.cliente.nombre,
-        edificioNombre: lead.edificio?.nombre || 'Sin edificio',
-        unidadCodigo: lead.unidad?.numero || lead.codigoUnidad || 'Sin código',
-        montoComision,
-        estado: lead.estado,
-      })
+      const checkinDate = new Date(lead.fechaCheckin)
+      if (checkinDate >= fechaInicio && checkinDate <= fechaFin) {
+        const fecha = checkinDate.toISOString().split('T')[0] // YYYY-MM-DD
+
+        if (!cashFlowByDate.has(fecha)) {
+          cashFlowByDate.set(fecha, {
+            fecha,
+            totalComisiones: 0,
+            cantidadReservas: 0,
+            cantidadCheckins: 0,
+            leads: [],
+          })
+        }
+
+        const dayData = cashFlowByDate.get(fecha)!
+        const montoComision = lead.estado === 'DEPARTAMENTO_ENTREGADO' ? (lead.comision || 0) : 0
+
+        dayData.totalComisiones += montoComision
+        dayData.cantidadCheckins += 1
+        dayData.leads.push({
+          id: lead.id,
+          clienteNombre: lead.cliente.nombre,
+          edificioNombre: lead.edificio?.nombre || 'Sin edificio',
+          unidadCodigo: lead.unidad?.numero || lead.codigoUnidad || 'Sin código',
+          montoComision,
+          estado: lead.estado,
+          tipo: 'checkin',
+        })
+      }
     })
 
     // Convertir Map a Array y ordenar por fecha
@@ -115,12 +171,18 @@ export async function GET(request: NextRequest) {
       (sum, day) => sum + day.totalComisiones,
       0
     )
-    const totalLeads = cashFlowData.reduce(
-      (sum, day) => sum + day.cantidadLeads,
+    const totalReservas = cashFlowData.reduce(
+      (sum, day) => sum + day.cantidadReservas,
+      0
+    )
+    const totalCheckins = cashFlowData.reduce(
+      (sum, day) => sum + day.cantidadCheckins,
       0
     )
 
     // Agrupar leads por mes
+    // Las reservas se agrupan por fechaPagoReserva
+    // Los checkins se agrupan por fechaCheckin
     const monthlyData = new Map<string, {
       month: string
       reservas: number
@@ -130,40 +192,68 @@ export async function GET(request: NextRequest) {
       liquido: number
     }>()
 
+    // Primero, procesar reservas (por fechaPagoReserva)
     leads.forEach((lead) => {
-      const monthKey = lead.createdAt.toLocaleDateString('es-CL', { month: 'long' })
+      if (!lead.fechaPagoReserva) return
 
-      if (!monthlyData.has(monthKey)) {
-        monthlyData.set(monthKey, {
-          month: monthKey,
-          reservas: 0,
-          checkins: 0,
-          brutoReservas: 0,
-          bruto: 0,
-          liquido: 0,
-        })
-      }
+      const reservaDate = new Date(lead.fechaPagoReserva)
+      // Verificar que la fecha de pago reserva esté en el rango
+      if (reservaDate >= fechaInicio && reservaDate <= fechaFin) {
+        const monthKey = reservaDate.toLocaleDateString('es-CL', { month: 'long' })
 
-      const monthData = monthlyData.get(monthKey)!
+        if (!monthlyData.has(monthKey)) {
+          monthlyData.set(monthKey, {
+            month: monthKey,
+            reservas: 0,
+            checkins: 0,
+            brutoReservas: 0,
+            bruto: 0,
+            liquido: 0,
+          })
+        }
 
-      // Contar todas las reservas (ya excluye rechazados en la query)
-      monthData.reservas += 1
+        const monthData = monthlyData.get(monthKey)!
 
-      // Contar checkins (solo departamentos entregados)
-      if (lead.estado === 'DEPARTAMENTO_ENTREGADO') {
-        monthData.checkins += 1
-      }
+        // Contar reserva
+        monthData.reservas += 1
 
-      // Solo sumar montos de leads con estado DEPARTAMENTO_ENTREGADO
-      if (lead.estado === 'DEPARTAMENTO_ENTREGADO') {
         // Bruto de reservas: suma del total de los leads
         monthData.brutoReservas += lead.totalLead || 0
+      }
+    })
 
-        // Bruto: suma de las comisiones
-        monthData.bruto += lead.comision || 0
+    // Segundo, procesar checkins (por fechaCheckin)
+    leads.forEach((lead) => {
+      if (!lead.fechaCheckin) return
 
-        // Liquido: por ahora igual al bruto
-        monthData.liquido += lead.comision || 0
+      const checkinDate = new Date(lead.fechaCheckin)
+      // Verificar que la fecha de checkin esté en el rango
+      if (checkinDate >= fechaInicio && checkinDate <= fechaFin) {
+        const monthKey = checkinDate.toLocaleDateString('es-CL', { month: 'long' })
+
+        if (!monthlyData.has(monthKey)) {
+          monthlyData.set(monthKey, {
+            month: monthKey,
+            reservas: 0,
+            checkins: 0,
+            brutoReservas: 0,
+            bruto: 0,
+            liquido: 0,
+          })
+        }
+
+        const monthData = monthlyData.get(monthKey)!
+
+        // Solo contar checkins de departamentos entregados
+        if (lead.estado === 'DEPARTAMENTO_ENTREGADO') {
+          monthData.checkins += 1
+
+          // Bruto: suma de las comisiones de checkins confirmados
+          monthData.bruto += lead.comision || 0
+
+          // Liquido: por ahora igual al bruto
+          monthData.liquido += lead.comision || 0
+        }
       }
     })
 
@@ -182,8 +272,9 @@ export async function GET(request: NextRequest) {
       data: cashFlowData,
       summary: {
         totalComisiones: totalGeneral,
-        totalLeads,
-        promedioComision: totalLeads > 0 ? totalGeneral / totalLeads : 0,
+        totalReservas,
+        totalCheckins,
+        promedioComision: totalCheckins > 0 ? totalGeneral / totalCheckins : 0,
       },
       monthlyBreakdown,
       totals,

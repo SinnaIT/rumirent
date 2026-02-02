@@ -52,22 +52,29 @@ export async function GET(request: NextRequest) {
       },
     })
 
-    // Obtener leads confirmados (DEPARTAMENTO_ENTREGADO con fechaCheckin ingresada)
-    const leadsConfirmados = await prisma.lead.findMany({
+    // Obtener leads con checkin en el periodo (fechaCheckin en el periodo)
+    const leadsConCheckin = await prisma.lead.findMany({
       where: {
         brokerId: authResult.user.id,
-        fechaPagoReserva: {
+        fechaCheckin: {
           gte: fechaInicio,
           lte: fechaFin,
         },
-        estado: 'DEPARTAMENTO_ENTREGADO',
-        fechaCheckin: { not: null },
+        estado: {
+          notIn: ['RECHAZADO', 'CANCELADO'],
+        },
       },
       select: {
         id: true,
         comision: true,
+        estado: true,
       },
     })
+
+    // Obtener leads confirmados (DEPARTAMENTO_ENTREGADO con fechaCheckin en el periodo)
+    const leadsConfirmados = leadsConCheckin.filter(
+      lead => lead.estado === 'DEPARTAMENTO_ENTREGADO'
+    )
 
     // Filtrar leads activos (excluir RECHAZADO y CANCELADO)
     const leadsActivos = leadsPeriodo.filter(
@@ -77,12 +84,8 @@ export async function GET(request: NextRequest) {
     // 1. Cantidad de reservas (leads del periodo excluyen do rechazados/cancelados)
     const cantidadReservas = leadsActivos.length
 
-    // 2. Número de check-ins (leads del periodo con fechaCheckin)
-    const numeroCheckins = leadsPeriodo.filter(
-      lead => lead.fechaCheckin !== null &&
-              lead.estado !== 'RECHAZADO' &&
-              lead.estado !== 'CANCELADO'
-    ).length
+    // 2. Número de check-ins (leads con fechaCheckin en el periodo, excluye rechazados/cancelados)
+    const numeroCheckins = leadsConCheckin.length
 
     // 3. Comisiones proyectadas (suma de comisiones de leads activos del periodo)
     const comisionesProyectadas = leadsActivos.reduce(
