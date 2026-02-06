@@ -10,8 +10,10 @@ interface DashboardData {
     activeBrokers: number
     unitsSoldThisMonth: number
     unitsChange: number
-    totalCommissions: number
-    commissionsChange: number
+    comisionesProyectadas: number
+    comisionesProyectadasChange: number
+    comisionesConfirmadas: number
+    comisionesConfirmadasChange: number
   }
   recentActivities: Array<{
     type: string
@@ -185,13 +187,22 @@ export default function AdminDashboard() {
           trend: dashboardData.stats.unitsChange,
         },
         {
-          title: "Comisiones Generadas",
-          value: formatCurrency(dashboardData.stats.totalCommissions),
-          change: `${dashboardData.stats.commissionsChange >= 0 ? '+' : ''}${dashboardData.stats.commissionsChange.toFixed(1)}% vs mes anterior`,
+          title: "Comisiones Proyectadas",
+          value: formatCurrency(dashboardData.stats.comisionesProyectadas),
+          change: `${dashboardData.stats.comisionesProyectadasChange >= 0 ? '+' : ''}${dashboardData.stats.comisionesProyectadasChange.toFixed(1)}% vs mes anterior`,
+          icon: Calculator,
+          color: "text-warning",
+          bgColor: "bg-warning/10",
+          trend: dashboardData.stats.comisionesProyectadasChange,
+        },
+        {
+          title: "Comisiones Confirmadas",
+          value: formatCurrency(dashboardData.stats.comisionesConfirmadas),
+          change: `${dashboardData.stats.comisionesConfirmadasChange >= 0 ? '+' : ''}${dashboardData.stats.comisionesConfirmadasChange.toFixed(1)}% vs mes anterior`,
           icon: DollarSign,
           color: "text-accent",
           bgColor: "bg-accent/10",
-          trend: dashboardData.stats.commissionsChange,
+          trend: dashboardData.stats.comisionesConfirmadasChange,
         }
       ]
     : []
@@ -333,7 +344,7 @@ export default function AdminDashboard() {
       </div>
 
       {/* Enhanced Stats Cards - S-Tier Design */}
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6 mb-8">
         {stats.map((stat, index) => (
           <div
             key={stat.title}

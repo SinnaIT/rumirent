@@ -114,7 +114,7 @@ export async function PUT(
         include: {
           unidad: {
             include: {
-              tipoUnidad: {
+              tipoUnidadEdificio: {
                 include: {
                   comision: true
                 }
@@ -138,15 +138,15 @@ export async function PUT(
         let comisionPorcentaje = 0
         let selectedComisionId = null
 
-        // Priority 1: TipoUnidadEdificio commission
+        // Priority 1: TipoUnidadEdificio commission (direct from lead)
         if (leadWithRelations.tipoUnidadEdificio?.comision) {
           comisionPorcentaje = leadWithRelations.tipoUnidadEdificio.comision.porcentaje
           selectedComisionId = leadWithRelations.tipoUnidadEdificio.comision.id
         }
-        // Priority 2: Unidad's TipoUnidad commission
-        else if (leadWithRelations.unidad?.tipoUnidad?.comision) {
-          comisionPorcentaje = leadWithRelations.unidad.tipoUnidad.comision.porcentaje
-          selectedComisionId = leadWithRelations.unidad.tipoUnidad.comision.id
+        // Priority 2: Unidad's TipoUnidadEdificio commission
+        else if (leadWithRelations.unidad?.tipoUnidadEdificio?.comision) {
+          comisionPorcentaje = leadWithRelations.unidad.tipoUnidadEdificio.comision.porcentaje
+          selectedComisionId = leadWithRelations.unidad.tipoUnidadEdificio.comision.id
         }
         // Priority 3: Edificio commission
         else if (leadWithRelations.edificio?.comision) {

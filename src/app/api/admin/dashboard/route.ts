@@ -53,16 +53,30 @@ export async function GET(request: NextRequest) {
       },
     })
 
-    // Get total commissions generated this month
-    const commissionStats = await prisma.lead.aggregate({
+    // Get projected commissions (fechaPagoReserva in period, excluding rejected)
+    const comisionesProyectadas = await prisma.lead.aggregate({
       where: {
-        createdAt: {
+        fechaPagoReserva: {
           gte: startOfMonth,
           lte: endOfMonth,
         },
         estado: {
-          in: ['APROBADO', 'RESERVA_PAGADA'],
+          notIn: ['RECHAZADO', 'CANCELADO'],
         },
+      },
+      _sum: {
+        comision: true,
+      },
+    })
+
+    // Get confirmed commissions (fechaCheckin in period and estado = DEPARTAMENTO_ENTREGADO)
+    const comisionesConfirmadas = await prisma.lead.aggregate({
+      where: {
+        fechaCheckin: {
+          gte: startOfMonth,
+          lte: endOfMonth,
+        },
+        estado: 'DEPARTAMENTO_ENTREGADO',
       },
       _sum: {
         comision: true,
@@ -550,15 +564,30 @@ export async function GET(request: NextRequest) {
       },
     })
 
-    const commissionsLastMonth = await prisma.lead.aggregate({
+    // Get projected commissions last month for comparison
+    const comisionesProyectadasLastMonth = await prisma.lead.aggregate({
       where: {
-        createdAt: {
+        fechaPagoReserva: {
           gte: startOfPreviousMonth,
           lte: endOfPreviousMonth,
         },
         estado: {
-          in: ['APROBADO', 'RESERVA_PAGADA'],
+          notIn: ['RECHAZADO', 'CANCELADO'],
         },
+      },
+      _sum: {
+        comision: true,
+      },
+    })
+
+    // Get confirmed commissions last month for comparison
+    const comisionesConfirmadasLastMonth = await prisma.lead.aggregate({
+      where: {
+        fechaCheckin: {
+          gte: startOfPreviousMonth,
+          lte: endOfPreviousMonth,
+        },
+        estado: 'DEPARTAMENTO_ENTREGADO',
       },
       _sum: {
         comision: true,
@@ -569,8 +598,12 @@ export async function GET(request: NextRequest) {
       ? ((unitsSoldThisMonth - unitsSoldLastMonth) / unitsSoldLastMonth) * 100
       : 0
 
-    const commissionsChange = (commissionsLastMonth._sum.comision || 0) > 0
-      ? (((commissionStats._sum.comision || 0) - (commissionsLastMonth._sum.comision || 0)) / (commissionsLastMonth._sum.comision || 0)) * 100
+    const comisionesProyectadasChange = (comisionesProyectadasLastMonth._sum.comision || 0) > 0
+      ? (((comisionesProyectadas._sum.comision || 0) - (comisionesProyectadasLastMonth._sum.comision || 0)) / (comisionesProyectadasLastMonth._sum.comision || 0)) * 100
+      : 0
+
+    const comisionesConfirmadasChange = (comisionesConfirmadasLastMonth._sum.comision || 0) > 0
+      ? (((comisionesConfirmadas._sum.comision || 0) - (comisionesConfirmadasLastMonth._sum.comision || 0)) / (comisionesConfirmadasLastMonth._sum.comision || 0)) * 100
       : 0
 
     // Get monthly reservations for the last 5 months (ending in selected month)
@@ -764,8 +797,10 @@ export async function GET(request: NextRequest) {
         activeBrokers,
         unitsSoldThisMonth,
         unitsChange: Math.round(unitsChange * 10) / 10,
-        totalCommissions: commissionStats._sum.comision || 0,
-        commissionsChange: Math.round(commissionsChange * 10) / 10,
+        comisionesProyectadas: comisionesProyectadas._sum.comision || 0,
+        comisionesProyectadasChange: Math.round(comisionesProyectadasChange * 10) / 10,
+        comisionesConfirmadas: comisionesConfirmadas._sum.comision || 0,
+        comisionesConfirmadasChange: Math.round(comisionesConfirmadasChange * 10) / 10,
       },
       recentActivities,
       birthdays: birthdaysThisMonth,

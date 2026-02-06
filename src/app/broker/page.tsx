@@ -27,7 +27,7 @@ interface DashboardMetrics {
   cantidadReservas: number
   numeroCheckins: number
   comisionesProyectadas: number
-  comisionesConcretadas: number
+  comisionesConfirmadas: number
   porcentajeCierre: number
   metaColocacion: {
     montoActual: number
@@ -90,14 +90,27 @@ export default function BrokerDashboard() {
       )
 
       if (!response.ok) {
-        throw new Error('Error al cargar las métricas')
+        const errorText = await response.text()
+        console.error('API Error Response:', errorText)
+        throw new Error(`Error al cargar las métricas: ${response.status}`)
+      }
+
+      const contentType = response.headers.get('content-type')
+      if (!contentType || !contentType.includes('application/json')) {
+        const text = await response.text()
+        console.error('Non-JSON response:', text)
+        throw new Error('El servidor devolvió una respuesta no JSON')
       }
 
       const data = await response.json()
       setMetrics(data)
     } catch (error) {
       console.error('Error fetching metrics:', error)
-      setError('Error al cargar las métricas del dashboard')
+      setError(
+        error instanceof Error
+          ? error.message
+          : 'Error al cargar las métricas del dashboard'
+      )
     } finally {
       setLoading(false)
     }
@@ -109,9 +122,16 @@ export default function BrokerDashboard() {
       const response = await fetch(
         `/api/broker/dashboard/rumi-race?mes=${selectedMes}&anio=${selectedAnio}`
       )
-      
+
       if (!response.ok) {
-        console.error('Error fetching RumiRace ranking')
+        console.error('Error fetching RumiRace ranking:', response.status)
+        return
+      }
+
+      const contentType = response.headers.get('content-type')
+      if (!contentType || !contentType.includes('application/json')) {
+        const text = await response.text()
+        console.error('Non-JSON response from RumiRace:', text)
         return
       }
 
@@ -119,7 +139,17 @@ export default function BrokerDashboard() {
 
       // Find current user's position in the ranking
       const userResponse = await fetch('/api/auth/me')
-      if (!userResponse.ok) return
+      if (!userResponse.ok) {
+        console.error('Error fetching user data:', userResponse.status)
+        return
+      }
+
+      const userContentType = userResponse.headers.get('content-type')
+      if (!userContentType || !userContentType.includes('application/json')) {
+        const text = await userResponse.text()
+        console.error('Non-JSON response from /api/auth/me:', text)
+        return
+      }
 
       const userData = await userResponse.json()
       const userId = userData.user.id

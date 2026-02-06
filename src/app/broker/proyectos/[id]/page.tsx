@@ -735,9 +735,9 @@ export default function ProyectoDetailPage() {
                               {unidad.metros2 ? `${unidad.metros2} m²` : '-'}
                             </TableCell>
                             <TableCell className="text-right">
-                              {unidad.tipoUnidad.comision ? (
+                              {unidad.tipoUnidadEdificio.comision ? (
                                 <span className="font-bold text-primary">
-                                  {(unidad.tipoUnidad.comision.porcentaje * 100).toFixed(1)}%
+                                  {(unidad.tipoUnidadEdificio.comision.porcentaje * 100).toFixed(1)}%
                                 </span>
                               ) : '-'}
                             </TableCell>
