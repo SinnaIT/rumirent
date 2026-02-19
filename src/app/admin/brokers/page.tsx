@@ -21,6 +21,7 @@ import {
 } from '@/components/ui/dialog'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import {
   Users,
   Plus,
@@ -30,9 +31,19 @@ import {
   Phone,
   Calendar,
   UserCheck,
-  UserX
+  UserX,
+  Receipt,
+  ArrowDownCircle,
+  ArrowUpCircle
 } from 'lucide-react'
 import { toast } from 'sonner'
+
+interface TaxType {
+  id: string
+  name: string
+  nature: 'ADDITIVE' | 'DEDUCTIVE'
+  active: boolean
+}
 
 interface Broker {
   id: string
@@ -45,6 +56,8 @@ interface Broker {
   ventasRealizadas: number
   comisionesTotales: number
   createdAt: string
+  taxTypeId?: string | null
+  taxType?: TaxType | null
 }
 
 interface BrokerFormData {
@@ -55,6 +68,7 @@ interface BrokerFormData {
   birthDate: string
   password: string
   confirmPassword: string
+  taxTypeId: string
 }
 
 export default function BrokersPage() {
@@ -64,6 +78,7 @@ export default function BrokersPage() {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
   const [editingBroker, setEditingBroker] = useState<Broker | null>(null)
+  const [taxTypes, setTaxTypes] = useState<TaxType[]>([])
   const [formData, setFormData] = useState<BrokerFormData>({
     email: '',
     nombre: '',
@@ -71,7 +86,8 @@ export default function BrokersPage() {
     telefono: '',
     birthDate: '',
     password: '',
-    confirmPassword: ''
+    confirmPassword: '',
+    taxTypeId: ''
   })
 
   // Cargar brokers
@@ -90,8 +106,22 @@ export default function BrokersPage() {
     }
   }
 
+  // Cargar tipos de impuesto
+  const fetchTaxTypes = async () => {
+    try {
+      const response = await fetch('/api/admin/tax-types')
+      const data = await response.json()
+      if (data.success) {
+        setTaxTypes(data.data.filter((t: TaxType) => t.active))
+      }
+    } catch {
+      // silently fail – tax types are optional
+    }
+  }
+
   useEffect(() => {
     fetchBrokers()
+    fetchTaxTypes()
   }, [])
 
   // Crear broker
@@ -113,7 +143,8 @@ export default function BrokersPage() {
           rut: formData.rut,
           telefono: formData.telefono || undefined,
           birthDate: formData.birthDate || undefined,
-          password: formData.password
+          password: formData.password,
+          taxTypeId: formData.taxTypeId || undefined,
         })
       })
 
@@ -145,12 +176,14 @@ export default function BrokersPage() {
         telefono?: string
         birthDate?: string
         password?: string
+        taxTypeId?: string | null
       } = {
         email: formData.email,
         nombre: formData.nombre,
         rut: formData.rut,
         telefono: formData.telefono || undefined,
-        birthDate: formData.birthDate || undefined
+        birthDate: formData.birthDate || undefined,
+        taxTypeId: formData.taxTypeId || null,
       }
 
       if (formData.password && formData.password === formData.confirmPassword) {
@@ -207,7 +240,8 @@ export default function BrokersPage() {
       telefono: '',
       birthDate: '',
       password: '',
-      confirmPassword: ''
+      confirmPassword: '',
+      taxTypeId: ''
     })
   }
 
@@ -220,7 +254,8 @@ export default function BrokersPage() {
       telefono: broker.telefono || '',
       birthDate: broker.birthDate ? new Date(broker.birthDate).toISOString().split('T')[0] : '',
       password: '',
-      confirmPassword: ''
+      confirmPassword: '',
+      taxTypeId: broker.taxTypeId || ''
     })
     setIsEditModalOpen(true)
   }
@@ -325,6 +360,7 @@ export default function BrokersPage() {
                   <TableHead>Email</TableHead>
                   <TableHead>Teléfono</TableHead>
                   <TableHead>Estado</TableHead>
+                  <TableHead>Impuesto</TableHead>
                   <TableHead>Arriendos</TableHead>
                   <TableHead>Comisiones</TableHead>
                   <TableHead>Registro</TableHead>
@@ -333,7 +369,7 @@ export default function BrokersPage() {
               <TableBody>
                 {filteredBrokers.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={10} className="text-center py-8 text-muted-foreground">
                       No se encontraron brokers
                     </TableCell>
                   </TableRow>
@@ -378,6 +414,20 @@ export default function BrokersPage() {
                           </Badge>
                         </Button>
                       </TableCell>
+                      <TableCell>
+                        {broker.taxType ? (
+                          <div className="flex items-center gap-1 text-xs">
+                            {broker.taxType.nature === 'DEDUCTIVE'
+                              ? <ArrowDownCircle className="w-3 h-3 text-red-500 shrink-0" />
+                              : <ArrowUpCircle className="w-3 h-3 text-green-500 shrink-0" />}
+                            <span className="truncate max-w-[100px]" title={broker.taxType.name}>
+                              {broker.taxType.name}
+                            </span>
+                          </div>
+                        ) : (
+                          <span className="text-muted-foreground text-xs">—</span>
+                        )}
+                      </TableCell>
                       <TableCell>{broker.ventasRealizadas}</TableCell>
                       <TableCell className="font-mono">
                         ${broker.comisionesTotales.toLocaleString()}
@@ -396,14 +446,14 @@ export default function BrokersPage() {
 
       {/* Create Modal */}
       <Dialog open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-md max-h-[90vh] flex flex-col">
           <DialogHeader>
             <DialogTitle>Crear Nuevo Broker</DialogTitle>
             <DialogDescription>
               Complete los datos para crear un nuevo broker en el sistema.
             </DialogDescription>
           </DialogHeader>
-          <form onSubmit={handleCreateBroker} className="space-y-4">
+          <form onSubmit={handleCreateBroker} className="space-y-4 overflow-y-auto flex-1 pr-1">
             <div className="space-y-2">
               <Label htmlFor="create-nombre">Nombre completo</Label>
               <Input
@@ -451,6 +501,35 @@ export default function BrokersPage() {
               />
             </div>
             <div className="space-y-2">
+              <Label htmlFor="create-taxTypeId">
+                <span className="flex items-center gap-1">
+                  <Receipt className="w-3 h-3" />
+                  Tipo de Impuesto (opcional)
+                </span>
+              </Label>
+              <Select
+                value={formData.taxTypeId || 'none'}
+                onValueChange={(v) => setFormData(prev => ({ ...prev, taxTypeId: v === 'none' ? '' : v }))}
+              >
+                <SelectTrigger id="create-taxTypeId">
+                  <SelectValue placeholder="Sin impuesto asignado" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Sin impuesto</SelectItem>
+                  {taxTypes.map((t) => (
+                    <SelectItem key={t.id} value={t.id}>
+                      <div className="flex items-center gap-2">
+                        {t.nature === 'DEDUCTIVE'
+                          ? <ArrowDownCircle className="w-3 h-3 text-red-500" />
+                          : <ArrowUpCircle className="w-3 h-3 text-green-500" />}
+                        {t.name}
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
               <Label htmlFor="create-password">Contraseña</Label>
               <Input
                 id="create-password"
@@ -484,14 +563,14 @@ export default function BrokersPage() {
 
       {/* Edit Modal */}
       <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-md max-h-[90vh] flex flex-col">
           <DialogHeader>
             <DialogTitle>Editar Broker</DialogTitle>
             <DialogDescription>
               Modifique los datos del broker. Deje la contraseña vacía si no desea cambiarla.
             </DialogDescription>
           </DialogHeader>
-          <form onSubmit={handleEditBroker} className="space-y-4">
+          <form onSubmit={handleEditBroker} className="space-y-4 overflow-y-auto flex-1 pr-1">
             <div className="space-y-2">
               <Label htmlFor="edit-nombre">Nombre completo</Label>
               <Input
@@ -538,6 +617,35 @@ export default function BrokersPage() {
                 value={formData.birthDate}
                 onChange={(e) => setFormData(prev => ({ ...prev, birthDate: e.target.value }))}
               />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-taxTypeId">
+                <span className="flex items-center gap-1">
+                  <Receipt className="w-3 h-3" />
+                  Tipo de Impuesto
+                </span>
+              </Label>
+              <Select
+                value={formData.taxTypeId || 'none'}
+                onValueChange={(v) => setFormData(prev => ({ ...prev, taxTypeId: v === 'none' ? '' : v }))}
+              >
+                <SelectTrigger id="edit-taxTypeId">
+                  <SelectValue placeholder="Sin impuesto asignado" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Sin impuesto</SelectItem>
+                  {taxTypes.map((t) => (
+                    <SelectItem key={t.id} value={t.id}>
+                      <div className="flex items-center gap-2">
+                        {t.nature === 'DEDUCTIVE'
+                          ? <ArrowDownCircle className="w-3 h-3 text-red-500" />
+                          : <ArrowUpCircle className="w-3 h-3 text-green-500" />}
+                        {t.name}
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-2">
               <Label htmlFor="edit-password">Nueva contraseña (opcional)</Label>

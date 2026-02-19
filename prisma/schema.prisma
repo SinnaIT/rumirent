@@ -23,9 +23,11 @@ model User {
   mustChangePassword Boolean       @default(false)
   resetToken         String?
   resetTokenExpiry   DateTime?
+  commissionTaxTypeId String?      @map("commission_tax_type_id")
   clientes           Cliente[]     @relation("ClienteBroker")
   leads              Lead[]
   metasMensuales     MetaMensual[]
+  commissionTaxType  TaxType?      @relation(fields: [commissionTaxTypeId], references: [id])
 
   @@map("users")
 }
@@ -323,4 +325,35 @@ enum EstadoLead {
   DEPARTAMENTO_ENTREGADO
   RECHAZADO
   CANCELADO
+}
+
+enum TaxNature {
+  ADDITIVE
+  DEDUCTIVE
+}
+
+model TaxType {
+  id        String    @id @default(cuid())
+  name      String    @unique
+  nature    TaxNature
+  active    Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  taxRates  TaxRate[]
+  brokers   User[]
+
+  @@map("tax_types")
+}
+
+model TaxRate {
+  id         String   @id @default(cuid())
+  taxTypeId  String
+  rate       Float
+  validFrom  DateTime
+  active     Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  taxType    TaxType  @relation(fields: [taxTypeId], references: [id], onDelete: Cascade)
+
+  @@map("tax_rates")
 }

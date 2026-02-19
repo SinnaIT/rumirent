@@ -21,7 +21,7 @@ import {
 } from '@/components/ui/table'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
-import { Calendar, DollarSign, Users, FileText, Eye, Loader2 } from 'lucide-react'
+import { Calendar, DollarSign, Users, FileText, Eye, Loader2, Receipt, ArrowDownCircle, ArrowUpCircle } from 'lucide-react'
 import { toast } from 'sonner'
 import {
   Dialog,
@@ -96,6 +96,15 @@ interface BrokerSummary {
   checkin: number
   anticipos: number
   despAnticipo: number
+  taxInfo: {
+    taxTypeId: string
+    taxTypeName: string
+    taxNature: string
+    rate: number
+    validFrom: string
+  } | null
+  taxAmount: number
+  liquidAmount: number
   leads: Lead[]
 }
 
@@ -121,6 +130,8 @@ interface ReportData {
     checkin: number
     anticipos: number
     despAnticipo: number
+    totalTaxAmount: number
+    totalLiquidAmount: number
   }
 }
 
@@ -336,7 +347,7 @@ export default function ResumenComisionesPage() {
 
       {/* Summary Stats */}
       {data && (
-        <div className="grid gap-4 md:grid-cols-4">
+        <div className="grid gap-4 md:grid-cols-5">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Total Brokers</CardTitle>
@@ -392,6 +403,21 @@ export default function ResumenComisionesPage() {
               </p>
             </CardContent>
           </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Total Líquido</CardTitle>
+              <Receipt className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-primary">
+                {formatCurrency(data.totales.totalLiquidAmount)}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Impuestos: {formatCurrency(data.totales.totalTaxAmount)}
+              </p>
+            </CardContent>
+          </Card>
         </div>
       )}
 
@@ -424,7 +450,8 @@ export default function ResumenComisionesPage() {
                         <TableHead className="text-right">Total Arriendo</TableHead>
                         <TableHead className="text-right">Bruto (Comisión)</TableHead>
                         <TableHead className="text-right">Anticipos</TableHead>
-                        <TableHead className="text-right">Líquido</TableHead>
+                        <TableHead className="text-right">Impuesto</TableHead>
+                        <TableHead className="text-right">Monto Líquido</TableHead>
                         <TableHead className="text-right">Conciliado</TableHead>
                         <TableHead className="text-center">Acciones</TableHead>
                       </TableRow>
@@ -463,8 +490,30 @@ export default function ResumenComisionesPage() {
                           <TableCell className="text-right">
                             {formatCurrency(broker.anticipos)}
                           </TableCell>
-                          <TableCell className="text-right font-bold">
-                            {formatCurrency(broker.totalComisionValida - broker.anticipos)}
+                          <TableCell className="text-right">
+                            {broker.taxInfo ? (
+                              <div>
+                                <div className="flex items-center justify-end gap-1">
+                                  {broker.taxInfo.taxNature === 'DEDUCTIVE'
+                                    ? <ArrowDownCircle className="w-3 h-3 text-red-500" />
+                                    : <ArrowUpCircle className="w-3 h-3 text-green-500" />}
+                                  <span className="font-mono">
+                                    {(broker.taxInfo.rate * 100).toFixed(1)}%
+                                  </span>
+                                </div>
+                                <div className="text-xs text-muted-foreground text-right">
+                                  {formatCurrency(broker.taxAmount)}
+                                </div>
+                                <div className="text-xs text-muted-foreground text-right">
+                                  {broker.taxInfo.taxTypeName}
+                                </div>
+                              </div>
+                            ) : (
+                              <span className="text-muted-foreground text-xs">—</span>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-right font-bold text-primary">
+                            {formatCurrency(broker.liquidAmount)}
                           </TableCell>
                           <TableCell className="text-right">
                             <div>
@@ -514,8 +563,11 @@ export default function ResumenComisionesPage() {
                         <TableCell className="text-right">
                           {formatCurrency(data.totales.anticipos)}
                         </TableCell>
-                        <TableCell className="text-right font-bold">
-                          {formatCurrency(data.totales.totalComisionValida - data.totales.anticipos)}
+                        <TableCell className="text-right">
+                          {formatCurrency(data.totales.totalTaxAmount)}
+                        </TableCell>
+                        <TableCell className="text-right font-bold text-primary">
+                          {formatCurrency(data.totales.totalLiquidAmount)}
                         </TableCell>
                         <TableCell className="text-right">
                           <div>
@@ -712,7 +764,7 @@ export default function ResumenComisionesPage() {
                   return (
                     <div className="space-y-4">
                       {/* Broker Summary */}
-                      <div className="bg-muted p-4 rounded-lg grid grid-cols-2 md:grid-cols-5 gap-4">
+                      <div className="bg-muted p-4 rounded-lg grid grid-cols-2 md:grid-cols-4 gap-4">
                         <div>
                           <div className="text-sm text-muted-foreground">Broker</div>
                           <div className="font-medium">{brokerData.brokerNombre}</div>
@@ -722,15 +774,9 @@ export default function ResumenComisionesPage() {
                           <div className="font-medium">{brokerData.totalLeads}</div>
                         </div>
                         <div>
-                          <div className="text-sm text-muted-foreground">Monto Bruto</div>
+                          <div className="text-sm text-muted-foreground">Comisión Válida</div>
                           <div className="font-medium">
-                            {formatCurrency(brokerData.totalMontoBruto)}
-                          </div>
-                        </div>
-                        <div>
-                          <div className="text-sm text-muted-foreground">Comisión Total</div>
-                          <div className="font-medium">
-                            {formatCurrency(brokerData.totalComision)}
+                            {formatCurrency(brokerData.totalComisionValida)}
                           </div>
                         </div>
                         <div>
@@ -740,6 +786,34 @@ export default function ResumenComisionesPage() {
                           </div>
                         </div>
                       </div>
+                      {/* Tax Summary for specific broker */}
+                      {brokerData.taxInfo && (
+                        <div className="border rounded-lg p-3 flex flex-wrap items-center gap-4 text-sm">
+                          <div className="flex items-center gap-1 font-medium">
+                            <Receipt className="w-4 h-4 text-muted-foreground" />
+                            <span>Impuesto aplicado:</span>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            {brokerData.taxInfo.taxNature === 'DEDUCTIVE'
+                              ? <ArrowDownCircle className="w-4 h-4 text-red-500" />
+                              : <ArrowUpCircle className="w-4 h-4 text-green-500" />}
+                            <span className="font-semibold">{brokerData.taxInfo.taxTypeName}</span>
+                            <span className="text-muted-foreground ml-1">
+                              ({(brokerData.taxInfo.rate * 100).toFixed(2)}%)
+                            </span>
+                          </div>
+                          <div>
+                            <span className="text-muted-foreground">Monto impuesto: </span>
+                            <span className="font-semibold">{formatCurrency(brokerData.taxAmount)}</span>
+                          </div>
+                          <div className="ml-auto">
+                            <span className="text-muted-foreground">Monto líquido: </span>
+                            <span className="font-bold text-primary text-base">
+                              {formatCurrency(brokerData.liquidAmount)}
+                            </span>
+                          </div>
+                        </div>
+                      )}
 
                       {/* Leads Table */}
                       <div className="overflow-x-auto">

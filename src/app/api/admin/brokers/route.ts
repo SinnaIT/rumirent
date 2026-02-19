@@ -28,6 +28,15 @@ export async function GET(request: NextRequest) {
         birthDate: true,
         activo: true,
         createdAt: true,
+        commissionTaxTypeId: true,
+        commissionTaxType: {
+          select: {
+            id: true,
+            name: true,
+            nature: true,
+            active: true,
+          }
+        },
         _count: {
           select: {
             leads: true
@@ -54,6 +63,8 @@ export async function GET(request: NextRequest) {
       telefono: broker.telefono,
       birthDate: broker.birthDate?.toISOString(),
       activo: broker.activo,
+      taxTypeId: broker.commissionTaxTypeId,
+      taxType: broker.commissionTaxType,
       ventasRealizadas: broker._count.leads,
       comisionesTotales: broker.leads.reduce((total, lead) => lead.estado !== 'RECHAZADO' ? total + (lead.comision || 0) : total, 0),
       createdAt: broker.createdAt.toISOString()
@@ -85,7 +96,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { email, nombre, rut, telefono, birthDate, password } = body
+    const { email, nombre, rut, telefono, birthDate, password, taxTypeId } = body
 
     // Validaciones básicas
     if (!email || !nombre || !rut || !password) {
@@ -141,7 +152,8 @@ export async function POST(request: NextRequest) {
         role: 'BROKER',
         activo: true,
         mustChangePassword: true,
-        lastPasswordChange: null
+        lastPasswordChange: null,
+        commissionTaxTypeId: taxTypeId || undefined,
       },
       select: {
         id: true,

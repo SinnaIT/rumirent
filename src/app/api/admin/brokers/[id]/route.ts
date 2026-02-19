@@ -108,7 +108,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
 
     const { id } = await params
     const body = await request.json()
-    const { email, nombre, rut, telefono, birthDate, password } = body
+    const { email, nombre, rut, telefono, birthDate, password, taxTypeId } = body
 
     // Validaciones básicas
     if (!nombre || !rut || !email) {
@@ -171,12 +171,14 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       password?: string
       mustChangePassword?: boolean
       lastPasswordChange?: Date
+      commissionTaxTypeId?: string | null
     } = {
       email,
       nombre,
       rut,
       telefono: telefono || null,
-      birthDate: birthDate ? new Date(birthDate) : null
+      birthDate: birthDate ? new Date(birthDate) : null,
+      commissionTaxTypeId: taxTypeId !== undefined ? (taxTypeId || null) : undefined,
     }
 
     // Si se proporciona nueva contraseña, hashearla y forzar cambio

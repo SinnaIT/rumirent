@@ -43,9 +43,13 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    // Calculate date range for the selected month
+    // Calculate date range for the selected month (local time for DB queries)
     const startDate = new Date(anioNum, mesNum - 1, 1)
     const endDate = new Date(anioNum, mesNum, 0, 23, 59, 59, 999)
+
+    // End of month in UTC — used as reference for tax rate resolution
+    // Using last day of month at 00:00:00 UTC avoids timezone shifts picking up next month's rate
+    const endDateUTC = new Date(Date.UTC(anioNum, mesNum - 1, new Date(anioNum, mesNum, 0).getDate()))
 
     // Build where clause
     const whereClause: any = {
@@ -84,6 +88,19 @@ export async function GET(request: NextRequest) {
             nombre: true,
             email: true,
             role: true,
+            commissionTaxTypeId: true,
+            commissionTaxType: {
+              select: {
+                id: true,
+                name: true,
+                nature: true,
+                taxRates: {
+                  where: { active: true },
+                  orderBy: { validFrom: 'desc' },
+                  // No take:1 — fetch all active rates to allow per-lead date lookup
+                }
+              }
+            }
           }
         },
         cliente: {
@@ -111,6 +128,26 @@ export async function GET(request: NextRequest) {
       }
     })
 
+    // Helper: get the valid tax rate for a broker as of a specific reference date
+    // taxRates are pre-sorted desc by validFrom, so find() returns the most recent valid one
+    const getApplicableTaxRate = (broker: typeof leads[0]['broker'], referenceDate: Date) => {
+      if (!broker.commissionTaxType || !broker.commissionTaxType.taxRates.length) return null
+      const validRate = broker.commissionTaxType.taxRates.find(r => {
+        // Normalize validFrom to start-of-day UTC for consistent comparison
+        const vf = new Date(r.validFrom)
+        const vfNormalized = new Date(Date.UTC(vf.getUTCFullYear(), vf.getUTCMonth(), vf.getUTCDate()))
+        return vfNormalized <= referenceDate
+      })
+      if (!validRate) return null
+      return {
+        taxTypeId: broker.commissionTaxType.id,
+        taxTypeName: broker.commissionTaxType.name,
+        taxNature: broker.commissionTaxType.nature,
+        rate: validRate.rate,
+        validFrom: validRate.validFrom,
+      }
+    }
+
     // Group by broker and calculate summaries
     const brokerMap = new Map<string, {
       brokerId: string
@@ -128,6 +165,16 @@ export async function GET(request: NextRequest) {
       checkin: number
       anticipos: number
       despAnticipo: number
+      // Tax fields
+      taxInfo: {
+        taxTypeId: string
+        taxTypeName: string
+        taxNature: string
+        rate: number
+        validFrom: Date
+      } | null
+      taxAmount: number
+      liquidAmount: number
       leads: any[]
     }>()
 
@@ -135,6 +182,9 @@ export async function GET(request: NextRequest) {
       const brokerId = lead.broker.id
 
       if (!brokerMap.has(brokerId)) {
+        // taxInfo for display: use end-of-month UTC date so timezone doesn't bleed
+        // into the next month's rate (e.g. Jan 31 local ≠ Feb 1 UTC)
+        const taxInfo = getApplicableTaxRate(lead.broker, endDateUTC)
         brokerMap.set(brokerId, {
           brokerId: brokerId,
           brokerNombre: lead.broker.nombre,
@@ -151,6 +201,9 @@ export async function GET(request: NextRequest) {
           checkin: 0,
           anticipos: 0,
           despAnticipo: 0,
+          taxInfo,
+          taxAmount: 0,
+          liquidAmount: 0,
           leads: []
         })
       }
@@ -168,6 +221,28 @@ export async function GET(request: NextRequest) {
       if (isValid) {
         brokerData.totalComisionValida += lead.comision
         brokerData.leadsValidos += 1
+
+        // Calculate tax per lead using the rate valid at the lead's fechaCheckin date
+        // Normalize to end-of-day UTC to avoid timezone shifts turning Feb 1 into Jan 31
+        const rawCheckin = new Date(lead.fechaCheckin!)
+        const leadCheckinDate = new Date(Date.UTC(
+          rawCheckin.getUTCFullYear(),
+          rawCheckin.getUTCMonth(),
+          rawCheckin.getUTCDate(),
+          23, 59, 59, 999
+        ))
+        const leadTaxInfo = getApplicableTaxRate(lead.broker, leadCheckinDate)
+        if (leadTaxInfo) {
+          const leadTaxAmount = lead.comision * leadTaxInfo.rate
+          brokerData.taxAmount += leadTaxAmount
+          if (leadTaxInfo.taxNature === 'ADDITIVE') {
+            brokerData.liquidAmount += lead.comision + leadTaxAmount
+          } else {
+            brokerData.liquidAmount += lead.comision - leadTaxAmount
+          }
+        } else {
+          brokerData.liquidAmount += lead.comision
+        }
       }
 
       // Count check-ins
@@ -219,6 +294,9 @@ export async function GET(request: NextRequest) {
     // Calculate grand totals
     const leadsValidos = leads.filter(l => l.estado === 'DEPARTAMENTO_ENTREGADO' && l.fechaCheckin !== null)
 
+    const totalTaxAmount = brokersData.reduce((sum, b) => sum + b.taxAmount, 0)
+    const totalLiquidAmount = brokersData.reduce((sum, b) => sum + b.liquidAmount, 0)
+
     const totales = {
       totalBrokers: brokersData.length,
       totalLeads: leads.length,
@@ -233,6 +311,8 @@ export async function GET(request: NextRequest) {
       checkin: leads.filter(l => l.fechaCheckin).length,
       anticipos: 0,
       despAnticipo: leadsValidos.reduce((sum, lead) => sum + lead.comision, 0),
+      totalTaxAmount,
+      totalLiquidAmount,
     }
 
     return NextResponse.json({

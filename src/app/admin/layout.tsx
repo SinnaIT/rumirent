@@ -23,7 +23,8 @@ import {
   FileText,
   Shield,
   Target,
-  Trophy
+  Trophy,
+  Receipt
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/lib/hooks/use-auth'
@@ -41,6 +42,7 @@ const menuItems = [
   { icon: Calculator, label: 'Comisiones', href: '/admin/comisiones' },
   { icon: Target, label: 'Metas Mensuales', href: '/admin/metas' },
   { icon: FileCheck, label: 'Conciliación', href: '/admin/conciliacion' },
+  { icon: Receipt, label: 'Impuestos', href: '/admin/impuestos' },
   {
     icon: BarChart3,
     label: 'Reportes',
