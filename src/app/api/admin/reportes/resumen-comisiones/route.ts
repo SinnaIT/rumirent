@@ -120,6 +120,32 @@ export async function GET(request: NextRequest) {
           select: {
             id: true,
             nombre: true,
+            codigo: true,
+            bedrooms: true,
+            bathrooms: true,
+          }
+        },
+        reglaComision: {
+          select: {
+            id: true,
+            cantidadMinima: true,
+            cantidadMaxima: true,
+            porcentaje: true,
+            comision: {
+              select: {
+                id: true,
+                nombre: true,
+                codigo: true,
+              }
+            }
+          }
+        },
+        comisionBase: {
+          select: {
+            id: true,
+            nombre: true,
+            codigo: true,
+            porcentaje: true,
           }
         }
       },
@@ -270,9 +296,17 @@ export async function GET(request: NextRequest) {
         estado: lead.estado,
         conciliado: lead.conciliado,
         fechaPagoReserva: lead.fechaPagoReserva,
+        fechaPagoLead: lead.fechaPagoLead,
         fechaConciliacion: lead.fechaConciliacion,
         fechaCheckin: lead.fechaCheckin,
+        postulacion: lead.postulacion,
+        observaciones: lead.observaciones,
         isValid: isValid,
+        broker: {
+          id: lead.broker.id,
+          nombre: lead.broker.nombre,
+          email: lead.broker.email,
+        },
         cliente: {
           id: lead.cliente.id,
           nombre: lead.cliente.nombre,
@@ -282,7 +316,27 @@ export async function GET(request: NextRequest) {
           id: lead.edificio.id,
           nombre: lead.edificio.nombre,
         },
-        tipoUnidad: lead.tipoUnidadEdificio?.nombre || 'N/A'
+        tipoUnidad: lead.tipoUnidadEdificio?.nombre || 'N/A',
+        tipoUnidadEdificio: lead.tipoUnidadEdificio ? {
+          id: lead.tipoUnidadEdificio.id,
+          nombre: lead.tipoUnidadEdificio.nombre,
+          codigo: lead.tipoUnidadEdificio.codigo,
+          bedrooms: lead.tipoUnidadEdificio.bedrooms,
+          bathrooms: lead.tipoUnidadEdificio.bathrooms,
+        } : null,
+        reglaComision: lead.reglaComision ? {
+          id: lead.reglaComision.id,
+          cantidadMinima: lead.reglaComision.cantidadMinima,
+          cantidadMaxima: lead.reglaComision.cantidadMaxima,
+          porcentaje: lead.reglaComision.porcentaje,
+          comision: lead.reglaComision.comision,
+        } : null,
+        comisionBase: lead.comisionBase ? {
+          id: lead.comisionBase.id,
+          nombre: lead.comisionBase.nombre,
+          codigo: lead.comisionBase.codigo,
+          porcentaje: lead.comisionBase.porcentaje,
+        } : null,
       })
     })
 

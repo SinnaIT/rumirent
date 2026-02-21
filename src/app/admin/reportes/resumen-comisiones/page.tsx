@@ -21,7 +21,7 @@ import {
 } from '@/components/ui/table'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
-import { Calendar, DollarSign, Users, FileText, Eye, Loader2, Receipt, ArrowDownCircle, ArrowUpCircle } from 'lucide-react'
+import { Calendar, DollarSign, Users, FileText, Eye, Loader2, Receipt, ArrowDownCircle, ArrowUpCircle, Edit } from 'lucide-react'
 import { toast } from 'sonner'
 import {
   Dialog,
@@ -29,7 +29,7 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
+
 } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
@@ -56,6 +56,52 @@ const ANIOS = Array.from({ length: 10 }, (_, i) => {
   return { value: year.toString(), label: year.toString() }
 })
 
+interface ReglaComision {
+  id: string
+  cantidadMinima: number
+  cantidadMaxima: number | null
+  porcentaje: number
+  comision: {
+    id: string
+    nombre: string
+    codigo: string
+  }
+}
+
+interface ComisionBase {
+  id: string
+  nombre: string
+  codigo: string
+  porcentaje: number
+}
+
+interface TipoUnidadEdificio {
+  id: string
+  nombre: string
+  codigo: string
+  bedrooms?: number
+  bathrooms?: number
+}
+
+interface Broker {
+  id: string
+  nombre: string
+  email: string
+  rut?: string
+}
+
+interface Cliente {
+  id: string
+  nombre: string
+  rut: string
+}
+
+interface Edificio {
+  id: string
+  nombre: string
+  direccion?: string
+}
+
 interface Lead {
   id: string
   codigoUnidad: string | null
@@ -65,9 +111,17 @@ interface Lead {
   estado: string
   conciliado: boolean
   fechaPagoReserva: string
+  fechaPagoLead: string | null
   fechaConciliacion: string | null
   fechaCheckin: string | null
+  postulacion: string | null
+  observaciones: string | null
   isValid: boolean
+  broker: {
+    id: string
+    nombre: string
+    email: string
+  }
   cliente: {
     id: string
     nombre: string
@@ -78,7 +132,24 @@ interface Lead {
     nombre: string
   }
   tipoUnidad: string
+  tipoUnidadEdificio: TipoUnidadEdificio | null
+  reglaComision: ReglaComision | null
+  comisionBase: ComisionBase | null
 }
+
+const ESTADOS_LEAD = [
+  { value: 'INGRESADO', label: 'Ingresado' },
+  { value: 'ENTREGADO', label: 'Entregado' },
+  { value: 'EN_EVALUACION', label: 'En Evaluación' },
+  { value: 'OBSERVADO', label: 'Observado' },
+  { value: 'APROBADO', label: 'Aprobado' },
+  { value: 'RESERVA_PAGADA', label: 'Reserva Pagada' },
+  { value: 'CONTRATO_FIRMADO', label: 'Contrato Firmado' },
+  { value: 'CONTRATO_PAGADO', label: 'Contrato Pagado' },
+  { value: 'DEPARTAMENTO_ENTREGADO', label: 'Departamento Entregado' },
+  { value: 'RECHAZADO', label: 'Rechazado' },
+  { value: 'CANCELADO', label: 'Cancelado' }
+]
 
 interface BrokerSummary {
   brokerId: string
@@ -154,6 +225,38 @@ export default function ResumenComisionesPage() {
   const [brokersList, setBrokersList] = useState<{ id: string; nombre: string }[]>([])
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null)
   const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false)
+  const [isEditMode, setIsEditMode] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [manualComisionModified, setManualComisionModified] = useState(false)
+
+  // Dropdown data for edit form
+  const [allBrokers, setAllBrokers] = useState<Broker[]>([])
+  const [allClientes, setAllClientes] = useState<Cliente[]>([])
+  const [allEdificios, setAllEdificios] = useState<Edificio[]>([])
+  const [allTiposUnidad, setAllTiposUnidad] = useState<TipoUnidadEdificio[]>([])
+  const [allComisiones, setAllComisiones] = useState<ComisionBase[]>([])
+  const [allReglasComision, setAllReglasComision] = useState<ReglaComision[]>([])
+
+  // Edit form state
+  const [formData, setFormData] = useState({
+    codigoUnidad: '',
+    totalLead: '',
+    montoUf: '',
+    comision: '',
+    estado: 'INGRESADO',
+    fechaPagoReserva: '',
+    fechaPagoLead: '',
+    fechaCheckin: '',
+    postulacion: '',
+    observaciones: '',
+    conciliado: false,
+    brokerId: 'none',
+    clienteId: 'none',
+    edificioId: 'none',
+    tipoUnidadEdificioId: 'none',
+    reglaComisionId: 'none',
+    comisionId: 'none',
+  })
 
   // Fetch data from API
   const fetchData = async () => {
@@ -215,10 +318,178 @@ export default function ResumenComisionesPage() {
     setActiveTab('detalle')
   }
 
+  // Fetch dropdown data for edit form
+  const fetchEditDropdownData = async () => {
+    try {
+      const [brokersRes, clientesRes, edificiosRes, comisionesRes, reglasRes] = await Promise.all([
+        fetch('/api/admin/brokers'),
+        fetch('/api/admin/clientes'),
+        fetch('/api/admin/edificios'),
+        fetch('/api/admin/comisiones'),
+        fetch('/api/admin/comisiones/reglas'),
+      ])
+
+      const [brokersData, clientesData, edificiosData, comisionesData, reglasData] = await Promise.all([
+        brokersRes.json(),
+        clientesRes.json(),
+        edificiosRes.json(),
+        comisionesRes.json(),
+        reglasRes.json(),
+      ])
+
+      if (brokersData.success) setAllBrokers(brokersData.brokers)
+      if (clientesData.success) setAllClientes(clientesData.clientes)
+      if (edificiosData.success) setAllEdificios(edificiosData.edificios)
+      if (comisionesData.success) setAllComisiones(comisionesData.comisiones)
+      if (reglasData.success) setAllReglasComision(reglasData.reglas)
+    } catch (error) {
+      console.error('Error fetching dropdown data:', error)
+    }
+  }
+
+  const fetchTiposUnidad = async (edificioId: string) => {
+    try {
+      const response = await fetch(`/api/admin/edificios/${edificioId}/tipos-unidad`)
+      const result = await response.json()
+      if (result.success) {
+        setAllTiposUnidad(result.tiposUnidad)
+      } else {
+        setAllTiposUnidad([])
+      }
+    } catch (error) {
+      console.error('Error fetching tipos de unidad:', error)
+      setAllTiposUnidad([])
+    }
+  }
+
+  // When edificioId changes in form, fetch tipos de unidad
+  useEffect(() => {
+    if (isEditMode && formData.edificioId && formData.edificioId !== 'none') {
+      fetchTiposUnidad(formData.edificioId)
+    } else if (isEditMode) {
+      setAllTiposUnidad([])
+    }
+  }, [formData.edificioId, isEditMode])
+
   // Handle "Ver Detalle" lead modal
   const handleViewLeadDetail = (lead: Lead) => {
     setSelectedLead(lead)
+    setIsEditMode(false)
     setIsDetailDialogOpen(true)
+  }
+
+  const handleOpenEditMode = (lead: Lead) => {
+    setSelectedLead(lead)
+
+    const edificioId = lead.edificio?.id || 'none'
+
+    setFormData({
+      codigoUnidad: lead.codigoUnidad || '',
+      totalLead: lead.totalLead.toString(),
+      montoUf: lead.montoUf?.toString() || '',
+      comision: lead.comision.toString(),
+      estado: lead.estado,
+      fechaPagoReserva: lead.fechaPagoReserva ? lead.fechaPagoReserva.substring(0, 10) : '',
+      fechaPagoLead: lead.fechaPagoLead ? lead.fechaPagoLead.substring(0, 10) : '',
+      fechaCheckin: lead.fechaCheckin ? lead.fechaCheckin.substring(0, 10) : '',
+      postulacion: lead.postulacion || '',
+      observaciones: lead.observaciones || '',
+      conciliado: lead.conciliado,
+      brokerId: lead.broker?.id || 'none',
+      clienteId: lead.cliente?.id || 'none',
+      edificioId: edificioId,
+      tipoUnidadEdificioId: lead.tipoUnidadEdificio?.id || 'none',
+      reglaComisionId: lead.reglaComision?.id || 'none',
+      comisionId: lead.comisionBase?.id || 'none',
+    })
+
+    if (edificioId !== 'none') {
+      fetchTiposUnidad(edificioId)
+    }
+
+    setManualComisionModified(false)
+    setIsEditMode(true)
+    setIsDetailDialogOpen(true)
+
+    // Fetch dropdown data if not already loaded
+    if (allBrokers.length === 0) {
+      fetchEditDropdownData()
+    }
+  }
+
+  const resetEditForm = () => {
+    setFormData({
+      codigoUnidad: '',
+      totalLead: '',
+      montoUf: '',
+      comision: '',
+      estado: 'INGRESADO',
+      fechaPagoReserva: '',
+      fechaPagoLead: '',
+      fechaCheckin: '',
+      postulacion: '',
+      observaciones: '',
+      conciliado: false,
+      brokerId: 'none',
+      clienteId: 'none',
+      edificioId: 'none',
+      tipoUnidadEdificioId: 'none',
+      reglaComisionId: 'none',
+      comisionId: 'none',
+    })
+    setManualComisionModified(false)
+    setIsEditMode(false)
+    setSelectedLead(null)
+    setAllTiposUnidad([])
+  }
+
+  const handleEditSubmit = async () => {
+    if (!selectedLead) return
+
+    if (!formData.totalLead || !formData.montoUf || !formData.brokerId || formData.brokerId === 'none' || !formData.clienteId || formData.clienteId === 'none') {
+      toast.error('Total lead, monto UF, broker y cliente son requeridos')
+      return
+    }
+
+    if (!formData.edificioId || formData.edificioId === 'none') {
+      toast.error('Proyecto (edificio) es requerido')
+      return
+    }
+
+    try {
+      setSaving(true)
+      const response = await fetch(`/api/admin/leads/${selectedLead.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...formData,
+          brokerId: formData.brokerId === 'none' ? null : formData.brokerId,
+          clienteId: formData.clienteId === 'none' ? null : formData.clienteId,
+          edificioId: formData.edificioId === 'none' ? null : formData.edificioId,
+          tipoUnidadEdificioId: formData.tipoUnidadEdificioId === 'none' ? null : formData.tipoUnidadEdificioId,
+          reglaComisionId: formData.reglaComisionId === 'none' ? null : formData.reglaComisionId,
+          comisionId: formData.comisionId === 'none' ? null : formData.comisionId,
+          manualComision: manualComisionModified,
+        }),
+      })
+
+      const result = await response.json()
+
+      if (result.success) {
+        toast.success(result.message || 'Lead actualizado correctamente')
+        setIsDetailDialogOpen(false)
+        resetEditForm()
+        // Refresh report data
+        fetchData()
+      } else {
+        toast.error(result.error || 'Error al actualizar el lead')
+      }
+    } catch (error) {
+      console.error('Error:', error)
+      toast.error('Error de conexión')
+    } finally {
+      setSaving(false)
+    }
   }
 
   // Format currency
@@ -662,6 +933,7 @@ export default function ResumenComisionesPage() {
                           <Table>
                             <TableHeader>
                               <TableRow>
+                                <TableHead className="text-center">Acciones</TableHead>
                                 <TableHead>Broker</TableHead>
                                 <TableHead>Cliente</TableHead>
                                 <TableHead>Edificio</TableHead>
@@ -672,12 +944,31 @@ export default function ResumenComisionesPage() {
                                 <TableHead className="text-center">Conciliado</TableHead>
                                 <TableHead className="text-center">Check-in</TableHead>
                                 <TableHead className="text-center">Válido</TableHead>
-                                <TableHead className="text-center">Acciones</TableHead>
                               </TableRow>
                             </TableHeader>
                             <TableBody>
                               {allLeads.map((lead) => (
                                 <TableRow key={lead.id}>
+                                  <TableCell className="text-center">
+                                    <div className="flex items-center justify-center gap-1">
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => handleViewLeadDetail(lead)}
+                                        title="Ver detalle"
+                                      >
+                                        <Eye className="h-4 w-4" />
+                                      </Button>
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => handleOpenEditMode(lead)}
+                                        title="Editar lead"
+                                      >
+                                        <Edit className="h-4 w-4 text-orange-600" />
+                                      </Button>
+                                    </div>
+                                  </TableCell>
                                   <TableCell className="font-medium">
                                     {lead.brokerNombre}
                                   </TableCell>
@@ -732,15 +1023,6 @@ export default function ResumenComisionesPage() {
                                     ) : (
                                       <Badge variant="destructive">No</Badge>
                                     )}
-                                  </TableCell>
-                                  <TableCell className="text-center">
-                                    <Button
-                                      variant="ghost"
-                                      size="sm"
-                                      onClick={() => handleViewLeadDetail(lead)}
-                                    >
-                                      <Eye className="h-4 w-4" />
-                                    </Button>
                                   </TableCell>
                                 </TableRow>
                               ))}
@@ -820,6 +1102,7 @@ export default function ResumenComisionesPage() {
                         <Table>
                           <TableHeader>
                             <TableRow>
+                              <TableHead className="text-center">Acciones</TableHead>
                               <TableHead>Cliente</TableHead>
                               <TableHead>Edificio</TableHead>
                               <TableHead>Unidad</TableHead>
@@ -829,12 +1112,31 @@ export default function ResumenComisionesPage() {
                               <TableHead className="text-center">Conciliado</TableHead>
                               <TableHead className="text-center">Check-in</TableHead>
                               <TableHead className="text-center">Válido</TableHead>
-                              <TableHead className="text-center">Acciones</TableHead>
                             </TableRow>
                           </TableHeader>
                           <TableBody>
                             {brokerData.leads.map((lead) => (
                               <TableRow key={lead.id}>
+                                <TableCell className="text-center">
+                                  <div className="flex items-center justify-center gap-1">
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => handleViewLeadDetail(lead)}
+                                      title="Ver detalle"
+                                    >
+                                      <Eye className="h-4 w-4" />
+                                    </Button>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => handleOpenEditMode(lead)}
+                                      title="Editar lead"
+                                    >
+                                      <Edit className="h-4 w-4 text-orange-600" />
+                                    </Button>
+                                  </div>
+                                </TableCell>
                                 <TableCell>
                                   <div>
                                     <div className="font-medium">{lead.cliente.nombre}</div>
@@ -887,15 +1189,6 @@ export default function ResumenComisionesPage() {
                                     <Badge variant="destructive">No</Badge>
                                   )}
                                 </TableCell>
-                                <TableCell className="text-center">
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => handleViewLeadDetail(lead)}
-                                  >
-                                    <Eye className="h-4 w-4" />
-                                  </Button>
-                                </TableCell>
                               </TableRow>
                             ))}
                           </TableBody>
@@ -910,22 +1203,47 @@ export default function ResumenComisionesPage() {
         </TabsContent>
       </Tabs>
 
-      {/* Lead Detail Modal */}
-      <Dialog open={isDetailDialogOpen} onOpenChange={setIsDetailDialogOpen}>
+      {/* Lead Detail/Edit Modal */}
+      <Dialog open={isDetailDialogOpen} onOpenChange={(open) => {
+        if (!open) {
+          setIsDetailDialogOpen(false)
+          if (isEditMode) resetEditForm()
+        }
+      }}>
         <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center">
-              <FileText className="w-5 h-5 mr-2" />
-              Detalle del Lead
+              {isEditMode ? (
+                <>
+                  <Edit className="w-5 h-5 mr-2" />
+                  Editar Lead
+                </>
+              ) : (
+                <>
+                  <FileText className="w-5 h-5 mr-2" />
+                  Detalle del Lead
+                </>
+              )}
             </DialogTitle>
             <DialogDescription>
-              Información completa del lead en modo solo lectura
+              {isEditMode
+                ? 'Modifica los datos del lead. Todos los campos son editables.'
+                : 'Información completa del lead. Haz clic en "Editar" para modificar.'}
             </DialogDescription>
           </DialogHeader>
 
-          {selectedLead && (
+          {selectedLead && !isEditMode && (
             <div className="grid gap-4 py-4">
               <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 gap-2">
+                  <Label>Broker</Label>
+                  <Input
+                    value={selectedLead.broker?.nombre || 'N/A'}
+                    disabled
+                    className="bg-muted"
+                  />
+                </div>
+
                 <div className="grid grid-cols-1 gap-2">
                   <Label>Cliente</Label>
                   <Input
@@ -939,7 +1257,9 @@ export default function ResumenComisionesPage() {
                     className="bg-muted text-xs"
                   />
                 </div>
+              </div>
 
+              <div className="grid grid-cols-2 gap-4">
                 <div className="grid grid-cols-1 gap-2">
                   <Label>Proyecto (Edificio)</Label>
                   <Input
@@ -948,9 +1268,7 @@ export default function ResumenComisionesPage() {
                     className="bg-muted"
                   />
                 </div>
-              </div>
 
-              <div className="grid grid-cols-2 gap-4">
                 <div className="grid grid-cols-1 gap-2">
                   <Label>Tipo de Unidad</Label>
                   <Input
@@ -959,7 +1277,9 @@ export default function ResumenComisionesPage() {
                     className="bg-muted"
                   />
                 </div>
+              </div>
 
+              <div className="grid grid-cols-2 gap-4">
                 <div className="grid grid-cols-1 gap-2">
                   <Label>Código Unidad</Label>
                   <Input
@@ -968,14 +1288,14 @@ export default function ResumenComisionesPage() {
                     className="bg-muted"
                   />
                 </div>
-              </div>
 
-              <div className="grid grid-cols-1 gap-2">
-                <Label>Estado</Label>
-                <div className="p-2 bg-muted rounded-md">
-                  <Badge variant={getEstadoBadge(selectedLead.estado)}>
-                    {selectedLead.estado.replace(/_/g, ' ')}
-                  </Badge>
+                <div className="grid grid-cols-1 gap-2">
+                  <Label>Estado</Label>
+                  <div className="p-2 bg-muted rounded-md">
+                    <Badge variant={getEstadoBadge(selectedLead.estado)}>
+                      {selectedLead.estado.replace(/_/g, ' ')}
+                    </Badge>
+                  </div>
                 </div>
               </div>
 
@@ -1008,6 +1328,26 @@ export default function ResumenComisionesPage() {
                 </div>
               </div>
 
+              <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 gap-2">
+                  <Label>Comisión Base</Label>
+                  <Input
+                    value={selectedLead.comisionBase ? `${selectedLead.comisionBase.nombre} (${selectedLead.comisionBase.codigo}) - ${(selectedLead.comisionBase.porcentaje * 100).toFixed(1)}%` : 'N/A'}
+                    disabled
+                    className="bg-muted"
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 gap-2">
+                  <Label>Regla de Comisión</Label>
+                  <Input
+                    value={selectedLead.reglaComision ? `${selectedLead.reglaComision.comision.nombre} - ${(selectedLead.reglaComision.porcentaje * 100).toFixed(1)}%` : 'N/A'}
+                    disabled
+                    className="bg-muted"
+                  />
+                </div>
+              </div>
+
               <div className="grid grid-cols-3 gap-4">
                 <div className="grid grid-cols-1 gap-2">
                   <Label>Fecha Pago Reserva</Label>
@@ -1019,9 +1359,9 @@ export default function ResumenComisionesPage() {
                 </div>
 
                 <div className="grid grid-cols-1 gap-2">
-                  <Label>Fecha Conciliación</Label>
+                  <Label>Fecha Pago Lead</Label>
                   <Input
-                    value={selectedLead.fechaConciliacion ? formatDate(selectedLead.fechaConciliacion) : 'N/A'}
+                    value={selectedLead.fechaPagoLead ? formatDate(selectedLead.fechaPagoLead) : 'N/A'}
                     disabled
                     className="bg-muted"
                   />
@@ -1035,6 +1375,25 @@ export default function ResumenComisionesPage() {
                     className="bg-muted"
                   />
                 </div>
+              </div>
+
+              <div className="grid grid-cols-1 gap-2">
+                <Label>Postulación</Label>
+                <Input
+                  value={selectedLead.postulacion || 'N/A'}
+                  disabled
+                  className="bg-muted"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 gap-2">
+                <Label>Observaciones</Label>
+                <Textarea
+                  value={selectedLead.observaciones || 'N/A'}
+                  disabled
+                  className="bg-muted"
+                  rows={2}
+                />
               </div>
 
               <div className="grid grid-cols-2 gap-4">
@@ -1055,12 +1414,323 @@ export default function ResumenComisionesPage() {
                 </div>
               </div>
 
-              <div className="flex justify-end">
+              <div className="flex justify-end space-x-2">
                 <Button
                   variant="outline"
                   onClick={() => setIsDetailDialogOpen(false)}
                 >
                   Cerrar
+                </Button>
+                <Button onClick={() => handleOpenEditMode(selectedLead)}>
+                  <Edit className="w-4 h-4 mr-2" />
+                  Editar
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {selectedLead && isEditMode && (
+            <div className="grid gap-4 py-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 gap-2">
+                  <Label htmlFor="broker">Broker *</Label>
+                  <Select value={formData.brokerId} onValueChange={(value: string) => setFormData({ ...formData, brokerId: value })}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Seleccionar broker" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Seleccionar broker...</SelectItem>
+                      {allBrokers
+                        .filter(b => b.id && b.id.trim() !== '')
+                        .map((broker) => (
+                          <SelectItem key={broker.id} value={broker.id}>
+                            {broker.nombre} {broker.rut ? `- ${broker.rut}` : ''}
+                          </SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="grid grid-cols-1 gap-2">
+                  <Label htmlFor="cliente">Cliente *</Label>
+                  <Select value={formData.clienteId} onValueChange={(value: string) => setFormData({ ...formData, clienteId: value })}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Seleccionar cliente" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Seleccionar cliente...</SelectItem>
+                      {allClientes
+                        .filter(c => c.id && c.id.trim() !== '')
+                        .map((cliente) => (
+                          <SelectItem key={cliente.id} value={cliente.id}>
+                            {cliente.nombre} - {cliente.rut}
+                          </SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 gap-2">
+                  <Label htmlFor="edificio">Proyecto (Edificio) *</Label>
+                  <Select value={formData.edificioId} onValueChange={(value: string) => setFormData({ ...formData, edificioId: value })}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Seleccionar proyecto" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Seleccionar proyecto...</SelectItem>
+                      {allEdificios
+                        .filter(e => e.id && e.id.trim() !== '')
+                        .map((edificio) => (
+                          <SelectItem key={edificio.id} value={edificio.id}>
+                            {edificio.nombre}
+                          </SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="grid grid-cols-1 gap-2">
+                  <Label htmlFor="tipoUnidad">Tipo de Unidad</Label>
+                  <Select
+                    value={formData.tipoUnidadEdificioId}
+                    onValueChange={(value: string) => setFormData({ ...formData, tipoUnidadEdificioId: value })}
+                    disabled={!formData.edificioId || formData.edificioId === 'none' || allTiposUnidad.length === 0}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder={
+                        !formData.edificioId || formData.edificioId === 'none'
+                          ? "Primero selecciona un proyecto"
+                          : allTiposUnidad.length === 0
+                            ? "No hay tipos disponibles"
+                            : "Seleccionar tipo de unidad"
+                      } />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Sin tipo específico</SelectItem>
+                      {allTiposUnidad
+                        .filter(t => t.id && t.id.trim() !== '')
+                        .map((tipo) => (
+                          <SelectItem key={tipo.id} value={tipo.id}>
+                            {tipo.nombre} ({tipo.codigo})
+                            {tipo.bedrooms && tipo.bathrooms && ` - ${tipo.bedrooms}D/${tipo.bathrooms}B`}
+                          </SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 gap-2">
+                  <Label htmlFor="codigoUnidad">Código Unidad</Label>
+                  <Input
+                    id="codigoUnidad"
+                    value={formData.codigoUnidad}
+                    onChange={(e) => setFormData({ ...formData, codigoUnidad: e.target.value })}
+                    placeholder="Ej: A-101"
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 gap-2">
+                  <Label htmlFor="estado">Estado</Label>
+                  <Select value={formData.estado} onValueChange={(value) => setFormData({ ...formData, estado: value })}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {ESTADOS_LEAD.map((estado) => (
+                        <SelectItem key={estado.value} value={estado.value}>
+                          {estado.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 gap-2">
+                  <Label htmlFor="totalLead">Total Lead (CLP) *</Label>
+                  <Input
+                    id="totalLead"
+                    type="number"
+                    value={formData.totalLead}
+                    onChange={(e) => setFormData({ ...formData, totalLead: e.target.value })}
+                    placeholder="150000000"
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 gap-2">
+                  <Label htmlFor="montoUf">Monto UF *</Label>
+                  <Input
+                    id="montoUf"
+                    type="number"
+                    step="0.01"
+                    value={formData.montoUf}
+                    onChange={(e) => setFormData({ ...formData, montoUf: e.target.value })}
+                    placeholder="4500.50"
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 gap-2">
+                  <Label htmlFor="comision">Comisión (CLP)</Label>
+                  <Input
+                    id="comision"
+                    type="number"
+                    value={formData.comision}
+                    onChange={(e) => {
+                      setFormData({ ...formData, comision: e.target.value })
+                      setManualComisionModified(true)
+                    }}
+                    placeholder="7500000"
+                  />
+                  {manualComisionModified && (
+                    <div className="text-xs text-amber-600 flex items-center gap-1">
+                      Comisión modificada manualmente - no se recalculará automáticamente
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 gap-2">
+                <Label htmlFor="comisionBase">Comisión Base (Opcional)</Label>
+                <Select
+                  value={formData.comisionId}
+                  onValueChange={(value: string) => {
+                    setFormData({ ...formData, comisionId: value })
+                    if (selectedLead && value !== (selectedLead.comisionBase?.id || 'none')) {
+                      setManualComisionModified(true)
+                    }
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Seleccionar comisión base" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Sin comisión base específica</SelectItem>
+                    {allComisiones
+                      .filter(c => c.id && c.id.trim() !== '')
+                      .sort((a, b) => a.nombre.localeCompare(b.nombre))
+                      .map((comision) => (
+                        <SelectItem key={comision.id} value={comision.id}>
+                          {comision.nombre} ({comision.codigo}) - {(comision.porcentaje * 100).toFixed(1)}%
+                        </SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="grid grid-cols-1 gap-2">
+                <Label htmlFor="reglaComision">Regla de Comisión (Opcional)</Label>
+                <Select
+                  value={formData.reglaComisionId}
+                  onValueChange={(value: string) => {
+                    setFormData({ ...formData, reglaComisionId: value })
+                    if (selectedLead && value !== (selectedLead.reglaComision?.id || 'none')) {
+                      setManualComisionModified(true)
+                    }
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Seleccionar regla de comisión" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Sin regla específica</SelectItem>
+                    {allReglasComision
+                      .filter(r => r.id && r.id.trim() !== '')
+                      .sort((a, b) => a.comision.nombre.localeCompare(b.comision.nombre) || a.cantidadMinima - b.cantidadMinima)
+                      .map((regla) => (
+                        <SelectItem key={regla.id} value={regla.id}>
+                          {regla.comision.nombre} ({regla.comision.codigo}) - {(regla.porcentaje * 100).toFixed(1)}%
+                          (${regla.cantidadMinima.toLocaleString()}{regla.cantidadMaxima ? ` - $${regla.cantidadMaxima.toLocaleString()}` : '+'})
+                        </SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
+                {formData.reglaComisionId && formData.reglaComisionId !== 'none' && !manualComisionModified && (
+                  <div className="text-xs text-muted-foreground">
+                    Esta regla puede recalcular automáticamente la comisión según el monto del lead
+                  </div>
+                )}
+              </div>
+
+              <div className="grid grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 gap-2">
+                  <Label htmlFor="fechaPagoReserva">Fecha Pago Reserva</Label>
+                  <Input
+                    id="fechaPagoReserva"
+                    type="date"
+                    value={formData.fechaPagoReserva}
+                    onChange={(e) => setFormData({ ...formData, fechaPagoReserva: e.target.value })}
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 gap-2">
+                  <Label htmlFor="fechaPagoLead">Fecha Pago Lead</Label>
+                  <Input
+                    id="fechaPagoLead"
+                    type="date"
+                    value={formData.fechaPagoLead}
+                    onChange={(e) => setFormData({ ...formData, fechaPagoLead: e.target.value })}
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 gap-2">
+                  <Label htmlFor="fechaCheckin">Fecha Check-in</Label>
+                  <Input
+                    id="fechaCheckin"
+                    type="date"
+                    value={formData.fechaCheckin}
+                    onChange={(e) => setFormData({ ...formData, fechaCheckin: e.target.value })}
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 gap-2">
+                <Label htmlFor="postulacion">Postulación</Label>
+                <Input
+                  id="postulacion"
+                  value={formData.postulacion}
+                  onChange={(e) => setFormData({ ...formData, postulacion: e.target.value })}
+                  placeholder="Información sobre postulación..."
+                />
+              </div>
+
+              <div className="grid grid-cols-1 gap-2">
+                <Label htmlFor="observaciones">Observaciones</Label>
+                <Textarea
+                  id="observaciones"
+                  value={formData.observaciones}
+                  onChange={(e) => setFormData({ ...formData, observaciones: e.target.value })}
+                  placeholder="Observaciones adicionales..."
+                  rows={3}
+                />
+              </div>
+
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="conciliado"
+                  checked={formData.conciliado}
+                  onCheckedChange={(checked) => setFormData({ ...formData, conciliado: checked as boolean })}
+                />
+                <Label htmlFor="conciliado">Lead conciliado</Label>
+              </div>
+
+              <div className="flex justify-end space-x-2">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setIsDetailDialogOpen(false)
+                    resetEditForm()
+                  }}
+                  disabled={saving}
+                >
+                  Cancelar
+                </Button>
+                <Button onClick={handleEditSubmit} disabled={saving}>
+                  {saving ? 'Guardando...' : 'Actualizar Lead'}
                 </Button>
               </div>
             </div>
