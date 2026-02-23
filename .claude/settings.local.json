@@ -58,7 +58,8 @@
       "Bash(del /F /Q \"d:\\development\\sinntait\\rumirent\\rumirent-app\\src\\app\\api\\admin\\reportes\\brokers-mensual\\route.ts\" 2)",
       "Bash(npx shadcn@latest add:*)",
       "Bash(chmod:*)",
-      "Bash(dir:*)"
+      "Bash(dir:*)",
+      "Bash(ls:*)"
     ],
     "deny": [],
     "ask": []

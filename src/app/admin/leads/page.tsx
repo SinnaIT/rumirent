@@ -9,6 +9,7 @@ import { TableHead } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog'
 import { Textarea } from '@/components/ui/textarea'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
@@ -25,7 +26,8 @@ import {
   Calculator,
   MessageCircle,
   Mail,
-  Eye
+  Eye,
+  Trash2
 } from 'lucide-react'
 
 interface Broker {
@@ -159,6 +161,7 @@ export default function AdminLeadsPage() {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [editingLead, setEditingLead] = useState<Lead | null>(null)
   const [manualComisionModified, setManualComisionModified] = useState(false)
+  const [deletingLeadId, setDeletingLeadId] = useState<string | null>(null)
 
   // Form state
   const [formData, setFormData] = useState<{
@@ -593,6 +596,30 @@ export default function AdminLeadsPage() {
 
   const handleViewClient = (clienteId: string) => {
     window.open(`/admin/clientes/${clienteId}`, '_blank')
+  }
+
+  const handleDeleteLead = async (leadId: string) => {
+    try {
+      setDeletingLeadId(leadId)
+      const response = await fetch(`/api/admin/leads/${leadId}`, {
+        method: 'DELETE'
+      })
+
+      const data = await response.json()
+
+      if (data.success) {
+        toast.success('Lead eliminado exitosamente')
+        setLeads(prev => prev.filter(l => l.id !== leadId))
+        setFilteredLeads(prev => prev.filter(l => l.id !== leadId))
+      } else {
+        toast.error(data.error || 'Error al eliminar el lead')
+      }
+    } catch (error) {
+      console.error('Error:', error)
+      toast.error('Error de conexión al eliminar el lead')
+    } finally {
+      setDeletingLeadId(null)
+    }
   }
 
   if (loading) {
@@ -1277,6 +1304,45 @@ export default function AdminLeadsPage() {
                                 </div>
                               </DialogContent>
                               </Dialog>
+
+                              <AlertDialog>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <AlertDialogTrigger asChild>
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="h-8 w-8 p-0"
+                                        disabled={deletingLeadId === lead.id}
+                                      >
+                                        <Trash2 className="w-4 h-4 text-red-600" />
+                                      </Button>
+                                    </AlertDialogTrigger>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    <p>Eliminar lead</p>
+                                  </TooltipContent>
+                                </Tooltip>
+                                <AlertDialogContent>
+                                  <AlertDialogHeader>
+                                    <AlertDialogTitle>Eliminar Lead</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                      ¿Estás seguro de que deseas eliminar este lead de <strong>{lead.cliente.nombre}</strong> ({lead.cliente.rut}) del proyecto <strong>{lead.edificio.nombre}</strong>?
+                                      <br /><br />
+                                      Esta acción no se puede deshacer.
+                                    </AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <AlertDialogFooter>
+                                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                    <AlertDialogAction
+                                      onClick={() => handleDeleteLead(lead.id)}
+                                      className="bg-red-600 hover:bg-red-700"
+                                    >
+                                      Eliminar
+                                    </AlertDialogAction>
+                                  </AlertDialogFooter>
+                                </AlertDialogContent>
+                              </AlertDialog>
                             </div>
                           </TooltipProvider>
                         </td>

@@ -513,3 +513,51 @@ export async function PUT(
     )
   }
 }
+
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params
+    console.log('🗑️ DELETE /api/admin/leads/' + id)
+
+    const authResult = await verifyAuth(request)
+    if (!authResult.success || authResult.user?.role !== 'ADMIN') {
+      return NextResponse.json(
+       { error: 'No autorizado' },
+       { status: 401 }
+      )
+    }
+    
+
+    const existingLead = await prisma.lead.findUnique({
+      where: { id }
+    })
+
+    if (!existingLead) {
+      return NextResponse.json(
+        { error: 'Lead no encontrado' },
+        { status: 404 }
+      )
+    }
+
+    await prisma.lead.delete({
+      where: { id }
+    })
+
+    console.log('✅ Lead eliminado exitosamente')
+
+    return NextResponse.json({
+      success: true,
+      message: 'Lead eliminado exitosamente'
+    })
+
+  } catch (error) {
+    console.error('❌ Error al eliminar lead:', error)
+    return NextResponse.json(
+      { error: 'Error interno del servidor' },
+      { status: 500 }
+    )
+  }
+}
