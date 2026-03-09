@@ -27,7 +27,8 @@ import {
   MessageCircle,
   Mail,
   Eye,
-  Trash2
+  Trash2,
+  Building
 } from 'lucide-react'
 
 interface Broker {
@@ -96,6 +97,19 @@ interface TipoUnidadEdificio {
   comision?: ComisionBase
 }
 
+interface UnidadOption {
+  id: string
+  numero: string
+  estado: string
+  descripcion?: string
+  metros2?: number
+  tipoUnidadEdificio?: {
+    id: string
+    nombre: string
+    codigo: string
+  }
+}
+
 interface Lead {
   id: string
   codigoUnidad?: string
@@ -144,6 +158,7 @@ export default function AdminLeadsPage() {
   const [comisiones, setComisiones] = useState<ComisionBase[]>([])
   const [edificios, setEdificios] = useState<Edificio[]>([])
   const [tiposUnidad, setTiposUnidad] = useState<TipoUnidadEdificio[]>([])
+  const [unidades, setUnidades] = useState<UnidadOption[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [recalculando, setRecalculando] = useState(false)
@@ -162,6 +177,8 @@ export default function AdminLeadsPage() {
   const [editingLead, setEditingLead] = useState<Lead | null>(null)
   const [manualComisionModified, setManualComisionModified] = useState(false)
   const [deletingLeadId, setDeletingLeadId] = useState<string | null>(null)
+  const [isUnitDialogOpen, setIsUnitDialogOpen] = useState(false)
+  const [savingUnit, setSavingUnit] = useState(false)
 
   // Form state
   const [formData, setFormData] = useState<{
@@ -181,6 +198,8 @@ export default function AdminLeadsPage() {
     edificioId: string
     tipoUnidadEdificioId: string
     unidadId: string
+    unitNumero: string
+    unitDescripcion: string
     reglaComisionId: string
     comisionId: string
   }>({
@@ -200,6 +219,8 @@ export default function AdminLeadsPage() {
     edificioId: 'none',
     tipoUnidadEdificioId: 'none',
     unidadId: 'none',
+    unitNumero: '',
+    unitDescripcion: '',
     reglaComisionId: 'none',
     comisionId: 'none'
   })
@@ -214,12 +235,14 @@ export default function AdminLeadsPage() {
   }, [])
 
   useEffect(() => {
-    // Fetch tipos de unidad when edificioId changes
+    // Fetch tipos de unidad and unidades when edificioId changes
     if (formData.edificioId && formData.edificioId !== 'none') {
       fetchTiposUnidad(formData.edificioId)
+      fetchUnidades(formData.edificioId)
     } else {
       setTiposUnidad([])
-      setFormData(prev => ({ ...prev, tipoUnidadEdificioId: 'none' }))
+      setUnidades([])
+      setFormData(prev => ({ ...prev, tipoUnidadEdificioId: 'none', unidadId: 'none' }))
     }
   }, [formData.edificioId])
 
@@ -434,6 +457,23 @@ export default function AdminLeadsPage() {
     }
   }
 
+  const fetchUnidades = async (edificioId: string) => {
+    try {
+      const response = await fetch(`/api/admin/edificios/${edificioId}/unidades`)
+      const data = await response.json()
+
+      if (data.success) {
+        setUnidades(data.unidades)
+      } else {
+        console.error('Error al cargar unidades:', data.error)
+        setUnidades([])
+      }
+    } catch (error) {
+      console.error('Error:', error)
+      setUnidades([])
+    }
+  }
+
   const resetForm = () => {
     setFormData({
       codigoUnidad: '',
@@ -452,11 +492,14 @@ export default function AdminLeadsPage() {
       edificioId: 'none',
       tipoUnidadEdificioId: 'none',
       unidadId: 'none',
+      unitNumero: '',
+      unitDescripcion: '',
       reglaComisionId: 'none',
       comisionId: 'none'
     })
     setEditingLead(null)
     setTiposUnidad([])
+    setUnidades([])
     setManualComisionModified(false)
   }
 
@@ -481,13 +524,16 @@ export default function AdminLeadsPage() {
       edificioId: edificioId,
       tipoUnidadEdificioId: tipoUnidadId,
       unidadId: (lead.unidad?.id && lead.unidad.id.trim() !== '') ? lead.unidad.id : 'none',
+      unitNumero: lead.unidad?.numero || '',
+      unitDescripcion: lead.unidad?.descripcion || '',
       reglaComisionId: (lead.reglaComision?.id && lead.reglaComision.id.trim() !== '') ? lead.reglaComision.id : 'none',
       comisionId: (lead.comisionBase?.id && lead.comisionBase.id.trim() !== '') ? lead.comisionBase.id : 'none'
     })
 
-    // Load tipos de unidad for the selected edificio
+    // Load tipos de unidad and unidades for the selected edificio
     if (edificioId !== 'none') {
       fetchTiposUnidad(edificioId)
+      fetchUnidades(edificioId)
     }
 
     setEditingLead(lead)
@@ -619,6 +665,50 @@ export default function AdminLeadsPage() {
       toast.error('Error de conexión al eliminar el lead')
     } finally {
       setDeletingLeadId(null)
+    }
+  }
+
+  const handleSaveUnit = async () => {
+    const unitId = formData.unidadId
+    if (!unitId || unitId === 'none' || !formData.unitNumero) return
+
+    const originalUnit = unidades.find(u => u.id === unitId)
+    if (!originalUnit) return
+
+    try {
+      setSavingUnit(true)
+      const response = await fetch(`/api/admin/unidades/${unitId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          numero: formData.unitNumero,
+          descripcion: formData.unitDescripcion || null,
+          tipoUnidadEdificioId: originalUnit.tipoUnidadEdificio?.id || formData.tipoUnidadEdificioId,
+          estado: originalUnit.estado,
+          metros2: originalUnit.metros2 || null,
+          edificioId: formData.edificioId
+        })
+      })
+
+      const data = await response.json()
+
+      if (data.success) {
+        toast.success('Unidad actualizada exitosamente')
+        // Update codigoUnidad with the new unit number
+        setFormData(prev => ({ ...prev, codigoUnidad: formData.unitNumero }))
+        // Refresh unidades list to reflect changes
+        if (formData.edificioId && formData.edificioId !== 'none') {
+          await fetchUnidades(formData.edificioId)
+        }
+        setIsUnitDialogOpen(false)
+      } else {
+        toast.error(data.error || 'Error al actualizar la unidad')
+      }
+    } catch (error) {
+      console.error('Error:', error)
+      toast.error('Error de conexión')
+    } finally {
+      setSavingUnit(false)
     }
   }
 
@@ -1090,32 +1180,90 @@ export default function AdminLeadsPage() {
                                     </div>
                                   </div>
 
-                                  <div className="grid grid-cols-2 gap-4">
-                                    <div className="grid grid-cols-1 gap-2">
-                                      <Label htmlFor="codigoUnidad">Código Unidad</Label>
-                                      <Input
-                                        id="codigoUnidad"
-                                        value={formData.codigoUnidad}
-                                        onChange={(e) => setFormData({ ...formData, codigoUnidad: e.target.value })}
-                                        placeholder="Ej: A-101"
-                                      />
+                                  {/* Unidad del proyecto */}
+                                  <div className="space-y-3 border rounded-lg p-3">
+                                    <Label className="text-sm font-semibold">Unidad del Proyecto</Label>
+                                    <div className="grid grid-cols-2 gap-4">
+                                      <div className="grid grid-cols-1 gap-2">
+                                        <Label htmlFor="unidad" className="text-xs text-muted-foreground">Seleccionar unidad existente</Label>
+                                        <Select
+                                          value={formData.unidadId}
+                                          onValueChange={(value: string) => {
+                                            const selectedUnit = unidades.find(u => u.id === value)
+                                            setFormData({
+                                              ...formData,
+                                              unidadId: value,
+                                              codigoUnidad: selectedUnit?.numero || '',
+                                              unitNumero: selectedUnit?.numero || '',
+                                              unitDescripcion: selectedUnit?.descripcion || ''
+                                            })
+                                          }}
+                                          disabled={!formData.edificioId || formData.edificioId === 'none' || unidades.length === 0}
+                                        >
+                                          <SelectTrigger>
+                                            <SelectValue placeholder={
+                                              !formData.edificioId || formData.edificioId === 'none'
+                                                ? "Primero selecciona un proyecto"
+                                                : unidades.length === 0
+                                                  ? "No hay unidades disponibles"
+                                                  : "Seleccionar unidad"
+                                            } />
+                                          </SelectTrigger>
+                                          <SelectContent>
+                                            <SelectItem value="none">Sin unidad específica</SelectItem>
+                                            {unidades
+                                              .filter(u => u.id && u.id.trim() !== '')
+                                              .map((unidad) => (
+                                                <SelectItem key={unidad.id} value={unidad.id}>
+                                                  {unidad.numero}{unidad.tipoUnidadEdificio ? ` - ${unidad.tipoUnidadEdificio.nombre}` : ''} ({unidad.estado})
+                                                </SelectItem>
+                                              ))}
+                                          </SelectContent>
+                                        </Select>
+                                      </div>
+
+                                      <div className="grid grid-cols-1 gap-2">
+                                        <Label htmlFor="codigoUnidad" className="text-xs text-muted-foreground">Código unidad (manual)</Label>
+                                        <Input
+                                          id="codigoUnidad"
+                                          value={formData.codigoUnidad}
+                                          readOnly
+                                          className="bg-muted cursor-not-allowed"
+                                          placeholder="Se actualiza automáticamente"
+                                        />
+                                      </div>
                                     </div>
 
-                                    <div className="grid grid-cols-1 gap-2">
-                                      <Label htmlFor="estado">Estado</Label>
-                                      <Select value={formData.estado} onValueChange={(value) => setFormData({ ...formData, estado: value as Lead['estado'] })}>
-                                        <SelectTrigger>
-                                          <SelectValue />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                          {ESTADOS_LEAD.map((estado) => (
-                                            <SelectItem key={estado.value} value={estado.value}>
-                                              {estado.label}
-                                            </SelectItem>
-                                          ))}
-                                        </SelectContent>
-                                      </Select>
-                                    </div>
+                                    {formData.unidadId && formData.unidadId !== 'none' && (
+                                      <div className="border-t pt-3">
+                                        <Button
+                                          type="button"
+                                          variant="outline"
+                                          size="sm"
+                                          onClick={() => setIsUnitDialogOpen(true)}
+                                          className="w-full"
+                                        >
+                                          <Edit className="w-4 h-4 mr-2" />
+                                          Editar datos de la unidad ({formData.unitNumero || 'Sin número'})
+                                        </Button>
+                                      </div>
+                                    )}
+                                  </div>
+
+                                  <div className="grid grid-cols-1 gap-2">
+                                    <Label htmlFor="estado">Estado del Lead</Label>
+                                    <Select value={formData.estado} onValueChange={(value) => setFormData({ ...formData, estado: value as Lead['estado'] })}>
+                                      <SelectTrigger>
+                                        <SelectValue />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        {ESTADOS_LEAD.map((estado) => (
+                                          <SelectItem key={estado.value} value={estado.value}>
+                                            {estado.label}
+                                          </SelectItem>
+                                        ))}
+                                      </SelectContent>
+                                    </Select>
                                   </div>
 
                                   <div className="grid grid-cols-3 gap-4">
@@ -1511,6 +1659,63 @@ export default function AdminLeadsPage() {
                 {recalculando ? 'Recalculando...' : 'Recalcular'}
               </Button>
             </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog para editar datos de la unidad */}
+      <Dialog open={isUnitDialogOpen} onOpenChange={(open) => {
+        if (!open) {
+          setIsUnitDialogOpen(false)
+        }
+      }}>
+        <DialogContent className="sm:max-w-[450px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center">
+              <Building className="w-5 h-5 mr-2" />
+              Editar Unidad
+            </DialogTitle>
+            <DialogDescription>
+              Modifica los datos de la unidad asociada al lead. Los cambios se guardarán directamente en la unidad.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="unitDialogNumero">Número / Nombre *</Label>
+              <Input
+                id="unitDialogNumero"
+                value={formData.unitNumero}
+                onChange={(e) => setFormData({ ...formData, unitNumero: e.target.value })}
+                placeholder="Ej: 101, A-201"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="unitDialogDescripcion">Descripción</Label>
+              <Input
+                id="unitDialogDescripcion"
+                value={formData.unitDescripcion}
+                onChange={(e) => setFormData({ ...formData, unitDescripcion: e.target.value })}
+                placeholder="Descripción de la unidad..."
+              />
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setIsUnitDialogOpen(false)}
+              disabled={savingUnit}
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleSaveUnit}
+              disabled={savingUnit || !formData.unitNumero}
+            >
+              {savingUnit ? 'Guardando...' : 'Guardar Unidad'}
+            </Button>
           </div>
         </DialogContent>
       </Dialog>

@@ -147,6 +147,15 @@ export async function GET(request: NextRequest) {
             codigo: true,
             porcentaje: true,
           }
+        },
+        unidad: {
+          select: {
+            id: true,
+            numero: true,
+            estado: true,
+            descripcion: true,
+            metros2: true,
+          }
         }
       },
       orderBy: {
@@ -289,6 +298,7 @@ export async function GET(request: NextRequest) {
 
       brokerData.leads.push({
         id: lead.id,
+        unidadId: lead.unidadId,
         codigoUnidad: lead.codigoUnidad,
         totalLead: lead.totalLead,
         montoUf: lead.montoUf,
@@ -336,6 +346,13 @@ export async function GET(request: NextRequest) {
           nombre: lead.comisionBase.nombre,
           codigo: lead.comisionBase.codigo,
           porcentaje: lead.comisionBase.porcentaje,
+        } : null,
+        unidad: lead.unidad ? {
+          id: lead.unidad.id,
+          numero: lead.unidad.numero,
+          estado: lead.unidad.estado,
+          descripcion: lead.unidad.descripcion,
+          metros2: lead.unidad.metros2,
         } : null,
       })
     })

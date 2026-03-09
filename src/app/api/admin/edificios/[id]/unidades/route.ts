@@ -33,57 +33,48 @@ export async function GET(
     // Obtener unidades del edificio
     const unidades = await prisma.unidad.findMany({
       where: { edificioId: id },
+      include: {
+        tipoUnidadEdificio: {
+          select: {
+            id: true,
+            nombre: true,
+            codigo: true
+          }
+        }
+      },
       orderBy: [
-        { tipo: 'asc' },
         { numero: 'asc' }
       ]
     })
 
-    // Obtener estadísticas por tipo de unidad
-    const estadisticasPorTipo = await prisma.unidad.groupBy({
-      by: ['tipo', 'estado'],
+    // Obtener estadísticas por estado
+    const estadisticasPorEstado = await prisma.unidad.groupBy({
+      by: ['estado'],
       where: { edificioId: id },
       _count: {
         id: true
-      },
-      _sum: {
-        precio: true
       }
     })
 
     // Formatear estadísticas
-    const resumenTipos: Record<string, {
-      tipo: string
-      total: number
-      disponibles: number
-      reservadas: number
-      vendidas: number
-    }> = {}
+    const resumen = {
+      total: 0,
+      disponibles: 0,
+      reservadas: 0,
+      vendidas: 0
+    }
 
-    estadisticasPorTipo.forEach(stat => {
-      if (!resumenTipos[stat.tipo]) {
-        resumenTipos[stat.tipo] = {
-          tipo: stat.tipo,
-          total: 0,
-          disponibles: 0,
-          vendidas: 0,
-          reservadas: 0,
-          valorTotal: 0
-        }
-      }
-
-      resumenTipos[stat.tipo].total += stat._count.id
-      resumenTipos[stat.tipo].valorTotal += stat._sum.precio || 0
-
+    estadisticasPorEstado.forEach(stat => {
+      resumen.total += stat._count.id
       switch (stat.estado) {
         case 'DISPONIBLE':
-          resumenTipos[stat.tipo].disponibles = stat._count.id
+          resumen.disponibles = stat._count.id
           break
         case 'VENDIDA':
-          resumenTipos[stat.tipo].vendidas = stat._count.id
+          resumen.vendidas = stat._count.id
           break
         case 'RESERVADA':
-          resumenTipos[stat.tipo].reservadas = stat._count.id
+          resumen.reservadas = stat._count.id
           break
       }
     })
@@ -92,7 +83,7 @@ export async function GET(
       success: true,
       edificio,
       unidades,
-      resumenTipos: Object.values(resumenTipos)
+      resumen
     })
 
   } catch (error) {

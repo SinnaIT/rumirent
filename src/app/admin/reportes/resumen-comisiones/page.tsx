@@ -83,6 +83,19 @@ interface TipoUnidadEdificio {
   bathrooms?: number
 }
 
+interface UnidadOption {
+  id: string
+  numero: string
+  estado: string
+  descripcion?: string
+  metros2?: number
+  tipoUnidadEdificio?: {
+    id: string
+    nombre: string
+    codigo: string
+  }
+}
+
 interface Broker {
   id: string
   nombre: string
@@ -104,6 +117,7 @@ interface Edificio {
 
 interface Lead {
   id: string
+  unidadId: string | null
   codigoUnidad: string | null
   totalLead: number
   montoUf: number | null
@@ -135,6 +149,13 @@ interface Lead {
   tipoUnidadEdificio: TipoUnidadEdificio | null
   reglaComision: ReglaComision | null
   comisionBase: ComisionBase | null
+  unidad: {
+    id: string
+    numero: string
+    estado: string
+    descripcion?: string
+    metros2?: number
+  } | null
 }
 
 const ESTADOS_LEAD = [
@@ -236,6 +257,9 @@ export default function ResumenComisionesPage() {
   const [allTiposUnidad, setAllTiposUnidad] = useState<TipoUnidadEdificio[]>([])
   const [allComisiones, setAllComisiones] = useState<ComisionBase[]>([])
   const [allReglasComision, setAllReglasComision] = useState<ReglaComision[]>([])
+  const [allUnidades, setAllUnidades] = useState<UnidadOption[]>([])
+  const [isUnitDialogOpen, setIsUnitDialogOpen] = useState(false)
+  const [savingUnit, setSavingUnit] = useState(false)
 
   // Edit form state
   const [formData, setFormData] = useState({
@@ -254,6 +278,9 @@ export default function ResumenComisionesPage() {
     clienteId: 'none',
     edificioId: 'none',
     tipoUnidadEdificioId: 'none',
+    unidadId: 'none',
+    unitNumero: '',
+    unitDescripcion: '',
     reglaComisionId: 'none',
     comisionId: 'none',
   })
@@ -362,12 +389,73 @@ export default function ResumenComisionesPage() {
     }
   }
 
-  // When edificioId changes in form, fetch tipos de unidad
+  const fetchUnidades = async (edificioId: string) => {
+    try {
+      const response = await fetch(`/api/admin/edificios/${edificioId}/unidades`)
+      const data = await response.json()
+
+      if (data.success) {
+        setAllUnidades(data.unidades)
+      } else {
+        console.error('Error al cargar unidades:', data.error)
+        setAllUnidades([])
+      }
+    } catch (error) {
+      console.error('Error:', error)
+      setAllUnidades([])
+    }
+  }
+
+  const handleSaveUnit = async () => {
+    const unitId = formData.unidadId
+    if (!unitId || unitId === 'none' || !formData.unitNumero) return
+
+    const originalUnit = allUnidades.find(u => u.id === unitId)
+    if (!originalUnit) return
+
+    try {
+      setSavingUnit(true)
+      const response = await fetch(`/api/admin/unidades/${unitId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          numero: formData.unitNumero,
+          descripcion: formData.unitDescripcion || null,
+          tipoUnidadEdificioId: originalUnit.tipoUnidadEdificio?.id || formData.tipoUnidadEdificioId,
+          estado: originalUnit.estado,
+          metros2: originalUnit.metros2 || null,
+          edificioId: formData.edificioId
+        })
+      })
+
+      const data = await response.json()
+
+      if (data.success) {
+        toast.success('Unidad actualizada exitosamente')
+        setFormData(prev => ({ ...prev, codigoUnidad: formData.unitNumero }))
+        if (formData.edificioId && formData.edificioId !== 'none') {
+          await fetchUnidades(formData.edificioId)
+        }
+        setIsUnitDialogOpen(false)
+      } else {
+        toast.error(data.error || 'Error al actualizar la unidad')
+      }
+    } catch (error) {
+      console.error('Error:', error)
+      toast.error('Error de conexión')
+    } finally {
+      setSavingUnit(false)
+    }
+  }
+
+  // When edificioId changes in form, fetch tipos de unidad and unidades
   useEffect(() => {
     if (isEditMode && formData.edificioId && formData.edificioId !== 'none') {
       fetchTiposUnidad(formData.edificioId)
+      fetchUnidades(formData.edificioId)
     } else if (isEditMode) {
       setAllTiposUnidad([])
+      setAllUnidades([])
     }
   }, [formData.edificioId, isEditMode])
 
@@ -399,12 +487,16 @@ export default function ResumenComisionesPage() {
       clienteId: lead.cliente?.id || 'none',
       edificioId: edificioId,
       tipoUnidadEdificioId: lead.tipoUnidadEdificio?.id || 'none',
+      unidadId: lead.unidadId || 'none',
+      unitNumero: lead.unidad?.numero || '',
+      unitDescripcion: lead.unidad?.descripcion || '',
       reglaComisionId: lead.reglaComision?.id || 'none',
       comisionId: lead.comisionBase?.id || 'none',
     })
 
     if (edificioId !== 'none') {
       fetchTiposUnidad(edificioId)
+      fetchUnidades(edificioId)
     }
 
     setManualComisionModified(false)
@@ -434,6 +526,9 @@ export default function ResumenComisionesPage() {
       clienteId: 'none',
       edificioId: 'none',
       tipoUnidadEdificioId: 'none',
+      unidadId: 'none',
+      unitNumero: '',
+      unitDescripcion: '',
       reglaComisionId: 'none',
       comisionId: 'none',
     })
@@ -441,6 +536,7 @@ export default function ResumenComisionesPage() {
     setIsEditMode(false)
     setSelectedLead(null)
     setAllTiposUnidad([])
+    setAllUnidades([])
   }
 
   const handleEditSubmit = async () => {
@@ -467,6 +563,7 @@ export default function ResumenComisionesPage() {
           clienteId: formData.clienteId === 'none' ? null : formData.clienteId,
           edificioId: formData.edificioId === 'none' ? null : formData.edificioId,
           tipoUnidadEdificioId: formData.tipoUnidadEdificioId === 'none' ? null : formData.tipoUnidadEdificioId,
+          unidadId: formData.unidadId === 'none' ? null : formData.unidadId,
           reglaComisionId: formData.reglaComisionId === 'none' ? null : formData.reglaComisionId,
           comisionId: formData.comisionId === 'none' ? null : formData.comisionId,
           manualComision: manualComisionModified,
@@ -1522,32 +1619,90 @@ export default function ResumenComisionesPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div className="grid grid-cols-1 gap-2">
-                  <Label htmlFor="codigoUnidad">Código Unidad</Label>
-                  <Input
-                    id="codigoUnidad"
-                    value={formData.codigoUnidad}
-                    onChange={(e) => setFormData({ ...formData, codigoUnidad: e.target.value })}
-                    placeholder="Ej: A-101"
-                  />
+              {/* Unidad del proyecto */}
+              <div className="space-y-3 border rounded-lg p-3">
+                <Label className="text-sm font-semibold">Unidad del Proyecto</Label>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 gap-2">
+                    <Label htmlFor="unidad" className="text-xs text-muted-foreground">Seleccionar unidad existente</Label>
+                    <Select
+                      value={formData.unidadId}
+                      onValueChange={(value: string) => {
+                        const selectedUnit = allUnidades.find(u => u.id === value)
+                        setFormData({
+                          ...formData,
+                          unidadId: value,
+                          codigoUnidad: selectedUnit?.numero || '',
+                          unitNumero: selectedUnit?.numero || '',
+                          unitDescripcion: selectedUnit?.descripcion || ''
+                        })
+                      }}
+                      disabled={!formData.edificioId || formData.edificioId === 'none' || allUnidades.length === 0}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder={
+                          !formData.edificioId || formData.edificioId === 'none'
+                            ? "Primero selecciona un proyecto"
+                            : allUnidades.length === 0
+                              ? "No hay unidades disponibles"
+                              : "Seleccionar unidad"
+                        } />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">Sin unidad específica</SelectItem>
+                        {allUnidades
+                          .filter(u => u.id && u.id.trim() !== '')
+                          .map((unidad) => (
+                            <SelectItem key={unidad.id} value={unidad.id}>
+                              {unidad.numero}{unidad.tipoUnidadEdificio ? ` - ${unidad.tipoUnidadEdificio.nombre}` : ''} ({unidad.estado})
+                            </SelectItem>
+                          ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-2">
+                    <Label htmlFor="codigoUnidad" className="text-xs text-muted-foreground">Código unidad (manual)</Label>
+                    <Input
+                      id="codigoUnidad"
+                      value={formData.codigoUnidad}
+                      readOnly
+                      className="bg-muted cursor-not-allowed"
+                      placeholder="Se actualiza automáticamente"
+                    />
+                  </div>
                 </div>
 
-                <div className="grid grid-cols-1 gap-2">
-                  <Label htmlFor="estado">Estado</Label>
-                  <Select value={formData.estado} onValueChange={(value) => setFormData({ ...formData, estado: value })}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {ESTADOS_LEAD.map((estado) => (
-                        <SelectItem key={estado.value} value={estado.value}>
-                          {estado.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+                {formData.unidadId && formData.unidadId !== 'none' && (
+                  <div className="border-t pt-3">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setIsUnitDialogOpen(true)}
+                      className="w-full"
+                    >
+                      <Edit className="w-4 h-4 mr-2" />
+                      Editar datos de la unidad ({formData.unitNumero || 'Sin número'})
+                    </Button>
+                  </div>
+                )}
+              </div>
+
+              <div className="grid grid-cols-1 gap-2">
+                <Label htmlFor="estado">Estado del Lead</Label>
+                <Select value={formData.estado} onValueChange={(value) => setFormData({ ...formData, estado: value })}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {ESTADOS_LEAD.map((estado) => (
+                      <SelectItem key={estado.value} value={estado.value}>
+                        {estado.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
 
               <div className="grid grid-cols-3 gap-4">
@@ -1735,6 +1890,54 @@ export default function ResumenComisionesPage() {
               </div>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Unit Edit Dialog */}
+      <Dialog open={isUnitDialogOpen} onOpenChange={setIsUnitDialogOpen}>
+        <DialogContent className="sm:max-w-[400px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center">
+              <Edit className="w-5 h-5 mr-2" />
+              Editar Unidad
+            </DialogTitle>
+            <DialogDescription>
+              Modifica los datos de la unidad asociada al lead.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-1 gap-2">
+              <Label htmlFor="unitNumero">Número/Nombre de la Unidad *</Label>
+              <Input
+                id="unitNumero"
+                value={formData.unitNumero}
+                onChange={(e) => setFormData({ ...formData, unitNumero: e.target.value })}
+                placeholder="Ej: A-101"
+              />
+            </div>
+            <div className="grid grid-cols-1 gap-2">
+              <Label htmlFor="unitDescripcion">Descripción</Label>
+              <Textarea
+                id="unitDescripcion"
+                value={formData.unitDescripcion}
+                onChange={(e) => setFormData({ ...formData, unitDescripcion: e.target.value })}
+                placeholder="Descripción de la unidad..."
+                rows={3}
+              />
+            </div>
+            <div className="flex justify-end space-x-2">
+              <Button
+                variant="outline"
+                onClick={() => setIsUnitDialogOpen(false)}
+                disabled={savingUnit}
+              >
+                Cancelar
+              </Button>
+              <Button onClick={handleSaveUnit} disabled={savingUnit || !formData.unitNumero}>
+                {savingUnit ? 'Guardando...' : 'Guardar Unidad'}
+              </Button>
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
     </div>
