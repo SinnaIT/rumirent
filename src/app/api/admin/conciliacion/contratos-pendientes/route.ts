@@ -31,14 +31,13 @@ export async function GET(request: NextRequest) {
       year: yearNum
     })
 
-    // Buscar leads del período que NO estén conciliados (filtrados por fecha de checkin)
+    // Buscar todos los leads del período (conciliados y pendientes) para visualización completa
     const leads = await prisma.lead.findMany({
       where: {
         fechaCheckin: {
           gte: fechaInicio,
           lte: fechaFin,
         },
-        conciliado: false, // Solo leads no conciliados
       },
       include: {
         cliente: {

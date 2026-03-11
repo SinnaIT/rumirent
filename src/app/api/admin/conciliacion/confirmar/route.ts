@@ -45,6 +45,20 @@ export async function POST(request: NextRequest) {
       const updatedContracts = []
 
       for (const match of matches) {
+        // Verificar que el lead no esté ya conciliado
+        const existingLead = await tx.lead.findUnique({
+          where: { id: match.sistema.id },
+          select: { id: true, conciliado: true, codigoUnidad: true },
+        })
+
+        if (!existingLead) {
+          throw new Error(`Lead ${match.sistema.id} no encontrado`)
+        }
+
+        if (existingLead.conciliado) {
+          throw new Error(`El lead ${existingLead.codigoUnidad || match.sistema.id} ya está conciliado y no puede asignarse nuevamente`)
+        }
+
         // Marcar el lead como conciliado
         const updatedContract = await tx.lead.update({
           where: {
@@ -96,9 +110,14 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('Error confirmando conciliación:', error)
 
-    // Verificar si es un error de base de datos específico
     if (error instanceof Error) {
-      if (error.message.includes('Record to update not found')) {
+      if (error.message.includes('ya está conciliado')) {
+        return NextResponse.json(
+          { error: error.message },
+          { status: 409 }
+        )
+      }
+      if (error.message.includes('Record to update not found') || error.message.includes('no encontrado')) {
         return NextResponse.json(
           { error: 'Uno o más leads ya no existen en el sistema' },
           { status: 404 }

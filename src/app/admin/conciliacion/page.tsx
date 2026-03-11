@@ -23,7 +23,7 @@ import {
 } from 'lucide-react'
 import {
   DndContext,
-  closestCenter,
+  pointerWithin,
   KeyboardSensor,
   PointerSensor,
   useSensor,
@@ -31,10 +31,10 @@ import {
   DragEndEvent,
   DragOverlay,
   DragStartEvent,
-  UniqueIdentifier
+  UniqueIdentifier,
+  useDroppable
 } from '@dnd-kit/core'
 import {
-  arrayMove,
   SortableContext,
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
@@ -49,6 +49,16 @@ interface ExcelData {
   monto: number
   proyecto: string
   unidad: string
+  tipoArriendo?: string
+  porcentajeComision?: number
+  contratoFirmado?: boolean
+  checkIn?: boolean
+  candado?: string
+  cumpleParaPago?: boolean
+  montoAPagar?: number
+  montoPagado?: number
+  diferencia?: number
+  formatType?: 'standard' | 'commission'
   raw: unknown
 }
 
@@ -115,6 +125,29 @@ function DraggableRow({ id, children, isDragging }: DraggableRowProps) {
   )
 }
 
+interface DroppableRowProps {
+  id: string
+  children: React.ReactNode
+  className?: string
+  disabled?: boolean
+}
+
+function DroppableRow({ id, children, className, disabled }: DroppableRowProps) {
+  const { isOver, setNodeRef } = useDroppable({
+    id,
+    disabled,
+  })
+
+  return (
+    <TableRow
+      ref={setNodeRef}
+      className={`${className || ''} ${isOver && !disabled ? 'bg-blue-100 ring-2 ring-blue-400' : ''}`}
+    >
+      {children}
+    </TableRow>
+  )
+}
+
 export default function ConciliacionPage() {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
@@ -125,6 +158,8 @@ export default function ConciliacionPage() {
   const [excelData, setExcelData] = useState<ExcelData[]>([])
   const [leadsSistema, setLeadsSistema] = useState<LeadSistema[]>([])
   const [matches, setMatches] = useState<ConciliacionMatch[]>([])
+  const [detectedFormat, setDetectedFormat] = useState<'standard' | 'commission' | null>(null)
+  const [manualConciliationIds, setManualConciliationIds] = useState<Set<string>>(new Set())
 
   // Estados para drag and drop
   const [activeId, setActiveId] = useState<UniqueIdentifier | null>(null)
@@ -188,6 +223,7 @@ export default function ConciliacionPage() {
         setExcelData(data.excelData)
         setLeadsSistema(data.leadsSistema)
         setMatches(data.matches)
+        setDetectedFormat(data.formatType || 'standard')
       } else {
         console.error('Error processing file')
       }
@@ -217,6 +253,11 @@ export default function ConciliacionPage() {
     try {
       const excel = excelData[excelIndex]
       const lead = leadsSistema.find(c => c.id === leadId)
+
+      // No permitir conciliar un lead ya conciliado
+      if (lead?.conciliado) {
+        return
+      }
 
       if (excel && lead) {
         const newMatch: ConciliacionMatch = {
@@ -258,6 +299,13 @@ export default function ConciliacionPage() {
     if (active.id.toString().startsWith('excel-') && over.id.toString().startsWith('sistema-')) {
       const excelIndex = parseInt(active.id.toString().replace('excel-', ''))
       const leadId = over.id.toString().replace('sistema-', '')
+
+      // Verificar que el lead no esté conciliado antes de permitir el match
+      const targetLead = leadsSistema.find(l => l.id === leadId)
+      if (targetLead?.conciliado) {
+        return
+      }
+
       conciliarManual(excelIndex, leadId)
     }
   }
@@ -280,6 +328,8 @@ export default function ConciliacionPage() {
         setExcelData([])
         setLeadsSistema([])
         setSelectedFile(null)
+        setDetectedFormat(null)
+        setManualConciliationIds(new Set())
         if (fileInputRef.current) {
           fileInputRef.current.value = ''
         }
@@ -287,6 +337,54 @@ export default function ConciliacionPage() {
       }
     } catch (error) {
       console.error('Error confirming conciliation:', error)
+    }
+  }
+
+  const confirmarConciliacionManualDirecta = async () => {
+    if (manualConciliationIds.size === 0) return
+
+    try {
+      // Crear matches ficticios para los leads seleccionados manualmente
+      const manualMatches = Array.from(manualConciliationIds).map(leadId => {
+        const lead = leadsSistema.find(l => l.id === leadId)
+        if (!lead) return null
+        return {
+          excel: {
+            fechaLead: lead.fechaLead,
+            monto: lead.totalLead,
+            proyecto: lead.edificioNombre,
+            unidad: lead.unidadCodigo,
+            raw: {},
+          },
+          sistema: lead,
+          tipo: 'manual' as const,
+          confidence: 1.0,
+        }
+      }).filter(Boolean)
+
+      const response = await fetch('/api/admin/conciliacion/confirmar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ matches: manualMatches }),
+      })
+
+      if (response.ok) {
+        // Actualizar el estado de los leads conciliados en la UI
+        setLeadsSistema(prev =>
+          prev.map(lead =>
+            manualConciliationIds.has(lead.id)
+              ? { ...lead, conciliado: true }
+              : lead
+          )
+        )
+        setManualConciliationIds(new Set())
+        alert(`${manualMatches.length} lead(s) conciliado(s) manualmente`)
+      } else {
+        const data = await response.json()
+        alert(`Error: ${data.error || 'Error al conciliar'}`)
+      }
+    } catch (error) {
+      console.error('Error in manual direct conciliation:', error)
     }
   }
 
@@ -387,7 +485,7 @@ export default function ConciliacionPage() {
                 className="cursor-pointer"
               />
               <p className="text-sm text-muted-foreground mt-1">
-                Debe contener: fecha colocacion, monto, proyecto, unidad
+                Formatos soportados: estándar (fecha, monto, proyecto, unidad) o comisiones (OP, comisión teórica, tipo arriendo...)
               </p>
             </div>
             <Button
@@ -431,8 +529,10 @@ export default function ConciliacionPage() {
               <Clock className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{leadsSistema.length}</div>
-              <p className="text-xs text-muted-foreground">Sin conciliar</p>
+              <div className="text-2xl font-bold">{leadsSistema.filter(l => !l.conciliado).length}</div>
+              <p className="text-xs text-muted-foreground">
+                Pendientes de {leadsSistema.length} totales ({leadsSistema.filter(l => l.conciliado).length} conciliados)
+              </p>
             </CardContent>
           </Card>
 
@@ -465,14 +565,131 @@ export default function ConciliacionPage() {
       {/* Nuevo Layout con Drag and Drop */}
       <DndContext
         sensors={sensors}
-        collisionDetection={closestCenter}
+        collisionDetection={pointerWithin}
         onDragStart={handleDragStart}
         onDragEnd={handleDragEnd}
       >
         <div className="space-y-6">
           {/* Tablas lado a lado arriba */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Datos Excel - Izquierda */}
+            {/* Leads Sistema - Izquierda */}
+            <Card className="h-fit">
+              <CardHeader>
+                <CardTitle className="flex items-center space-x-2">
+                  <Clock className="h-5 w-5" />
+                  <span>Colocaciones del Sistema ({leadsSistema.length})</span>
+                </CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  Suelta aquí los registros del CSV para crear una conciliación.
+                  {leadsSistema.filter(l => l.conciliado).length > 0 && (
+                    <span className="ml-1 text-green-600 font-medium">
+                      {leadsSistema.filter(l => l.conciliado).length} ya conciliados
+                    </span>
+                  )}
+                </p>
+              </CardHeader>
+              <CardContent>
+                {leadsSistema.length > 0 ? (
+                  <div className="max-h-96 overflow-auto">
+                    <Table className="min-w-max">
+                      <TableHeader className="sticky top-0 bg-background z-10">
+                        <TableRow>
+                          <TableHead className="w-10">Conciliar</TableHead>
+                          <TableHead>Estado</TableHead>
+                          <TableHead>OP / Unidad</TableHead>
+                          <TableHead>Fecha</TableHead>
+                          <TableHead>Cliente</TableHead>
+                          <TableHead>Proyecto</TableHead>
+                          <TableHead>Monto</TableHead>
+                          <TableHead>Comisión</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {leadsSistema.map((lead) => (
+                          <DroppableRow
+                            key={`sistema-${lead.id}`}
+                            id={`sistema-${lead.id}`}
+                            disabled={lead.conciliado}
+                            className={
+                              lead.conciliado
+                                ? 'bg-gray-100 opacity-60 cursor-not-allowed border-l-4 border-l-green-500'
+                                : 'hover:bg-blue-50 transition-colors cursor-pointer border-l-4 border-l-transparent hover:border-l-blue-500'
+                            }
+                          >
+                            <TableCell>
+                              <input
+                                type="checkbox"
+                                checked={lead.conciliado || manualConciliationIds.has(lead.id)}
+                                disabled={lead.conciliado}
+                                onChange={(e) => {
+                                  if (e.target.checked) {
+                                    setManualConciliationIds(prev => new Set([...prev, lead.id]))
+                                  } else {
+                                    setManualConciliationIds(prev => {
+                                      const next = new Set(prev)
+                                      next.delete(lead.id)
+                                      return next
+                                    })
+                                  }
+                                }}
+                                className="h-4 w-4 rounded border-gray-300 cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
+                              />
+                            </TableCell>
+                            <TableCell>
+                              {lead.conciliado ? (
+                                <Badge variant="outline" className="bg-green-50 text-green-700 border-green-300">
+                                  <CheckCircle className="mr-1 h-3 w-3" />
+                                  Conciliado
+                                </Badge>
+                              ) : manualConciliationIds.has(lead.id) ? (
+                                <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-300">
+                                  <CheckCircle className="mr-1 h-3 w-3" />
+                                  Seleccionado
+                                </Badge>
+                              ) : (
+                                <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-300">
+                                  <Clock className="mr-1 h-3 w-3" />
+                                  Pendiente
+                                </Badge>
+                              )}
+                            </TableCell>
+                            <TableCell className="font-mono font-medium">{lead.unidadCodigo}</TableCell>
+                            <TableCell>{formatDate(lead.fechaLead)}</TableCell>
+                            <TableCell>{lead.clienteNombre}</TableCell>
+                            <TableCell className="font-medium">{lead.edificioNombre}</TableCell>
+                            <TableCell>{formatCurrency(lead.totalLead)}</TableCell>
+                            <TableCell className="text-orange-700 font-medium">{formatCurrency(lead.comision)}</TableCell>
+                          </DroppableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                ) : (
+                  <div className="text-center py-8 text-muted-foreground border-2 border-dashed border-gray-300 rounded-lg">
+                    <Clock className="h-8 w-8 mx-auto mb-2" />
+                    <p>No hay colocaciones para el período</p>
+                    <p className="text-xs">Para el período seleccionado</p>
+                  </div>
+                )}
+                {manualConciliationIds.size > 0 && (
+                  <div className="mt-4 flex items-center justify-between border-t pt-4">
+                    <p className="text-sm text-muted-foreground">
+                      {manualConciliationIds.size} lead(s) seleccionado(s) para conciliación manual
+                    </p>
+                    <Button
+                      onClick={confirmarConciliacionManualDirecta}
+                      size="sm"
+                      className="bg-blue-600 hover:bg-blue-700"
+                    >
+                      <CheckCircle className="mr-2 h-4 w-4" />
+                      Conciliar Manual ({manualConciliationIds.size})
+                    </Button>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Datos Excel - Derecha */}
             <Card className="h-fit">
               <CardHeader>
                 <CardTitle className="flex items-center space-x-2">
@@ -485,25 +702,65 @@ export default function ConciliacionPage() {
               </CardHeader>
               <CardContent>
                 {excelData.length > 0 ? (
-                  <div className="max-h-96 overflow-y-auto">
-                    <Table>
-                      <TableHeader>
+                  <div className="max-h-96 overflow-auto">
+                    <Table className="min-w-max">
+                      <TableHeader className="sticky top-0 bg-background z-10">
                         <TableRow>
                           <TableHead className="w-8"></TableHead>
-                          <TableHead>Fecha</TableHead>
-                          <TableHead>Proyecto</TableHead>
-                          <TableHead>Unidad</TableHead>
-                          <TableHead>Monto</TableHead>
+                          {detectedFormat === 'commission' ? (
+                            <>
+                              <TableHead>OP</TableHead>
+                              <TableHead>Comisión Teórica</TableHead>
+                              <TableHead>Tipo Arriendo</TableHead>
+                              <TableHead>Contrato</TableHead>
+                              <TableHead>Check in</TableHead>
+                              <TableHead>Cumple Pago</TableHead>
+                              <TableHead>Monto a Pagar</TableHead>
+                            </>
+                          ) : (
+                            <>
+                              <TableHead>Fecha</TableHead>
+                              <TableHead>Proyecto</TableHead>
+                              <TableHead>Unidad</TableHead>
+                              <TableHead>Monto</TableHead>
+                            </>
+                          )}
                         </TableRow>
                       </TableHeader>
                       <TableBody>
                         <SortableContext items={excelData.map((_, i) => `excel-${i}`)} strategy={verticalListSortingStrategy}>
                           {excelData.map((row, index) => (
                             <DraggableRow key={`excel-${index}`} id={`excel-${index}`}>
-                              <TableCell>{formatDate(row.fechaLead)}</TableCell>
-                              <TableCell className="font-medium">{row.proyecto}</TableCell>
-                              <TableCell>{row.unidad}</TableCell>
-                              <TableCell>{formatCurrency(row.monto)}</TableCell>
+                              {detectedFormat === 'commission' ? (
+                                <>
+                                  <TableCell className="font-medium">{row.unidad}</TableCell>
+                                  <TableCell>{formatCurrency(row.monto)}</TableCell>
+                                  <TableCell>{row.tipoArriendo || '-'}</TableCell>
+                                  <TableCell>
+                                    <Badge variant={row.contratoFirmado ? 'default' : 'secondary'}>
+                                      {row.contratoFirmado ? 'Sí' : 'No'}
+                                    </Badge>
+                                  </TableCell>
+                                  <TableCell>
+                                    <Badge variant={row.checkIn ? 'default' : 'secondary'}>
+                                      {row.checkIn ? 'Sí' : 'No'}
+                                    </Badge>
+                                  </TableCell>
+                                  <TableCell>
+                                    <Badge variant={row.cumpleParaPago ? 'default' : 'destructive'}>
+                                      {row.cumpleParaPago ? 'Sí' : 'No'}
+                                    </Badge>
+                                  </TableCell>
+                                  <TableCell>{row.montoAPagar ? formatCurrency(row.montoAPagar) : '-'}</TableCell>
+                                </>
+                              ) : (
+                                <>
+                                  <TableCell>{formatDate(row.fechaLead)}</TableCell>
+                                  <TableCell className="font-medium">{row.proyecto}</TableCell>
+                                  <TableCell>{row.unidad}</TableCell>
+                                  <TableCell>{formatCurrency(row.monto)}</TableCell>
+                                </>
+                              )}
                             </DraggableRow>
                           ))}
                         </SortableContext>
@@ -515,57 +772,6 @@ export default function ConciliacionPage() {
                     <Upload className="h-8 w-8 mx-auto mb-2" />
                     <p>No hay datos del archivo</p>
                     <p className="text-xs">Carga un archivo Excel/CSV para comenzar</p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* Leads Sistema - Derecha */}
-            <Card className="h-fit">
-              <CardHeader>
-                <CardTitle className="flex items-center space-x-2">
-                  <Clock className="h-5 w-5" />
-                  <span>Colocaciones del Sistema ({leadsSistema.length})</span>
-                </CardTitle>
-                <p className="text-sm text-muted-foreground">
-                  Suelta aquí los registros del CSV para crear una conciliación
-                </p>
-              </CardHeader>
-              <CardContent>
-                {leadsSistema.length > 0 ? (
-                  <div className="max-h-96 overflow-y-auto">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Fecha</TableHead>
-                          <TableHead>Cliente</TableHead>
-                          <TableHead>Proyecto</TableHead>
-                          <TableHead>Unidad</TableHead>
-                          <TableHead>Monto</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {leadsSistema.map((lead) => (
-                          <TableRow
-                            key={`sistema-${lead.id}`}
-                            id={`sistema-${lead.id}`}
-                            className="hover:bg-blue-50 transition-colors cursor-pointer border-l-4 border-l-transparent hover:border-l-blue-500"
-                          >
-                            <TableCell>{formatDate(lead.fechaLead)}</TableCell>
-                            <TableCell>{lead.clienteNombre}</TableCell>
-                            <TableCell className="font-medium">{lead.edificioNombre}</TableCell>
-                            <TableCell>{lead.unidadCodigo}</TableCell>
-                            <TableCell>{formatCurrency(lead.totalLead)}</TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </div>
-                ) : (
-                  <div className="text-center py-8 text-muted-foreground border-2 border-dashed border-gray-300 rounded-lg">
-                    <Clock className="h-8 w-8 mx-auto mb-2" />
-                    <p>No hay colocaciones sin conciliar</p>
-                    <p className="text-xs">Para el período seleccionado</p>
                   </div>
                 )}
               </CardContent>
@@ -595,14 +801,25 @@ export default function ConciliacionPage() {
             </CardHeader>
             <CardContent>
               {matches.length > 0 ? (
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
+                <div className="max-h-[500px] overflow-auto">
+                  <Table className="min-w-max">
+                    <TableHeader className="sticky top-0 bg-background z-10">
                       <TableRow>
                         <TableHead>Tipo</TableHead>
-                        <TableHead>CSV - Proyecto</TableHead>
-                        <TableHead>CSV - Unidad</TableHead>
-                        <TableHead>CSV - Monto</TableHead>
+                        {detectedFormat === 'commission' ? (
+                          <>
+                            <TableHead>CSV - OP</TableHead>
+                            <TableHead>CSV - Comisión Teórica</TableHead>
+                            <TableHead>CSV - Tipo Arriendo</TableHead>
+                            <TableHead>CSV - Cumple Pago</TableHead>
+                          </>
+                        ) : (
+                          <>
+                            <TableHead>CSV - Proyecto</TableHead>
+                            <TableHead>CSV - Unidad</TableHead>
+                            <TableHead>CSV - Monto</TableHead>
+                          </>
+                        )}
                         <TableHead>Sistema - Cliente</TableHead>
                         <TableHead>Sistema - Proyecto</TableHead>
                         <TableHead>Sistema - Unidad</TableHead>
@@ -613,16 +830,31 @@ export default function ConciliacionPage() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {matches.map((match, index) => (
+                      {matches.map((match) => (
                         <TableRow key={match.id} className="hover:bg-gray-50">
                           <TableCell>
                             <Badge variant={match.tipo === 'automatico' ? 'default' : 'secondary'}>
                               {match.tipo === 'automatico' ? 'Auto' : 'Manual'}
                             </Badge>
                           </TableCell>
-                          <TableCell className="font-medium">{match.excel.proyecto}</TableCell>
-                          <TableCell>{match.excel.unidad}</TableCell>
-                          <TableCell className="text-green-700 font-medium">{formatCurrency(match.excel.monto)}</TableCell>
+                          {detectedFormat === 'commission' ? (
+                            <>
+                              <TableCell className="font-medium">{match.excel.unidad}</TableCell>
+                              <TableCell className="text-green-700 font-medium">{formatCurrency(match.excel.monto)}</TableCell>
+                              <TableCell>{match.excel.tipoArriendo || '-'}</TableCell>
+                              <TableCell>
+                                <Badge variant={match.excel.cumpleParaPago ? 'default' : 'destructive'}>
+                                  {match.excel.cumpleParaPago ? 'Sí' : 'No'}
+                                </Badge>
+                              </TableCell>
+                            </>
+                          ) : (
+                            <>
+                              <TableCell className="font-medium">{match.excel.proyecto}</TableCell>
+                              <TableCell>{match.excel.unidad}</TableCell>
+                              <TableCell className="text-green-700 font-medium">{formatCurrency(match.excel.monto)}</TableCell>
+                            </>
+                          )}
                           <TableCell>{match.sistema.clienteNombre}</TableCell>
                           <TableCell className="font-medium">{match.sistema.edificioNombre}</TableCell>
                           <TableCell>{match.sistema.unidadCodigo}</TableCell>
@@ -667,9 +899,19 @@ export default function ConciliacionPage() {
               <CardContent className="p-3">
                 {draggedItem.type === 'excel' && 'proyecto' in draggedItem.data ? (
                   <>
-                    <div className="text-sm font-medium">{draggedItem.data.proyecto}</div>
-                    <div className="text-xs text-muted-foreground">{draggedItem.data.unidad}</div>
-                    <div className="text-xs font-medium text-green-600">{formatCurrency(draggedItem.data.monto)}</div>
+                    {detectedFormat === 'commission' ? (
+                      <>
+                        <div className="text-sm font-medium">OP: {draggedItem.data.unidad}</div>
+                        <div className="text-xs text-muted-foreground">{draggedItem.data.tipoArriendo || ''}</div>
+                        <div className="text-xs font-medium text-green-600">{formatCurrency(draggedItem.data.monto)}</div>
+                      </>
+                    ) : (
+                      <>
+                        <div className="text-sm font-medium">{draggedItem.data.proyecto}</div>
+                        <div className="text-xs text-muted-foreground">{draggedItem.data.unidad}</div>
+                        <div className="text-xs font-medium text-green-600">{formatCurrency(draggedItem.data.monto)}</div>
+                      </>
+                    )}
                   </>
                 ) : 'edificioNombre' in draggedItem.data ? (
                   <>
