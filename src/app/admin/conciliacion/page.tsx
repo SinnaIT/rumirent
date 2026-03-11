@@ -7,6 +7,15 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogFooter,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogAction,
+} from '@/components/ui/alert-dialog'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import {
   FileCheck,
@@ -160,6 +169,14 @@ export default function ConciliacionPage() {
   const [matches, setMatches] = useState<ConciliacionMatch[]>([])
   const [detectedFormat, setDetectedFormat] = useState<'standard' | 'commission' | null>(null)
   const [manualConciliationIds, setManualConciliationIds] = useState<Set<string>>(new Set())
+
+  // Estado para modal de resultado
+  const [resultModal, setResultModal] = useState<{
+    open: boolean
+    type: 'success' | 'error'
+    title: string
+    message: string
+  }>({ open: false, type: 'success', title: '', message: '' })
 
   // Estados para drag and drop
   const [activeId, setActiveId] = useState<UniqueIdentifier | null>(null)
@@ -333,10 +350,29 @@ export default function ConciliacionPage() {
         if (fileInputRef.current) {
           fileInputRef.current.value = ''
         }
-        alert('Conciliación confirmada exitosamente')
+        setResultModal({
+          open: true,
+          type: 'success',
+          title: 'Conciliación confirmada',
+          message: `Se conciliaron ${matches.length} lead(s) exitosamente. Los registros han sido actualizados.`,
+        })
+      } else {
+        const data = await response.json()
+        setResultModal({
+          open: true,
+          type: 'error',
+          title: 'Error al conciliar',
+          message: data.error || 'Ocurrió un error al confirmar la conciliación.',
+        })
       }
     } catch (error) {
       console.error('Error confirming conciliation:', error)
+      setResultModal({
+        open: true,
+        type: 'error',
+        title: 'Error de conexión',
+        message: 'No se pudo conectar con el servidor. Intenta nuevamente.',
+      })
     }
   }
 
@@ -378,13 +414,29 @@ export default function ConciliacionPage() {
           )
         )
         setManualConciliationIds(new Set())
-        alert(`${manualMatches.length} lead(s) conciliado(s) manualmente`)
+        setResultModal({
+          open: true,
+          type: 'success',
+          title: 'Conciliación manual exitosa',
+          message: `Se conciliaron ${manualMatches.length} lead(s) manualmente.`,
+        })
       } else {
         const data = await response.json()
-        alert(`Error: ${data.error || 'Error al conciliar'}`)
+        setResultModal({
+          open: true,
+          type: 'error',
+          title: 'Error al conciliar',
+          message: data.error || 'Ocurrió un error al conciliar manualmente.',
+        })
       }
     } catch (error) {
       console.error('Error in manual direct conciliation:', error)
+      setResultModal({
+        open: true,
+        type: 'error',
+        title: 'Error de conexión',
+        message: 'No se pudo conectar con el servidor. Intenta nuevamente.',
+      })
     }
   }
 
@@ -895,36 +947,61 @@ export default function ConciliacionPage() {
         {/* Overlay para mostrar el item siendo arrastrado */}
         <DragOverlay>
           {activeId && draggedItem ? (
-            <Card className="opacity-80 rotate-3 shadow-lg">
-              <CardContent className="p-3">
+            <div className="opacity-90 rotate-2 shadow-lg bg-white border rounded-md px-3 py-1.5 max-w-[200px]">
                 {draggedItem.type === 'excel' && 'proyecto' in draggedItem.data ? (
-                  <>
+                  <div className="flex items-center gap-2">
                     {detectedFormat === 'commission' ? (
                       <>
-                        <div className="text-sm font-medium">OP: {draggedItem.data.unidad}</div>
-                        <div className="text-xs text-muted-foreground">{draggedItem.data.tipoArriendo || ''}</div>
-                        <div className="text-xs font-medium text-green-600">{formatCurrency(draggedItem.data.monto)}</div>
+                        <span className="text-xs font-medium truncate">OP: {draggedItem.data.unidad}</span>
+                        <span className="text-xs text-green-600 font-medium">{formatCurrency(draggedItem.data.monto)}</span>
                       </>
                     ) : (
                       <>
-                        <div className="text-sm font-medium">{draggedItem.data.proyecto}</div>
-                        <div className="text-xs text-muted-foreground">{draggedItem.data.unidad}</div>
-                        <div className="text-xs font-medium text-green-600">{formatCurrency(draggedItem.data.monto)}</div>
+                        <span className="text-xs font-medium truncate">{draggedItem.data.unidad}</span>
+                        <span className="text-xs text-green-600 font-medium">{formatCurrency(draggedItem.data.monto)}</span>
                       </>
                     )}
-                  </>
+                  </div>
                 ) : 'edificioNombre' in draggedItem.data ? (
-                  <>
-                    <div className="text-sm font-medium">{draggedItem.data.edificioNombre}</div>
-                    <div className="text-xs text-muted-foreground">{draggedItem.data.unidadCodigo}</div>
-                    <div className="text-xs font-medium text-green-600">{formatCurrency(draggedItem.data.totalLead)}</div>
-                  </>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-medium truncate">{draggedItem.data.unidadCodigo}</span>
+                    <span className="text-xs text-green-600 font-medium">{formatCurrency(draggedItem.data.totalLead)}</span>
+                  </div>
                 ) : null}
-              </CardContent>
-            </Card>
+            </div>
           ) : null}
         </DragOverlay>
       </DndContext>
+
+      {/* Modal de resultado */}
+      <AlertDialog open={resultModal.open} onOpenChange={(open) => setResultModal(prev => ({ ...prev, open }))}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <div className="flex items-center gap-3">
+              {resultModal.type === 'success' ? (
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-green-100">
+                  <CheckCircle className="h-5 w-5 text-green-600" />
+                </div>
+              ) : (
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-red-100">
+                  <XCircle className="h-5 w-5 text-red-600" />
+                </div>
+              )}
+              <AlertDialogTitle>{resultModal.title}</AlertDialogTitle>
+            </div>
+            <AlertDialogDescription className="pl-[52px]">
+              {resultModal.message}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction
+              className={resultModal.type === 'success' ? 'bg-green-600 hover:bg-green-700' : ''}
+            >
+              Aceptar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }
