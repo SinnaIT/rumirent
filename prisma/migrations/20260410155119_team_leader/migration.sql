@@ -21,7 +21,7 @@ ALTER TABLE "leads" ALTER COLUMN "estado" SET DEFAULT 'INGRESADO';
 ALTER TABLE "users" ADD COLUMN "team_leader_id" TEXT;
 
 -- CreateIndex
-CREATE UNIQUE INDEX "clientes_telefono_key" ON "clientes"("telefono");
+CREATE UNIQUE INDEX IF NOT EXISTS "clientes_telefono_key" ON "clientes"("telefono");
 
 -- AddForeignKey
 ALTER TABLE "users" ADD CONSTRAINT "users_team_leader_id_fkey" FOREIGN KEY ("team_leader_id") REFERENCES "users"("id") ON DELETE SET NULL ON UPDATE CASCADE;
