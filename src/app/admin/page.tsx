@@ -411,7 +411,7 @@ export default function AdminDashboard() {
                   key={broker.id}
                   className="flex items-center justify-between p-3 rounded-lg hover:bg-muted/30 transition-colors"
                 >
-                  <div className="flex items-center space-x-2">
+                  <div className="flex items-center space-x-2 min-w-0 flex-1">
                     <div className={`flex items-center justify-center w-7 h-7 rounded-full font-bold text-sm flex-shrink-0 ${
                       broker.rank === 1 ? 'bg-yellow-500 text-white' :
                       broker.rank === 2 ? 'bg-gray-400 text-white' :

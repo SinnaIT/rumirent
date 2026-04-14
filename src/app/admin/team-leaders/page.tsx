@@ -24,6 +24,7 @@ export default function TeamLeadersPage() {
   const [teamLeaders, setTeamLeaders] = useState<TeamLeader[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
+  const [statusFilter, setStatusFilter] = useState<'todos' | 'activos' | 'inactivos'>('activos')
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
   const [isAssignModalOpen, setIsAssignModalOpen] = useState(false)
@@ -253,11 +254,21 @@ export default function TeamLeadersPage() {
     fetchAvailableBrokers()
   }
 
-  const filteredTLs = teamLeaders.filter(tl =>
-    tl.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    tl.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    tl.rut.toLowerCase().includes(searchTerm.toLowerCase())
-  )
+  const filteredTLs = teamLeaders
+    .filter(tl => {
+      const matchesSearch =
+        tl.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        tl.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        tl.rut.toLowerCase().includes(searchTerm.toLowerCase())
+
+      const matchesStatus =
+        statusFilter === 'todos' ||
+        (statusFilter === 'activos' && tl.activo) ||
+        (statusFilter === 'inactivos' && !tl.activo)
+
+      return matchesSearch && matchesStatus
+    })
+    .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es', { sensitivity: 'base' }))
 
   const stats = {
     total: teamLeaders.length,
@@ -320,15 +331,33 @@ export default function TeamLeadersPage() {
         </Card>
       </div>
 
-      {/* Search */}
-      <div className="relative max-w-md">
-        <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-        <Input
-          placeholder="Buscar líderes de equipo..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="pl-10"
-        />
+      {/* Search & Filter */}
+      <div className="flex flex-col sm:flex-row gap-3">
+        <div className="relative flex-1 max-w-md">
+          <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Buscar líderes de equipo..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-10"
+          />
+        </div>
+        <div className="space-y-1">
+          <Label className="text-xs text-muted-foreground">Estado</Label>
+          <Select
+            value={statusFilter}
+            onValueChange={(v) => setStatusFilter(v as 'todos' | 'activos' | 'inactivos')}
+          >
+            <SelectTrigger className="w-full sm:w-[180px]">
+              <SelectValue placeholder="Filtrar por estado" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="todos">Todos</SelectItem>
+              <SelectItem value="activos">Activos</SelectItem>
+              <SelectItem value="inactivos">Inactivos</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       {/* Table */}

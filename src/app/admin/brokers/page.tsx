@@ -49,6 +49,7 @@ export default function BrokersPage() {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
   const [editingBroker, setEditingBroker] = useState<Broker | null>(null)
   const [taxTypes, setTaxTypes] = useState<TaxType[]>([])
+  const [teamLeaders, setTeamLeaders] = useState<{ id: string; nombre: string }[]>([])
   const [formData, setFormData] = useState<BrokerFormData>({
     email: '',
     nombre: '',
@@ -58,7 +59,8 @@ export default function BrokersPage() {
     password: '',
     confirmPassword: '',
     taxTypeId: '',
-    role: 'BROKER'
+    role: 'BROKER',
+    teamLeaderId: '',
   })
 
   // Cargar brokers
@@ -90,9 +92,21 @@ export default function BrokersPage() {
     }
   }
 
+  const fetchTeamLeaders = async () => {
+    try {
+      const response = await fetch('/api/admin/team-leaders')
+      if (!response.ok) return
+      const data = await response.json()
+      setTeamLeaders(data.teamLeaders.filter((tl: { activo: boolean }) => tl.activo))
+    } catch {
+      // silently fail
+    }
+  }
+
   useEffect(() => {
     fetchBrokers()
     fetchTaxTypes()
+    fetchTeamLeaders()
   }, [])
 
   // Crear broker
@@ -149,6 +163,7 @@ export default function BrokersPage() {
         password?: string
         taxTypeId?: string | null
         role?: string
+        teamLeaderId?: string | null
       } = {
         email: formData.email,
         nombre: formData.nombre,
@@ -157,6 +172,7 @@ export default function BrokersPage() {
         birthDate: formData.birthDate || undefined,
         taxTypeId: formData.taxTypeId || null,
         role: formData.role,
+        teamLeaderId: formData.teamLeaderId || null,
       }
 
       if (formData.password && formData.password === formData.confirmPassword) {
@@ -215,7 +231,8 @@ export default function BrokersPage() {
       password: '',
       confirmPassword: '',
       taxTypeId: '',
-      role: 'BROKER'
+      role: 'BROKER',
+      teamLeaderId: '',
     })
   }
 
@@ -230,7 +247,8 @@ export default function BrokersPage() {
       password: '',
       confirmPassword: '',
       taxTypeId: broker.taxTypeId || '',
-      role: 'BROKER'
+      role: 'BROKER',
+      teamLeaderId: broker.teamLeaderId || '',
     })
     setIsEditModalOpen(true)
   }
@@ -364,6 +382,7 @@ export default function BrokersPage() {
                   <TableHead>Teléfono</TableHead>
                   <TableHead>Estado</TableHead>
                   <TableHead>Impuesto</TableHead>
+                  <TableHead>Team Leader</TableHead>
                   <TableHead>Arriendos</TableHead>
                   <TableHead>Comisiones</TableHead>
                   <TableHead>Registro</TableHead>
@@ -372,7 +391,7 @@ export default function BrokersPage() {
               <TableBody>
                 {filteredBrokers.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={10} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={11} className="text-center py-8 text-muted-foreground">
                       No se encontraron brokers
                     </TableCell>
                   </TableRow>
@@ -430,6 +449,11 @@ export default function BrokersPage() {
                         ) : (
                           <span className="text-muted-foreground text-xs">—</span>
                         )}
+                      </TableCell>
+                      <TableCell className="text-sm">
+                        {broker.teamLeader
+                          ? broker.teamLeader.nombre
+                          : <span className="text-muted-foreground">—</span>}
                       </TableCell>
                       <TableCell>{broker.ventasRealizadas}</TableCell>
                       <TableCell className="font-mono">
@@ -621,6 +645,23 @@ export default function BrokersPage() {
               {formData.role !== 'BROKER' && (
                 <p className="text-xs text-amber-600">Al cambiar el rol, este usuario dejará de aparecer en la lista de brokers</p>
               )}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-teamLeaderId">Team Leader (opcional)</Label>
+              <Select
+                value={formData.teamLeaderId || 'none'}
+                onValueChange={(v) => setFormData(prev => ({ ...prev, teamLeaderId: v === 'none' ? '' : v }))}
+              >
+                <SelectTrigger id="edit-teamLeaderId">
+                  <SelectValue placeholder="Sin team leader asignado" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Sin team leader</SelectItem>
+                  {teamLeaders.map((tl) => (
+                    <SelectItem key={tl.id} value={tl.id}>{tl.nombre}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-2">
               <Label htmlFor="edit-telefono">Teléfono</Label>

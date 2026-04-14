@@ -108,7 +108,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
 
     const { id } = await params
     const body = await request.json()
-    const { email, nombre, rut, telefono, birthDate, password, taxTypeId, role } = body
+    const { email, nombre, rut, telefono, birthDate, password, taxTypeId, role, teamLeaderId } = body
 
     // Validaciones básicas
     if (!nombre || !rut || !email) {
@@ -189,6 +189,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       lastPasswordChange?: Date
       commissionTaxTypeId?: string | null
       role?: 'BROKER' | 'TEAM_LEADER'
+      teamLeaderId?: string | null
     } = {
       email,
       nombre,
@@ -196,6 +197,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       telefono: telefono || null,
       birthDate: birthDate ? new Date(birthDate) : null,
       commissionTaxTypeId: taxTypeId !== undefined ? (taxTypeId || null) : undefined,
+      teamLeaderId: teamLeaderId !== undefined ? (teamLeaderId || null) : undefined,
     }
 
     if (role && (role === 'BROKER' || role === 'TEAM_LEADER')) {

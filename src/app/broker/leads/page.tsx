@@ -24,7 +24,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { toast } from 'sonner'
-import { Users, Eye, Search, Mail, Phone, MapPin, Calendar, MessageCircle, Edit2, Save, X } from 'lucide-react'
+import { Users, Eye, Search, Mail, Phone, MapPin, Calendar, MessageCircle, Edit2, Save, X, UserPlus } from 'lucide-react'
 
 import type { ClienteWithDates, ClienteWithActiveLead } from '@/types'
 
@@ -37,8 +37,17 @@ export default function LeadsPage() {
   const [searchTerm, setSearchTerm] = useState('')
   const [editingCliente, setEditingCliente] = useState<Cliente | null>(null)
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
   const [saving, setSaving] = useState(false)
   const [formData, setFormData] = useState({
+    nombre: '',
+    rut: '',
+    email: '',
+    telefono: '',
+    direccion: '',
+    fechaNacimiento: ''
+  })
+  const [createFormData, setCreateFormData] = useState({
     nombre: '',
     rut: '',
     email: '',
@@ -150,6 +159,50 @@ export default function LeadsPage() {
     }
   }
 
+  const handleOpenCreateModal = () => {
+    setCreateFormData({ nombre: '', rut: '', email: '', telefono: '', direccion: '', fechaNacimiento: '' })
+    setIsCreateModalOpen(true)
+  }
+
+  const handleCreateCliente = async () => {
+    if (!createFormData.nombre.trim() || !createFormData.telefono.trim()) {
+      toast.error('Nombre y teléfono (WhatsApp) son requeridos')
+      return
+    }
+
+    try {
+      setSaving(true)
+
+      const response = await fetch('/api/broker/clientes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          nombre: createFormData.nombre.trim(),
+          rut: createFormData.rut.trim() || undefined,
+          email: createFormData.email.trim() || undefined,
+          telefono: createFormData.telefono.trim(),
+          direccion: createFormData.direccion.trim() || undefined,
+          fechaNacimiento: createFormData.fechaNacimiento || undefined
+        })
+      })
+
+      const data = await response.json()
+
+      if (data.success) {
+        toast.success('Cliente creado exitosamente')
+        setIsCreateModalOpen(false)
+        fetchClientes()
+      } else {
+        toast.error(data.error || 'Error al crear cliente')
+      }
+    } catch (error) {
+      console.error('Error:', error)
+      toast.error('Error de conexión')
+    } finally {
+      setSaving(false)
+    }
+  }
+
   const filteredClientes = clientes.filter(cliente =>
     cliente.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
     cliente.rut.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -190,6 +243,10 @@ export default function LeadsPage() {
             Gestiona la información de tus clientes potenciales
           </p>
         </div>
+        <Button onClick={handleOpenCreateModal}>
+          <UserPlus className="h-4 w-4 mr-2" />
+          Nuevo Cliente
+        </Button>
       </div>
 
       {/* Search and Stats */}
@@ -359,6 +416,92 @@ export default function LeadsPage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Modal de Creación */}
+      <Dialog open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Nuevo Cliente</DialogTitle>
+            <DialogDescription>
+              Crea un nuevo cliente. Será asignado automáticamente a tu cuenta.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="create-nombre">Nombre *</Label>
+              <Input
+                id="create-nombre"
+                value={createFormData.nombre}
+                onChange={(e) => setCreateFormData({ ...createFormData, nombre: e.target.value })}
+                placeholder="Nombre completo"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="create-rut">RUT</Label>
+              <Input
+                id="create-rut"
+                value={createFormData.rut}
+                onChange={(e) => setCreateFormData({ ...createFormData, rut: e.target.value })}
+                placeholder="12.345.678-9"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="create-email">Email</Label>
+              <Input
+                id="create-email"
+                type="email"
+                value={createFormData.email}
+                onChange={(e) => setCreateFormData({ ...createFormData, email: e.target.value })}
+                placeholder="email@ejemplo.com"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="create-telefono">Teléfono (WhatsApp) *</Label>
+              <Input
+                id="create-telefono"
+                value={createFormData.telefono}
+                onChange={(e) => setCreateFormData({ ...createFormData, telefono: e.target.value })}
+                placeholder="+56 9 1234 5678"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="create-direccion">Dirección</Label>
+              <Input
+                id="create-direccion"
+                value={createFormData.direccion}
+                onChange={(e) => setCreateFormData({ ...createFormData, direccion: e.target.value })}
+                placeholder="Calle 123, Comuna, Ciudad"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="create-fechaNacimiento">Fecha de Nacimiento</Label>
+              <Input
+                id="create-fechaNacimiento"
+                type="date"
+                value={createFormData.fechaNacimiento}
+                onChange={(e) => setCreateFormData({ ...createFormData, fechaNacimiento: e.target.value })}
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsCreateModalOpen(false)} disabled={saving}>
+              <X className="h-4 w-4 mr-2" />
+              Cancelar
+            </Button>
+            <Button onClick={handleCreateCliente} disabled={saving}>
+              <UserPlus className="h-4 w-4 mr-2" />
+              {saving ? 'Creando...' : 'Crear Cliente'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Modal de Edición */}
       <Dialog open={isEditModalOpen} onOpenChange={handleCloseModal}>

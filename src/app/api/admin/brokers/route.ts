@@ -37,6 +37,13 @@ export async function GET(request: NextRequest) {
             active: true,
           }
         },
+        teamLeaderId: true,
+        teamLeader: {
+          select: {
+            id: true,
+            nombre: true,
+          }
+        },
         _count: {
           select: {
             leads: true
@@ -65,6 +72,8 @@ export async function GET(request: NextRequest) {
       activo: broker.activo,
       taxTypeId: broker.commissionTaxTypeId,
       taxType: broker.commissionTaxType,
+      teamLeaderId: broker.teamLeaderId,
+      teamLeader: broker.teamLeader,
       ventasRealizadas: broker._count.leads,
       comisionesTotales: broker.leads.reduce((total, lead) => lead.estado !== 'RECHAZADO' ? total + (lead.comision || 0) : total, 0),
       createdAt: broker.createdAt.toISOString()

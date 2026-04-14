@@ -12,4 +12,6 @@ export interface Broker extends BrokerBasic {
   createdAt: string
   taxTypeId?: string | null
   taxType?: TaxType | null
+  teamLeaderId?: string | null
+  teamLeader?: { id: string; nombre: string } | null
 }

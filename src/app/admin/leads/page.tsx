@@ -32,7 +32,7 @@ import {
 } from 'lucide-react'
 
 import type { BrokerBasic, ClienteBasic, EdificioRef, UnidadOption, ReglaComision, ComisionBase, TipoUnidadBasic, LeadFull } from '@/types'
-import { ESTADOS_LEAD, ESTADOS_LEAD_ACTIVE } from '@/types'
+import { ESTADOS_LEAD, ESTADOS_LEAD_ACTIVE, LEGACY_ESTADOS } from '@/types'
 
 type Broker = BrokerBasic
 type Cliente = ClienteBasic

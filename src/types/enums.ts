@@ -35,5 +35,5 @@ export const ESTADOS_LEAD: EstadoLeadOption[] = [
   { value: 'ENTREGADO', label: 'Entregado', color: 'bg-blue-100 text-blue-800' },
 ]
 
-const LEGACY_ESTADOS: EstadoLead[] = ['ENTREGADO', 'CANCELADO']
+export const LEGACY_ESTADOS: EstadoLead[] = ['ENTREGADO', 'CANCELADO']
 export const ESTADOS_LEAD_ACTIVE = ESTADOS_LEAD.filter(e => !LEGACY_ESTADOS.includes(e.value))

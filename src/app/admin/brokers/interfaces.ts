@@ -10,4 +10,5 @@ export interface BrokerFormData {
   confirmPassword: string
   taxTypeId: string
   role: Extract<UserRole, 'BROKER' | 'TEAM_LEADER'>
+  teamLeaderId: string
 }

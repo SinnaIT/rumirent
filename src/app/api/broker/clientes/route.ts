@@ -89,30 +89,28 @@ export async function POST(request: NextRequest) {
     if (user instanceof NextResponse) return user
 
     const body = await request.json()
-    const { nombre, rut, email, telefono } = body
+    const { nombre, rut, email, telefono, direccion, fechaNacimiento } = body
 
     // Validaciones básicas
-    if (!nombre || !rut) {
+    if (!nombre || !telefono) {
       return NextResponse.json(
-        { error: 'Nombre y RUT son requeridos' },
+        { error: 'Nombre y teléfono son requeridos' },
         { status: 400 }
       )
     }
 
-    // Verificar que no exista un cliente con el mismo RUT
+    // Verificar duplicados solo para campos con valor
+    const orConditions: object[] = [{ telefono }]
+    if (rut) orConditions.push({ rut })
+    if (email) orConditions.push({ email })
+
     const existingCliente = await prisma.cliente.findFirst({
-      where: { 
-        OR: [
-          { rut: rut },
-          { email: email },
-          { telefono: telefono }
-        ]
-       }
+      where: { OR: orConditions }
     })
 
     if (existingCliente) {
       return NextResponse.json(
-        { error: 'Ya existe un cliente con este RUT, email o telefono' },
+        { error: 'Ya existe un cliente con este RUT, email o teléfono' },
         { status: 400 }
       )
     }
@@ -121,9 +119,11 @@ export async function POST(request: NextRequest) {
     const nuevoCliente = await prisma.cliente.create({
       data: {
         nombre,
-        rut,
-        email: email || undefined,
-        telefono: telefono || undefined,
+        rut: rut || null,
+        email: email || null,
+        telefono,
+        direccion: direccion || null,
+        fechaNacimiento: fechaNacimiento ? new Date(fechaNacimiento) : null,
         brokerId: user.id
       }
     })
