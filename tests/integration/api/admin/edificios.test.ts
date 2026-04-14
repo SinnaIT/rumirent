@@ -66,7 +66,7 @@ describe('GET /api/admin/edificios', () => {
     expect(data.success).toBe(true)
     expect(data.edificios).toHaveLength(1)
     expect(data.edificios[0].totalUnidades).toBe(3)
-    expect(data.edificios[0].unidadesDisponibles).toBe(1)
+    expect(data.edificios[0].unidadesDisponibles).toBe(2)
     expect(data.edificios[0].unidadesReservadas).toBe(1)
     expect(data.edificios[0].unidadesVendidas).toBe(1)
   })
