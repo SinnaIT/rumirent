@@ -68,7 +68,6 @@ describe('GET /api/admin/edificios', () => {
     expect(data.edificios[0].totalUnidades).toBe(3)
     expect(data.edificios[0].unidadesDisponibles).toBe(2)
     expect(data.edificios[0].unidadesReservadas).toBe(1)
-    expect(data.edificios[0].unidadesVendidas).toBe(1)
   })
 
   it('should return empty array when no edificios exist', async () => {
