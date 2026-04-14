@@ -1,13 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { verifyAuth } from '@/lib/auth'
+import { requireBrokerOrTeamLeader } from '@/lib/auth'
 import { prisma } from '@/lib/db'
 
 export async function GET(request: NextRequest) {
   try {
-    const authResult = await verifyAuth(request)
-    if (!authResult.success || authResult.user?.role !== 'BROKER') {
-      return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
-    }
+    const user = await requireBrokerOrTeamLeader(request)
+    if (user instanceof NextResponse) return user
 
     const { searchParams } = new URL(request.url)
     const mes = searchParams.get('mes')
@@ -37,7 +35,7 @@ export async function GET(request: NextRequest) {
     // Obtener todos los leads del periodo (filtrados por fechaPagoReserva)
     const leadsPeriodo = await prisma.lead.findMany({
       where: {
-        brokerId: authResult.user.id,
+        brokerId: user.id,
         fechaPagoReserva: {
           gte: fechaInicio,
           lte: fechaFin,
@@ -55,7 +53,7 @@ export async function GET(request: NextRequest) {
     // Obtener leads con checkin en el periodo (fechaCheckin en el periodo)
     const leadsConCheckin = await prisma.lead.findMany({
       where: {
-        brokerId: authResult.user.id,
+        brokerId: user.id,
         fechaCheckin: {
           gte: fechaInicio,
           lte: fechaFin,
@@ -109,7 +107,7 @@ export async function GET(request: NextRequest) {
     let metaMensual = await prisma.metaMensual.findUnique({
       where: {
         brokerId_mes_anio: {
-          brokerId: authResult.user.id,
+          brokerId: user.id,
           mes: mesNum,
           anio: anioNum,
         },

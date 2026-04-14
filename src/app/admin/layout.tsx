@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
+import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import {
   Menu,
@@ -24,7 +25,8 @@ import {
   Shield,
   Target,
   Trophy,
-  Receipt
+  Receipt,
+  UsersRound
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/lib/hooks/use-auth'
@@ -36,6 +38,7 @@ const menuItems = [
   { icon: Building, label: 'Empresas', href: '/admin/empresas' },
   { icon: Building2, label: 'Proyectos', href: '/admin/proyectos' },
   { icon: Users, label: 'Brokers', href: '/admin/brokers' },
+  { icon: UsersRound, label: 'Líderes de Equipo', href: '/admin/team-leaders' },
   { icon: Shield, label: 'Usuarios Admin', href: '/admin/usuarios' },
   { icon: UserCheck, label: 'Leads', href: '/admin/clientes' },
   { icon: FileText, label: 'Prospectos', href: '/admin/leads' },
@@ -66,7 +69,6 @@ export default function AdminLayout({
   const router = useRouter()
   const pathname = usePathname()
   const { user, loading, logout } = useAuth()
-
   const toggleSubmenu = (label: string) => {
     setExpandedMenus(prev =>
       prev.includes(label)
@@ -136,26 +138,19 @@ export default function AdminLayout({
 
                 return (
                   <li key={item.href}>
-                    <Button
-                      variant={isActive ? "default" : "ghost"}
-                      className={cn(
-                        "w-full justify-start text-left transition-colors",
-                        isActive
-                          ? "bg-sidebar-primary text-sidebar-primary-foreground hover:bg-sidebar-primary/90"
-                          : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-                      )}
-                      onClick={() => {
-                        if (hasSubmenu) {
-                          toggleSubmenu(item.label)
-                        } else {
-                          router.push(item.href)
-                          setIsSidebarOpen(false)
-                        }
-                      }}
-                    >
-                      <item.icon className="mr-3 h-5 w-5" />
-                      {item.label}
-                      {hasSubmenu && (
+                    {hasSubmenu ? (
+                      <Button
+                        variant={isActive ? "default" : "ghost"}
+                        className={cn(
+                          "w-full justify-start text-left transition-colors",
+                          isActive
+                            ? "bg-sidebar-primary text-sidebar-primary-foreground hover:bg-sidebar-primary/90"
+                            : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                        )}
+                        onClick={() => toggleSubmenu(item.label)}
+                      >
+                        <item.icon className="mr-3 h-5 w-5" />
+                        <span>{item.label}</span>
                         <div className="ml-auto">
                           {isExpanded ? (
                             <ChevronDown className="h-4 w-4" />
@@ -163,8 +158,24 @@ export default function AdminLayout({
                             <ChevronRight className="h-4 w-4" />
                           )}
                         </div>
-                      )}
-                    </Button>
+                      </Button>
+                    ) : (
+                      <Button
+                        asChild
+                        variant={isActive ? "default" : "ghost"}
+                        className={cn(
+                          "w-full justify-start text-left transition-colors",
+                          isActive
+                            ? "bg-sidebar-primary text-sidebar-primary-foreground hover:bg-sidebar-primary/90"
+                            : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                        )}
+                      >
+                        <Link href={item.href} onClick={() => setIsSidebarOpen(false)}>
+                          <item.icon className="mr-3 h-5 w-5" />
+                          <span>{item.label}</span>
+                        </Link>
+                      </Button>
+                    )}
 
                     {/* Submenu */}
                     {hasSubmenu && isExpanded && (
@@ -174,6 +185,7 @@ export default function AdminLayout({
                           return (
                             <li key={subItem.href}>
                               <Button
+                                asChild
                                 variant={isSubActive ? "default" : "ghost"}
                                 size="sm"
                                 className={cn(
@@ -182,13 +194,11 @@ export default function AdminLayout({
                                     ? "bg-sidebar-primary text-sidebar-primary-foreground hover:bg-sidebar-primary/90"
                                     : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
                                 )}
-                                onClick={() => {
-                                  router.push(subItem.href)
-                                  setIsSidebarOpen(false)
-                                }}
                               >
-                                <subItem.icon className="mr-3 h-4 w-4" />
-                                {subItem.label}
+                                <Link href={subItem.href} onClick={() => setIsSidebarOpen(false)}>
+                                  <subItem.icon className="mr-3 h-4 w-4" />
+                                  <span>{subItem.label}</span>
+                                </Link>
                               </Button>
                             </li>
                           )
@@ -218,7 +228,7 @@ export default function AdminLayout({
                 <Menu className="h-5 w-5" />
               </Button>
               <h1 className="text-lg font-semibold text-foreground">
-                Panel de Administrador
+                <span>Panel de Administrador</span>
               </h1>
             </div>
 
@@ -232,8 +242,8 @@ export default function AdminLayout({
                   <User className="h-4 w-4 text-secondary-foreground" />
                 </div>
                 <div className="flex flex-col">
-                  <span className="font-medium text-foreground">{user.nombre}</span>
-                  <span className="text-xs text-muted-foreground">{user.email}</span>
+                  <span className="font-medium text-foreground"><span>{user.nombre}</span></span>
+                  <span className="text-xs text-muted-foreground"><span>{user.email}</span></span>
                 </div>
               </div>
 

@@ -28,13 +28,7 @@ import {
   X
 } from 'lucide-react'
 
-interface Comision {
-  id: string
-  nombre: string
-  codigo: string
-  porcentaje: number
-  activa: boolean
-}
+import type { Comision } from '@/types'
 
 interface Empresa {
   id: string
@@ -531,7 +525,7 @@ export default function ProyectosPage() {
 
       {/* Stats Cards */}
       {edificios.length > 0 && (
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
           <Card>
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
@@ -571,6 +565,20 @@ export default function ProyectosPage() {
                   </p>
                 </div>
                 <Home className="h-8 w-8 text-green-600" />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Reservadas</p>
+                  <p className="text-2xl font-bold text-yellow-600">
+                    {filteredEdificios.reduce((sum, e) => sum + e.unidadesReservadas, 0)}
+                  </p>
+                </div>
+                <Calendar className="h-8 w-8 text-yellow-600" />
               </div>
             </CardContent>
           </Card>

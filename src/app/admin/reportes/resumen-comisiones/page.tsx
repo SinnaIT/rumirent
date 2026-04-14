@@ -56,64 +56,8 @@ const ANIOS = Array.from({ length: 10 }, (_, i) => {
   return { value: year.toString(), label: year.toString() }
 })
 
-interface ReglaComision {
-  id: string
-  cantidadMinima: number
-  cantidadMaxima: number | null
-  porcentaje: number
-  comision: {
-    id: string
-    nombre: string
-    codigo: string
-  }
-}
-
-interface ComisionBase {
-  id: string
-  nombre: string
-  codigo: string
-  porcentaje: number
-}
-
-interface TipoUnidadEdificio {
-  id: string
-  nombre: string
-  codigo: string
-  bedrooms?: number
-  bathrooms?: number
-}
-
-interface UnidadOption {
-  id: string
-  numero: string
-  estado: string
-  descripcion?: string
-  metros2?: number
-  tipoUnidadEdificio?: {
-    id: string
-    nombre: string
-    codigo: string
-  }
-}
-
-interface Broker {
-  id: string
-  nombre: string
-  email: string
-  rut?: string
-}
-
-interface Cliente {
-  id: string
-  nombre: string
-  rut: string
-}
-
-interface Edificio {
-  id: string
-  nombre: string
-  direccion?: string
-}
+import type { BrokerRef, EdificioRef, ReglaComision, ComisionBase, TipoUnidadBasic, UnidadOption } from '@/types'
+import { ESTADOS_LEAD } from '@/types'
 
 interface Lead {
   id: string
@@ -131,46 +75,15 @@ interface Lead {
   postulacion: string | null
   observaciones: string | null
   isValid: boolean
-  broker: {
-    id: string
-    nombre: string
-    email: string
-  }
-  cliente: {
-    id: string
-    nombre: string
-    rut: string
-  }
-  edificio: {
-    id: string
-    nombre: string
-  }
+  broker: BrokerRef
+  cliente: { id: string; nombre: string; rut: string }
+  edificio: EdificioRef
   tipoUnidad: string
-  tipoUnidadEdificio: TipoUnidadEdificio | null
+  tipoUnidadEdificio: TipoUnidadBasic | null
   reglaComision: ReglaComision | null
   comisionBase: ComisionBase | null
-  unidad: {
-    id: string
-    numero: string
-    estado: string
-    descripcion?: string
-    metros2?: number
-  } | null
+  unidad: UnidadOption | null
 }
-
-const ESTADOS_LEAD = [
-  { value: 'INGRESADO', label: 'Ingresado' },
-  { value: 'ENTREGADO', label: 'Entregado' },
-  { value: 'EN_EVALUACION', label: 'En Evaluación' },
-  { value: 'OBSERVADO', label: 'Observado' },
-  { value: 'APROBADO', label: 'Aprobado' },
-  { value: 'RESERVA_PAGADA', label: 'Reserva Pagada' },
-  { value: 'CONTRATO_FIRMADO', label: 'Contrato Firmado' },
-  { value: 'CONTRATO_PAGADO', label: 'Contrato Pagado' },
-  { value: 'DEPARTAMENTO_ENTREGADO', label: 'Departamento Entregado' },
-  { value: 'RECHAZADO', label: 'Rechazado' },
-  { value: 'CANCELADO', label: 'Cancelado' }
-]
 
 interface BrokerSummary {
   brokerId: string

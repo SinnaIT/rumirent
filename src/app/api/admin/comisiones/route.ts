@@ -4,20 +4,6 @@ import { verifyAuth } from '@/lib/auth'
 
 export async function GET(request: NextRequest) {
   try {
-    // En desarrollo, omitir verificación de autenticación por ahora
-    if (process.env.NODE_ENV === 'development') {
-      console.log('🛠️ Modo desarrollo - omitiendo autenticación en comisiones')
-    } else {
-      // Verificar autenticación y rol de administrador
-      const authResult = await verifyAuth(request)
-      if (!authResult.success || authResult.user?.role !== 'ADMIN') {
-        return NextResponse.json(
-          { error: 'No autorizado' },
-          { status: 401 }
-        )
-      }
-    }
-
     // Obtener todas las comisiones activas
     const comisiones = await prisma.comision.findMany({
       where: {

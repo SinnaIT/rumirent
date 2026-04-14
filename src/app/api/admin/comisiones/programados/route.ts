@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
       },
       orderBy: [
         { ejecutado: 'asc' },
-        { fechaCambio: 'asc' }
+        { fechaCambio: 'desc' }
       ]
     })
 

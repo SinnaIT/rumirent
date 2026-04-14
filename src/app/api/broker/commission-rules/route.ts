@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
-import { verifyAuth } from '@/lib/auth'
+import { requireBrokerOrTeamLeader } from '@/lib/auth'
 import { commissionRulesCache, formatYearMonth } from '@/lib/cache/commission-rules-cache'
 
 interface ReglaComision {
@@ -56,13 +56,8 @@ interface MultiCommissionResponse {
 
 export async function GET(request: NextRequest) {
   try {
-    const authResult = await verifyAuth(request)
-    if (!authResult.success || authResult.user?.role !== 'BROKER') {
-      return NextResponse.json(
-        { error: 'No autorizado' },
-        { status: 401 }
-      )
-    }
+    const user = await requireBrokerOrTeamLeader(request)
+    if (user instanceof NextResponse) return user
 
     const { searchParams } = new URL(request.url)
     const dateParam = searchParams.get('date') // Expected format: YYYY-MM-DD
@@ -80,17 +75,17 @@ export async function GET(request: NextRequest) {
 
     // Check cache first
     const cachedData = commissionRulesCache.get<MultiCommissionResponse>(
-      authResult.user.id,
+      user.id,
       yearMonth,
       comisionIdParam || undefined
     )
 
     if (cachedData) {
-      console.log(`[CommissionRules] Cache HIT for broker ${authResult.user.id}, month ${yearMonth}`)
+      console.log(`[CommissionRules] Cache HIT for broker ${user.id}, month ${yearMonth}`)
       return NextResponse.json(cachedData)
     }
 
-    console.log(`[CommissionRules] Cache MISS for broker ${authResult.user.id}, month ${yearMonth}`)
+    console.log(`[CommissionRules] Cache MISS for broker ${user.id}, month ${yearMonth}`)
 
     // QUERY 1: Get all commission rules with their commission details (1 query)
     console.log('Fetching commission rules with comisionIdParam:', comisionIdParam)
@@ -118,7 +113,7 @@ export async function GET(request: NextRequest) {
     const leadsGroupedByComision = await prisma.lead.groupBy({
       by: ['comisionId'],
       where: {
-        brokerId: authResult.user.id,
+        brokerId: user.id,
         comisionId: { not: null },
         estado: {
           notIn: ['RECHAZADO']
@@ -232,7 +227,7 @@ export async function GET(request: NextRequest) {
 
     // Cache the result
     commissionRulesCache.set(
-      authResult.user.id,
+      user.id,
       yearMonth,
       response,
       comisionIdParam || undefined

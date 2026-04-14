@@ -32,6 +32,8 @@ import {
   DollarSign,
 } from 'lucide-react'
 
+import type { ClienteWithDates } from '@/types'
+
 interface Lead {
   id: string
   clienteNombre: string
@@ -46,18 +48,7 @@ interface Lead {
   createdAt: string
 }
 
-interface Cliente {
-  id: string
-  nombre: string
-  rut: string
-  email?: string
-  telefono?: string
-  direccion?: string
-  fechaNacimiento?: string
-  createdAt: string
-  updatedAt: string
-  leads: Lead[]
-}
+type Cliente = ClienteWithDates & { leads: Lead[] }
 
 export default function ClienteDetailPage() {
   const router = useRouter()

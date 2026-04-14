@@ -1,17 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
-import { verifyAuth } from '@/lib/auth'
+import { requireBrokerOrTeamLeader } from '@/lib/auth'
 
 export async function GET(request: NextRequest) {
   try {
-    // Verificar autenticación y rol de broker
-    const authResult = await verifyAuth(request)
-    if (!authResult.success || authResult.user?.role !== 'BROKER') {
-      return NextResponse.json(
-        { error: 'No autorizado' },
-        { status: 401 }
-      )
-    }
+    const user = await requireBrokerOrTeamLeader(request)
+    if (user instanceof NextResponse) return user
 
     // Calcular fecha límite para leads activos (30 días atrás)
     const thirtyDaysAgo = new Date()
@@ -20,7 +14,7 @@ export async function GET(request: NextRequest) {
     // Obtener leads del broker
     const leads = await prisma.lead.findMany({
       where: {
-        brokerId: authResult.user.id
+        brokerId: user.id
       },
       include: {
         cliente: {

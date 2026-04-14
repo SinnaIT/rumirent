@@ -31,123 +31,14 @@ import {
   Building
 } from 'lucide-react'
 
-interface Broker {
-  id: string
-  nombre: string
-  email: string
-  rut: string
-}
+import type { BrokerBasic, ClienteBasic, EdificioRef, UnidadOption, ReglaComision, ComisionBase, TipoUnidadBasic, LeadFull } from '@/types'
+import { ESTADOS_LEAD, ESTADOS_LEAD_ACTIVE } from '@/types'
 
-interface Cliente {
-  id: string
-  nombre: string
-  rut: string
-  email?: string
-  telefono?: string
-}
-
-interface Unidad {
-  id: string
-  numero: string
-  descripcion?: string
-  metros2?: number
-  edificio: {
-    id: string
-    nombre: string
-    direccion: string
-  }
-  tipoUnidadEdificio?: {
-    id: string
-    nombre: string
-    codigo: string
-  }
-}
-
-interface Edificio {
-  id: string
-  nombre: string
-  direccion: string
-}
-
-interface ReglaComision {
-  id: string
-  cantidadMinima: number
-  cantidadMaxima: number | null
-  porcentaje: number
-  comision: {
-    id: string
-    nombre: string
-    codigo: string
-  }
-}
-
-interface ComisionBase {
-  id: string
-  nombre: string
-  codigo: string
-  porcentaje: number
-}
-
-interface TipoUnidadEdificio {
-  id: string
-  nombre: string
-  codigo: string
-  bedrooms?: number
-  bathrooms?: number
-  comision?: ComisionBase
-}
-
-interface UnidadOption {
-  id: string
-  numero: string
-  estado: string
-  descripcion?: string
-  metros2?: number
-  tipoUnidadEdificio?: {
-    id: string
-    nombre: string
-    codigo: string
-  }
-}
-
-interface Lead {
-  id: string
-  codigoUnidad?: string
-  totalLead: number
-  montoUf: number
-  comision: number
-  estado: 'INGRESADO' | 'ENTREGADO' | 'EN_EVALUACION' | 'OBSERVADO' | 'APROBADO' | 'RESERVA_PAGADA' | 'CONTRATO_FIRMADO' | 'CONTRATO_PAGADO' | 'DEPARTAMENTO_ENTREGADO' | 'RECHAZADO' | 'CANCELADO'
-  fechaPagoReserva?: string
-  fechaPagoLead?: string
-  fechaCheckin?: string
-  postulacion?: string
-  observaciones?: string
-  conciliado: boolean
-  fechaConciliacion?: string
-  broker: Broker
-  cliente: Cliente
-  unidad?: Unidad
-  edificio: Edificio
-  tipoUnidadEdificio?: TipoUnidadEdificio
-  reglaComision?: ReglaComision
-  comisionBase?: ComisionBase
-  createdAt: string
-  updatedAt: string
-}
-
-const ESTADOS_LEAD = [
-  { value: 'INGRESADO', label: 'Ingresado', color: 'bg-slate-100 text-slate-800' },
-  { value: 'ENTREGADO', label: 'Entregado', color: 'bg-blue-100 text-blue-800' },
-  { value: 'EN_EVALUACION', label: 'En Evaluación', color: 'bg-purple-100 text-purple-800' },
-  { value: 'OBSERVADO', label: 'Observado', color: 'bg-orange-100 text-orange-800' },
-  { value: 'APROBADO', label: 'Aprobado', color: 'bg-green-100 text-green-800' },
-  { value: 'RESERVA_PAGADA', label: 'Reserva Pagada', color: 'bg-yellow-100 text-yellow-800' },
-  { value: 'CONTRATO_FIRMADO', label: 'Contrato Firmado', color: 'bg-teal-100 text-teal-800' },
-  { value: 'CONTRATO_PAGADO', label: 'Contrato Pagado', color: 'bg-cyan-100 text-cyan-800' },
-  { value: 'DEPARTAMENTO_ENTREGADO', label: 'Departamento Entregado', color: 'bg-emerald-100 text-emerald-800' },
-  { value: 'RECHAZADO', label: 'Rechazado', color: 'bg-red-100 text-red-800' },
-  { value: 'CANCELADO', label: 'Cancelado', color: 'bg-gray-100 text-gray-800' }
-]
+type Broker = BrokerBasic
+type Cliente = ClienteBasic
+type Edificio = EdificioRef
+type TipoUnidadEdificio = TipoUnidadBasic
+type Lead = LeadFull
 
 export default function AdminLeadsPage() {
   const [leads, setLeads] = useState<Lead[]>([])
@@ -170,9 +61,9 @@ export default function AdminLeadsPage() {
   const [selectedBroker, setSelectedBroker] = useState('todos')
   const [selectedCliente, setSelectedCliente] = useState('todos')
   const [selectedEstado, setSelectedEstado] = useState('todos')
-  const [campoFecha, setCampoFecha] = useState<'fechaPagoReserva' | 'fechaPagoLead' | 'fechaCheckin'>('fechaPagoReserva')
-  const [fechaDesde, setFechaDesde] = useState('')
-  const [fechaHasta, setFechaHasta] = useState('')
+  const [filterDateField, setFilterDateField] = useState<'fechaCheckin' | 'fechaPagoReserva' | 'fechaPagoLead' | 'createdAt'>('fechaCheckin')
+  const [filterMonth, setFilterMonth] = useState<string>(() => (new Date().getMonth() + 1).toString())
+  const [filterYear, setFilterYear] = useState<string>(() => new Date().getFullYear().toString())
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [editingLead, setEditingLead] = useState<Lead | null>(null)
   const [manualComisionModified, setManualComisionModified] = useState(false)
@@ -186,7 +77,7 @@ export default function AdminLeadsPage() {
     totalLead: string
     montoUf: string
     comision: string
-    estado: 'INGRESADO' | 'ENTREGADO' | 'EN_EVALUACION' | 'OBSERVADO' | 'APROBADO' | 'RESERVA_PAGADA' | 'CONTRATO_FIRMADO' | 'CONTRATO_PAGADO' | 'DEPARTAMENTO_ENTREGADO' | 'RECHAZADO' | 'CANCELADO'
+    estado: 'INGRESADO' | 'ENTREGADO' | 'EN_EVALUACION' | 'OBSERVADO' | 'APROBADO' | 'RESERVA_PAGADA' | 'CONTRATO_FIRMADO' | 'CONTRATO_PAGADO' | 'DEPARTAMENTO_ENTREGADO' | 'RECHAZADO' | 'CANCELADO' | 'DESISTIDO'
     fechaPagoReserva: string
     fechaPagoLead: string
     fechaCheckin: string
@@ -277,32 +168,29 @@ export default function AdminLeadsPage() {
       filtered = filtered.filter(lead => lead.estado === selectedEstado)
     }
 
-    // Filtro por rango de fechas (usa el campo seleccionado)
-    if (fechaDesde) {
-      const fechaDesdeDate = new Date(fechaDesde)
-      fechaDesdeDate.setHours(0, 0, 0, 0)
+    // Filtro unificado por mes/año según campo de fecha seleccionado
+    if (filterMonth !== 'todos') {
+      const mesNum = parseInt(filterMonth)
       filtered = filtered.filter(lead => {
-        const leadDateValue = lead[campoFecha]
-        if (!leadDateValue) return false // Excluir leads sin fecha en el campo seleccionado
-        const leadDate = new Date(leadDateValue)
-        leadDate.setHours(0, 0, 0, 0)
-        return leadDate >= fechaDesdeDate
+        const dateValue = lead[filterDateField]
+        if (!dateValue) return false
+        const d = new Date(dateValue)
+        return d.getMonth() + 1 === mesNum
       })
     }
 
-    if (fechaHasta) {
-      const fechaHastaDate = new Date(fechaHasta)
-      fechaHastaDate.setHours(23, 59, 59, 999)
+    if (filterYear !== 'todos') {
+      const añoNum = parseInt(filterYear)
       filtered = filtered.filter(lead => {
-        const leadDateValue = lead[campoFecha]
-        if (!leadDateValue) return false // Excluir leads sin fecha en el campo seleccionado
-        const leadDate = new Date(leadDateValue)
-        return leadDate <= fechaHastaDate
+        const dateValue = lead[filterDateField]
+        if (!dateValue) return false
+        const d = new Date(dateValue)
+        return d.getFullYear() === añoNum
       })
     }
 
     setFilteredLeads(filtered)
-  }, [leads, searchTerm, selectedBroker, selectedCliente, selectedEstado, campoFecha, fechaDesde, fechaHasta])
+  }, [leads, searchTerm, selectedBroker, selectedCliente, selectedEstado, filterDateField, filterMonth, filterYear])
 
   const fetchLeads = async () => {
     try {
@@ -761,7 +649,7 @@ export default function AdminLeadsPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">Total Leads</p>
-                  <p className="text-2xl font-bold">{leads.length}</p>
+                  <p className="text-2xl font-bold">{filteredLeads.length}</p>
                 </div>
                 <FileText className="h-8 w-8 text-muted-foreground" />
               </div>
@@ -772,9 +660,9 @@ export default function AdminLeadsPage() {
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-muted-foreground">Aprobados</p>
+                  <p className="text-sm font-medium text-muted-foreground">Check-in</p>
                   <p className="text-2xl font-bold">
-                    {leads.filter(l => l.estado === 'APROBADO').length}
+                    {filteredLeads.filter(l => l.estado === 'DEPARTAMENTO_ENTREGADO').length}
                   </p>
                 </div>
                 <CheckCircle className="h-8 w-8 text-green-600" />
@@ -788,7 +676,7 @@ export default function AdminLeadsPage() {
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">Valor Total</p>
                   <p className="text-xl font-bold">
-                    {formatCurrency(leads.reduce((sum, l) => sum + l.totalLead, 0))}
+                    {formatCurrency(filteredLeads.reduce((sum, l) => sum + l.totalLead, 0))}
                   </p>
                 </div>
                 <DollarSign className="h-8 w-8 text-blue-600" />
@@ -802,7 +690,7 @@ export default function AdminLeadsPage() {
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">Conciliados</p>
                   <p className="text-2xl font-bold">
-                    {leads.filter(l => l.conciliado).length}
+                    {filteredLeads.filter(l => l.conciliado).length}
                   </p>
                 </div>
                 <TrendingUp className="h-8 w-8 text-purple-600" />
@@ -867,7 +755,7 @@ export default function AdminLeadsPage() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="todos">Todos los estados</SelectItem>
-                    {ESTADOS_LEAD.map((estado) => (
+                    {ESTADOS_LEAD_ACTIVE.map((estado) => (
                       <SelectItem key={estado.value} value={estado.value}>
                         {estado.label}
                       </SelectItem>
@@ -883,72 +771,102 @@ export default function AdminLeadsPage() {
                   setSelectedBroker('todos')
                   setSelectedCliente('todos')
                   setSelectedEstado('todos')
-                  setFechaDesde('')
-                  setFechaHasta('')
+                  setFilterDateField('fechaCheckin')
+                  setFilterMonth((new Date().getMonth() + 1).toString())
+                  setFilterYear(new Date().getFullYear().toString())
                 }}
               >
                 Limpiar Filtros
               </Button>
             </div>
 
-            {/* Second Row: Date Range Filter */}
+            {/* Second Row: Filtro unificado por Fecha (Mes/Año) */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4 border-t pt-4">
               <div className="space-y-2">
-                <Label htmlFor="campoFecha" className="text-sm font-medium">
+                <Label htmlFor="filterDateField" className="text-sm font-medium">
                   Filtrar por Fecha
                 </Label>
-                <Select value={campoFecha} onValueChange={(value) => setCampoFecha(value as typeof campoFecha)}>
-                  <SelectTrigger id="campoFecha">
+                <Select value={filterDateField} onValueChange={(value) => setFilterDateField(value as typeof filterDateField)}>
+                  <SelectTrigger id="filterDateField">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="fechaCheckin">Check-in</SelectItem>
                     <SelectItem value="fechaPagoReserva">Pago Reserva</SelectItem>
                     <SelectItem value="fechaPagoLead">Pago Lead</SelectItem>
-                    <SelectItem value="fechaCheckin">Check-in</SelectItem>
+                    <SelectItem value="createdAt">Fecha de Creación</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="fechaDesde" className="text-sm font-medium">
-                  Fecha Desde
+                <Label htmlFor="filterMonth" className="text-xs text-muted-foreground">
+                  Mes
                 </Label>
-                <Input
-                  id="fechaDesde"
-                  type="date"
-                  value={fechaDesde}
-                  onChange={(e) => setFechaDesde(e.target.value)}
-                  className="w-full"
-                />
+                <Select value={filterMonth} onValueChange={setFilterMonth}>
+                  <SelectTrigger id="filterMonth">
+                    <SelectValue placeholder="Todos los meses" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="todos">Todos los meses</SelectItem>
+                    <SelectItem value="1">Enero</SelectItem>
+                    <SelectItem value="2">Febrero</SelectItem>
+                    <SelectItem value="3">Marzo</SelectItem>
+                    <SelectItem value="4">Abril</SelectItem>
+                    <SelectItem value="5">Mayo</SelectItem>
+                    <SelectItem value="6">Junio</SelectItem>
+                    <SelectItem value="7">Julio</SelectItem>
+                    <SelectItem value="8">Agosto</SelectItem>
+                    <SelectItem value="9">Septiembre</SelectItem>
+                    <SelectItem value="10">Octubre</SelectItem>
+                    <SelectItem value="11">Noviembre</SelectItem>
+                    <SelectItem value="12">Diciembre</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="fechaHasta" className="text-sm font-medium">
-                  Fecha Hasta
+                <Label htmlFor="filterYear" className="text-xs text-muted-foreground">
+                  Año
                 </Label>
-                <Input
-                  id="fechaHasta"
-                  type="date"
-                  value={fechaHasta}
-                  onChange={(e) => setFechaHasta(e.target.value)}
-                  className="w-full"
-                />
+                <Select value={filterYear} onValueChange={setFilterYear}>
+                  <SelectTrigger id="filterYear">
+                    <SelectValue placeholder="Todos los años" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="todos">Todos los años</SelectItem>
+                    {Array.from(
+                      new Set(leads.map(l => {
+                        const dateValue = l[filterDateField]
+                        if (!dateValue) return null
+                        return new Date(dateValue).getFullYear()
+                      }).filter((y): y is number => y !== null))
+                    )
+                      .sort((a, b) => b - a)
+                      .map(año => (
+                        <SelectItem key={año} value={año.toString()}>
+                          {año}
+                        </SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
               </div>
 
-              {(fechaDesde || fechaHasta) && (
+              {(filterMonth !== 'todos' || filterYear !== 'todos') && (
                 <div className="flex items-end">
                   <div className="p-3 bg-blue-50 dark:bg-blue-950/20 rounded-lg border border-blue-200 dark:border-blue-800 w-full">
                     <p className="text-xs text-blue-700 dark:text-blue-300 font-medium mb-1">
-                      {campoFecha === 'fechaPagoReserva' ? '📅 Pago Reserva' :
-                       campoFecha === 'fechaPagoLead' ? '💰 Pago Lead' :
-                       '🏠 Check-in'}
+                      {filterDateField === 'fechaCheckin' ? 'Check-in' :
+                       filterDateField === 'fechaPagoReserva' ? 'Pago Reserva' :
+                       filterDateField === 'fechaPagoLead' ? 'Pago Lead' :
+                       'Fecha de Creación'}
                     </p>
                     <p className="text-xs text-blue-600 dark:text-blue-400">
-                      {fechaDesde && fechaHasta
-                        ? `${new Date(fechaDesde).toLocaleDateString('es-CL')} - ${new Date(fechaHasta).toLocaleDateString('es-CL')}`
-                        : fechaDesde
-                        ? `Desde ${new Date(fechaDesde).toLocaleDateString('es-CL')}`
-                        : `Hasta ${new Date(fechaHasta).toLocaleDateString('es-CL')}`}
+                      {filterMonth !== 'todos' && filterYear !== 'todos'
+                        ? new Date(parseInt(filterYear), parseInt(filterMonth) - 1, 1).toLocaleDateString('es-CL', { month: 'long', year: 'numeric' })
+                        : filterMonth !== 'todos'
+                        ? new Date(2000, parseInt(filterMonth) - 1, 1).toLocaleDateString('es-CL', { month: 'long' })
+                        : `Año ${filterYear}`}
                     </p>
                   </div>
                 </div>
@@ -964,7 +882,7 @@ export default function AdminLeadsPage() {
           <CardTitle>Leads Registrados</CardTitle>
           <CardDescription>
             Lista de todos los leads con filtros aplicados
-            {(searchTerm || selectedBroker !== 'todos' || selectedCliente !== 'todos' || selectedEstado !== 'todos' || fechaDesde || fechaHasta) &&
+            {(searchTerm || selectedBroker !== 'todos' || selectedCliente !== 'todos' || selectedEstado !== 'todos' || filterMonth !== 'todos' || filterYear !== 'todos') &&
               ` (${filteredLeads.length} de ${leads.length} leads)`
             }
           </CardDescription>
@@ -1257,7 +1175,7 @@ export default function AdminLeadsPage() {
                                         <SelectValue />
                                       </SelectTrigger>
                                       <SelectContent>
-                                        {ESTADOS_LEAD.map((estado) => (
+                                        {ESTADOS_LEAD.filter(e => !LEGACY_ESTADOS.includes(e.value) || e.value === formData.estado).map((estado) => (
                                           <SelectItem key={estado.value} value={estado.value}>
                                             {estado.label}
                                           </SelectItem>

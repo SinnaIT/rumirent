@@ -10,19 +10,6 @@ export async function GET(
     const { id } = await params
     console.log('🔍 GET /api/admin/edificios/' + id)
 
-    // En desarrollo, omitir verificación de autenticación por ahora
-    if (process.env.NODE_ENV === 'development') {
-      console.log('🛠️ Modo desarrollo - omitiendo autenticación')
-    } else {
-      const authResult = await verifyAuth(request)
-      if (!authResult.success || authResult.user?.role !== 'ADMIN') {
-        return NextResponse.json(
-          { error: 'No autorizado' },
-          { status: 401 }
-        )
-      }
-    }
-
     const edificio = await prisma.edificio.findUnique({
       where: { id },
       include: {
@@ -40,6 +27,11 @@ export async function GET(
             descripcion: true,
             metros2: true,
             tipoUnidadEdificioId: true,
+            leads: {
+              select: {
+                estado: true
+              }
+            },
             tipoUnidadEdificio: {
               select: {
                 id: true,
@@ -78,9 +70,14 @@ export async function GET(
     }
 
     // Formatear datos con estadísticas calculadas
-    const unidadesDisponibles = edificio.unidades.filter(u => u.estado === 'DISPONIBLE').length
-    const unidadesVendidas = edificio.unidades.filter(u => u.estado === 'VENDIDA').length
-    const unidadesReservadas = edificio.unidades.filter(u => u.estado === 'RESERVADA').length
+    const ESTADOS_ARRENDADA = ['DEPARTAMENTO_ENTREGADO']
+    const unidadesVendidas = edificio.unidades.filter(u =>
+      (u.leads && ESTADOS_ARRENDADA.includes(u.leads.estado))
+    ).length
+    const unidadesReservadas = edificio.unidades.filter(u =>
+      u.estado === 'RESERVADA'
+    ).length
+    const unidadesDisponibles = edificio.unidades.length - unidadesReservadas
 
     // Agrupar unidades por tipo
     const tiposUnidad = edificio.unidades.reduce((acc: Record<string, number>, unidad) => {
@@ -146,20 +143,6 @@ export async function PUT(
   try {
     const { id } = await params
     console.log('🔄 PUT /api/admin/edificios/' + id)
-
-    // En desarrollo, omitir verificación de autenticación por ahora
-    if (process.env.NODE_ENV === 'development') {
-      console.log('🛠️ Modo desarrollo - omitiendo autenticación')
-    } else {
-      const authResult = await verifyAuth(request)
-      if (!authResult.success || authResult.user?.role !== 'ADMIN') {
-        return NextResponse.json(
-          { error: 'No autorizado' },
-          { status: 401 }
-        )
-      }
-    }
-
     const body = await request.json()
     const {
       nombre,
@@ -317,20 +300,6 @@ export async function DELETE(
   try {
     const { id } = await params
     console.log('🗑️ DELETE /api/admin/edificios/' + id)
-
-    // En desarrollo, omitir verificación de autenticación por ahora
-    if (process.env.NODE_ENV === 'development') {
-      console.log('🛠️ Modo desarrollo - omitiendo autenticación')
-    } else {
-      const authResult = await verifyAuth(request)
-      if (!authResult.success || authResult.user?.role !== 'ADMIN') {
-        return NextResponse.json(
-          { error: 'No autorizado' },
-          { status: 401 }
-        )
-      }
-    }
-
     // Verificar que el edificio existe y obtener información sobre unidades
     const edificio = await prisma.edificio.findUnique({
       where: { id },

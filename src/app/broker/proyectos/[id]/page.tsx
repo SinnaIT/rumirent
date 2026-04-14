@@ -41,43 +41,9 @@ import {
 } from 'lucide-react'
 import * as LucideIcons from 'lucide-react'
 
-interface Imagen {
-  id: string
-  url: string
-  descripcion?: string
-  orden: number
-}
+import type { Comision, TipoUnidadBasic, Imagen, Caracteristica } from '@/types'
 
-interface Caracteristica {
-  id: string
-  nombre: string
-  valor: string
-  icono?: string
-  tipoIcono: 'LUCIDE' | 'URL' | 'UPLOAD'
-  mostrarEnResumen: boolean
-  tipoCaracteristica: {
-    id: string
-    nombre: string
-    descripcion?: string
-  }
-}
-
-interface TipoUnidad {
-  id: string
-  nombre: string
-  codigo: string
-  bedrooms?: number | null
-  bathrooms?: number | null
-  comision: Comision | null
-}
-
-interface Comision {
-  id: string
-  nombre: string
-  codigo: string
-  porcentaje: number
-  activa: boolean
-}
+type TipoUnidad = TipoUnidadBasic
 
 interface Unidad {
   id: string
@@ -85,12 +51,7 @@ interface Unidad {
   estado: 'DISPONIBLE' | 'RESERVADA' | 'VENDIDA'
   descripcion?: string
   metros2?: number
-  tipoUnidad: {
-    id: string
-    nombre: string
-    codigo: string
-    comision: Comision | null
-  }
+  tipoUnidad: { id: string; nombre: string; codigo: string; comision: Comision | null }
 }
 
 interface Proyecto {

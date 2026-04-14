@@ -10,19 +10,6 @@ export async function GET(
     const { id } = await params
     console.log('🔍 GET /api/admin/comisiones/reglas/' + id)
 
-    // En desarrollo, omitir verificación de autenticación por ahora
-    if (process.env.NODE_ENV === 'development') {
-      console.log('🛠️ Modo desarrollo - omitiendo autenticación')
-    } else {
-      const authResult = await verifyAuth(request)
-      if (!authResult.success || authResult.user?.role !== 'ADMIN') {
-        return NextResponse.json(
-          { error: 'No autorizado' },
-          { status: 401 }
-        )
-      }
-    }
-
     const regla = await prisma.reglaComision.findUnique({
       where: { id },
       include: {
@@ -64,19 +51,6 @@ export async function PUT(
   try {
     const { id } = await params
     console.log('🔄 PUT /api/admin/comisiones/reglas/' + id)
-
-    // En desarrollo, omitir verificación de autenticación por ahora
-    if (process.env.NODE_ENV === 'development') {
-      console.log('🛠️ Modo desarrollo - omitiendo autenticación')
-    } else {
-      const authResult = await verifyAuth(request)
-      if (!authResult.success || authResult.user?.role !== 'ADMIN') {
-        return NextResponse.json(
-          { error: 'No autorizado' },
-          { status: 401 }
-        )
-      }
-    }
 
     const body = await request.json()
     const { cantidadMinima, cantidadMaxima, porcentaje, comisionId } = body
@@ -203,19 +177,6 @@ export async function DELETE(
   try {
     const { id } = await params
     console.log('🗑️ DELETE /api/admin/comisiones/reglas/' + id)
-
-    // En desarrollo, omitir verificación de autenticación por ahora
-    if (process.env.NODE_ENV === 'development') {
-      console.log('🛠️ Modo desarrollo - omitiendo autenticación')
-    } else {
-      const authResult = await verifyAuth(request)
-      if (!authResult.success || authResult.user?.role !== 'ADMIN') {
-        return NextResponse.json(
-          { error: 'No autorizado' },
-          { status: 401 }
-        )
-      }
-    }
 
     // Verificar que la regla existe
     const existingRule = await prisma.reglaComision.findUnique({

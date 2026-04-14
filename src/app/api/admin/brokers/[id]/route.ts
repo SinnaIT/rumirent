@@ -108,7 +108,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
 
     const { id } = await params
     const body = await request.json()
-    const { email, nombre, rut, telefono, birthDate, password, taxTypeId } = body
+    const { email, nombre, rut, telefono, birthDate, password, taxTypeId, role } = body
 
     // Validaciones básicas
     if (!nombre || !rut || !email) {
@@ -122,7 +122,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     const existingbroker = await prisma.user.findUnique({
       where: {
         id,
-        role: 'BROKER'
+        role: { in: ['BROKER', 'TEAM_LEADER'] }
       }
     })
 
@@ -131,6 +131,22 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
         { error: 'broker no encontrado' },
         { status: 404 }
       )
+    }
+
+    // Validate role change
+    if (role && role !== existingbroker.role) {
+      if (role === 'BROKER' && existingbroker.role === 'TEAM_LEADER') {
+        // Check no assigned brokers before downgrading
+        const assignedCount = await prisma.user.count({
+          where: { teamLeaderId: id, role: 'BROKER' }
+        })
+        if (assignedCount > 0) {
+          return NextResponse.json(
+            { error: 'No se puede cambiar el rol: tiene brokers asignados. Desasigne los brokers primero.' },
+            { status: 400 }
+          )
+        }
+      }
     }
 
     // Verificar si el email ya existe en otro usuario
@@ -172,6 +188,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       mustChangePassword?: boolean
       lastPasswordChange?: Date
       commissionTaxTypeId?: string | null
+      role?: 'BROKER' | 'TEAM_LEADER'
     } = {
       email,
       nombre,
@@ -179,6 +196,10 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       telefono: telefono || null,
       birthDate: birthDate ? new Date(birthDate) : null,
       commissionTaxTypeId: taxTypeId !== undefined ? (taxTypeId || null) : undefined,
+    }
+
+    if (role && (role === 'BROKER' || role === 'TEAM_LEADER')) {
+      updateData.role = role
     }
 
     // Si se proporciona nueva contraseña, hashearla y forzar cambio

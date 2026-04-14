@@ -1,24 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
-import { verifyAuth } from '@/lib/auth'
+import { requireBrokerOrTeamLeader } from '@/lib/auth'
 
 export async function GET(request: NextRequest) {
   try {
     console.log('[API /broker/clientes] GET request received')
 
-    // Verificar autenticación y rol de broker
-    const authResult = await verifyAuth(request)
-    console.log('[API /broker/clientes] Auth result:', authResult)
+    const user = await requireBrokerOrTeamLeader(request)
+    if (user instanceof NextResponse) return user
 
-    if (!authResult.success || authResult.user?.role !== 'BROKER') {
-      console.log('[API /broker/clientes] Unauthorized - success:', authResult.success, 'role:', authResult.user?.role)
-      return NextResponse.json(
-        { success: false, error: 'No autorizado' },
-        { status: 401 }
-      )
-    }
-
-    console.log('[API /broker/clientes] Broker ID:', authResult.user.id)
+    console.log('[API /broker/clientes] Broker ID:', user.id)
 
     // Calcular fecha límite para leads activos (30 días atrás)
     const thirtyDaysAgo = new Date()
@@ -27,7 +18,7 @@ export async function GET(request: NextRequest) {
     // Obtener clientes del broker actual con información de leads activos
     const clientes = await prisma.cliente.findMany({
       where: {
-        brokerId: authResult.user.id
+        brokerId: user.id
       },
       include: {
         leads: {
@@ -94,14 +85,8 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    // Verificar autenticación y rol de broker
-    const authResult = await verifyAuth(request)
-    if (!authResult.success || authResult.user?.role !== 'BROKER') {
-      return NextResponse.json(
-        { error: 'No autorizado' },
-        { status: 401 }
-      )
-    }
+    const user = await requireBrokerOrTeamLeader(request)
+    if (user instanceof NextResponse) return user
 
     const body = await request.json()
     const { nombre, rut, email, telefono } = body
@@ -139,7 +124,7 @@ export async function POST(request: NextRequest) {
         rut,
         email: email || undefined,
         telefono: telefono || undefined,
-        brokerId: authResult.user.id
+        brokerId: user.id
       }
     })
 

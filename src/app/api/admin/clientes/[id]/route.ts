@@ -10,19 +10,6 @@ export async function GET(
     const { id } = await params
     console.log('🔍 GET /api/admin/clientes/' + id)
 
-    // En desarrollo, omitir verificación de autenticación por ahora
-    if (process.env.NODE_ENV === 'development') {
-      console.log('🛠️ Modo desarrollo - omitiendo autenticación')
-    } else {
-      const authResult = await verifyAuth(request)
-      if (!authResult.success || authResult.user?.role !== 'ADMIN') {
-        return NextResponse.json(
-          { error: 'No autorizado' },
-          { status: 401 }
-        )
-      }
-    }
-
     const cliente = await prisma.cliente.findUnique({
       where: { id },
       include: {
@@ -97,20 +84,6 @@ export async function PUT(
   try {
     const { id } = await params
     console.log('🔄 PUT /api/admin/clientes/' + id)
-
-    // En desarrollo, omitir verificación de autenticación por ahora
-    if (process.env.NODE_ENV === 'development') {
-      console.log('🛠️ Modo desarrollo - omitiendo autenticación')
-    } else {
-      const authResult = await verifyAuth(request)
-      if (!authResult.success || authResult.user?.role !== 'ADMIN') {
-        return NextResponse.json(
-          { error: 'No autorizado' },
-          { status: 401 }
-        )
-      }
-    }
-
     const body = await request.json()
     const { nombre, rut, email, telefono, direccion, fechaNacimiento, brokerId } = body
 

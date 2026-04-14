@@ -24,10 +24,13 @@ model User {
   resetToken         String?
   resetTokenExpiry   DateTime?
   commissionTaxTypeId String?      @map("commission_tax_type_id")
+  teamLeaderId       String?       @map("team_leader_id")
   clientes           Cliente[]     @relation("ClienteBroker")
   leads              Lead[]
   metasMensuales     MetaMensual[]
   commissionTaxType  TaxType?      @relation(fields: [commissionTaxTypeId], references: [id])
+  teamLeader         User?         @relation("TeamHierarchy", fields: [teamLeaderId], references: [id])
+  teamBrokers        User[]        @relation("TeamHierarchy")
 
   @@map("users")
 }
@@ -300,6 +303,7 @@ enum TipoImagenUrl {
 enum Role {
   ADMIN
   BROKER
+  TEAM_LEADER
 }
 
 enum TipoEntidad {
@@ -325,6 +329,7 @@ enum EstadoLead {
   DEPARTAMENTO_ENTREGADO
   RECHAZADO
   CANCELADO
+  DESISTIDO
 }
 
 enum TaxNature {

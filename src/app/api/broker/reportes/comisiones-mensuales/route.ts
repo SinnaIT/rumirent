@@ -1,13 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { verifyAuth } from '@/lib/auth'
+import { requireBrokerOrTeamLeader } from '@/lib/auth'
 import { prisma } from '@/lib/db'
 
 export async function GET(request: NextRequest) {
   try {
-    const authResult = await verifyAuth(request)
-    if (!authResult.success || authResult.user?.role !== 'BROKER') {
-      return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
-    }
+    const user = await requireBrokerOrTeamLeader(request)
+    if (user instanceof NextResponse) return user
 
     const { searchParams } = new URL(request.url)
     const mes = searchParams.get('mes')
@@ -25,7 +23,7 @@ export async function GET(request: NextRequest) {
     const fechaFin = new Date(yearNum, mesNum + 1, 0, 23, 59, 59, 999)
 
     console.log('Búsqueda de comisiones:', {
-      brokerId: authResult.user.id,
+      brokerId: user.id,
       fechaInicio,
       fechaFin,
       mes: mesNum,
@@ -35,7 +33,7 @@ export async function GET(request: NextRequest) {
     // Primero verificar si el broker tiene leads en general
     const totalLeads = await prisma.lead.count({
       where: {
-        brokerId: authResult.user.id,
+        brokerId: user.id,
       },
     })
     console.log(`Total leads del broker: ${totalLeads}`)
@@ -44,7 +42,7 @@ export async function GET(request: NextRequest) {
     // Excluye rechazados y cancelados
     const leads = await prisma.lead.findMany({
       where: {
-        brokerId: authResult.user.id,
+        brokerId: user.id,
         OR: [
           {
             fechaPagoReserva: {
@@ -82,7 +80,7 @@ export async function GET(request: NextRequest) {
       ],
     })
 
-    console.log(`Encontrados ${leads.length} leads para el usuario ${authResult.user.id}`)
+    console.log(`Encontrados ${leads.length} leads para el usuario ${user.id}`)
 
     // Calcular comisiones para cada lead
     const comisionesMensuales = leads.map((lead) => {

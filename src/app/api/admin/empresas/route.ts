@@ -5,26 +5,6 @@ import { verifyAuth } from '@/lib/auth'
 export async function GET(request: NextRequest) {
   try {
     console.log('🔍 Iniciando GET /api/admin/empresas')
-
-    // En desarrollo, omitir verificación de autenticación por ahora
-    if (process.env.NODE_ENV === 'development') {
-      console.log('🛠️ Modo desarrollo - omitiendo autenticación')
-    } else {
-      // Verificar autenticación y rol de administrador
-      const authResult = await verifyAuth(request)
-      console.log('🔐 Resultado de autenticación:', authResult)
-
-      if (!authResult.success || authResult.user?.role !== 'ADMIN') {
-        console.log('❌ No autorizado')
-        return NextResponse.json(
-          { error: 'No autorizado' },
-          { status: 401 }
-        )
-      }
-    }
-
-    console.log('✅ Usuario autorizado, consultando empresas...')
-
     // Get tipo filter from query params
     const { searchParams } = new URL(request.url)
     const tipoParam = searchParams.get('tipo')
@@ -82,20 +62,6 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    // En desarrollo, omitir verificación de autenticación por ahora
-    if (process.env.NODE_ENV === 'development') {
-      console.log('🛠️ Modo desarrollo - omitiendo autenticación para POST')
-    } else {
-      // Verificar autenticación y rol de administrador
-      const authResult = await verifyAuth(request)
-      if (!authResult.success || authResult.user?.role !== 'ADMIN') {
-        return NextResponse.json(
-          { error: 'No autorizado' },
-          { status: 401 }
-        )
-      }
-    }
-
     const body = await request.json()
     const {
       nombre,

@@ -9,20 +9,6 @@ export async function GET(
   try {
     const { id } = await params
     console.log('🔍 GET /api/admin/edificios/' + id + '/tipos-unidad')
-
-    // En desarrollo, omitir verificación de autenticación por ahora
-    if (process.env.NODE_ENV === 'development') {
-      console.log('🛠️ Modo desarrollo - omitiendo autenticación')
-    } else {
-      const authResult = await verifyAuth(request)
-      if (!authResult.success || authResult.user?.role !== 'ADMIN') {
-        return NextResponse.json(
-          { error: 'No autorizado' },
-          { status: 401 }
-        )
-      }
-    }
-
     // Verificar que el edificio existe
     const edificio = await prisma.edificio.findUnique({
       where: { id: id }
@@ -91,20 +77,6 @@ export async function POST(
   try {
     const { id } = await params
     console.log('➕ POST /api/admin/edificios/' + id + '/tipos-unidad')
-
-    // En desarrollo, omitir verificación de autenticación por ahora
-    if (process.env.NODE_ENV === 'development') {
-      console.log('🛠️ Modo desarrollo - omitiendo autenticación')
-    } else {
-      const authResult = await verifyAuth(request)
-      if (!authResult.success || authResult.user?.role !== 'ADMIN') {
-        return NextResponse.json(
-          { error: 'No autorizado' },
-          { status: 401 }
-        )
-      }
-    }
-
     const body = await request.json()
 
     // Verificar que el edificio existe

@@ -1,20 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
-import { verifyAuth } from '@/lib/auth'
+import { requireBrokerOrTeamLeader } from '@/lib/auth'
+import { syncUnidadEstadoForLead } from '@/lib/lead-unit-sync'
 
 export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    // Verificar autenticación y rol de broker
-    const authResult = await verifyAuth(request)
-    if (!authResult.success || authResult.user?.role !== 'BROKER') {
-      return NextResponse.json(
-        { error: 'No autorizado' },
-        { status: 401 }
-      )
-    }
+    const user = await requireBrokerOrTeamLeader(request)
+    if (user instanceof NextResponse) return user
 
     const { id } = await params
     const body = await request.json()
@@ -30,7 +25,7 @@ export async function PUT(
     const leadExistente = await prisma.lead.findFirst({
       where: {
         id,
-        brokerId: authResult.user.id
+        brokerId: user.id
       }
     })
 
@@ -168,36 +163,48 @@ export async function PUT(
       }
     }
 
-    // Actualizar el lead
-    const leadActualizado = await prisma.lead.update({
-      where: { id },
-      data: datosActualizacion,
-      include: {
-        cliente: true,
-        unidad: {
-          include: {
-            edificio: {
-              select: {
-                id: true,
-                nombre: true,
-                direccion: true
-              }
-            },
-            tipoUnidadEdificio: {
-              include: {
-                comision: true
+    // Actualizar el lead y sincronizar el estado de la unidad en una transacción
+    const leadActualizado = await prisma.$transaction(async (tx) => {
+      const updated = await tx.lead.update({
+        where: { id },
+        data: datosActualizacion,
+        include: {
+          cliente: true,
+          unidad: {
+            include: {
+              edificio: {
+                select: {
+                  id: true,
+                  nombre: true,
+                  direccion: true
+                }
+              },
+              tipoUnidadEdificio: {
+                include: {
+                  comision: true
+                }
               }
             }
-          }
-        },
-        edificio: {
-          select: {
-            id: true,
-            nombre: true,
-            direccion: true
+          },
+          edificio: {
+            select: {
+              id: true,
+              nombre: true,
+              direccion: true
+            }
           }
         }
-      }
+      })
+
+      // Mantener en sincronía el estado de la unidad con el estado del lead
+      // (un broker no puede cambiar la unidad asociada, por eso previousUnidadId === newUnidadId)
+      await syncUnidadEstadoForLead(tx, {
+        newUnidadId: updated.unidadId,
+        previousUnidadId: leadExistente.unidadId,
+        leadEstado: updated.estado
+      })
+
+      return updated
     })
 
     return NextResponse.json({

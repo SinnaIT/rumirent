@@ -5,24 +5,6 @@ import { verifyAuth } from '@/lib/auth'
 export async function GET(request: NextRequest) {
   try {
     console.log('🔍 Iniciando GET /api/admin/leads')
-
-    // En desarrollo, omitir verificación de autenticación por ahora
-    if (process.env.NODE_ENV === 'development') {
-      console.log('🛠️ Modo desarrollo - omitiendo autenticación')
-    } else {
-      // Verificar autenticación y rol de administrador
-      const authResult = await verifyAuth(request)
-      console.log('🔐 Resultado de autenticación:', authResult)
-
-      if (!authResult.success || authResult.user?.role !== 'ADMIN') {
-        console.log('❌ No autorizado')
-        return NextResponse.json(
-          { error: 'No autorizado' },
-          { status: 401 }
-        )
-      }
-    }
-
     const { searchParams } = new URL(request.url)
     const brokerId = searchParams.get('brokerId')
     const clienteId = searchParams.get('clienteId')

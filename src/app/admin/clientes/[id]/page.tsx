@@ -27,12 +27,9 @@ import {
   ClipboardList
 } from 'lucide-react'
 
-interface Broker {
-  id: string
-  nombre: string
-  email: string
-  rut: string
-}
+import type { BrokerBasic } from '@/types'
+
+type Broker = BrokerBasic
 
 interface Lead {
   id: string
@@ -40,9 +37,7 @@ interface Lead {
   totalLead: number
   montoUf: number
   estado: string
-  edificio: {
-    nombre: string
-  }
+  edificio: { nombre: string }
   createdAt: string
 }
 

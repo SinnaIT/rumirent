@@ -5,20 +5,6 @@ import { verifyAuth } from '@/lib/auth'
 export async function GET(request: NextRequest) {
   try {
     console.log('🔍 GET /api/admin/tipos-unidad')
-
-    // En desarrollo, omitir verificación de autenticación
-    if (process.env.NODE_ENV === 'development') {
-      console.log('🛠️ Modo desarrollo - omitiendo autenticación')
-    } else {
-      const authResult = await verifyAuth(request)
-      if (!authResult.success || authResult.user?.role !== 'ADMIN') {
-        return NextResponse.json(
-          { error: 'No autorizado' },
-          { status: 401 }
-        )
-      }
-    }
-
     // Obtener todos los tipos de unidad activos con su edificio asociado
     const tiposUnidad = await prisma.tipoUnidadEdificio.findMany({
       where: {

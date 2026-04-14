@@ -40,23 +40,23 @@ export async function GET(request: NextRequest) {
       },
     })
 
-    // Get units sold this month
+    // Get units rented this month (by fechaCheckin)
     const unitsSoldThisMonth = await prisma.lead.count({
       where: {
-        createdAt: {
+        fechaCheckin: {
           gte: startOfMonth,
           lte: endOfMonth,
         },
         estado: {
-          in: ['APROBADO', 'RESERVA_PAGADA'],
+          in: ['APROBADO', 'RESERVA_PAGADA', 'DEPARTAMENTO_ENTREGADO', 'CONTRATO_FIRMADO', 'CONTRATO_PAGADO'],
         },
       },
     })
 
-    // Get projected commissions (fechaPagoReserva in period, excluding rejected)
+    // Get projected commissions (fechaCheckin in period, excluding rejected/cancelled and already delivered)
     const comisionesProyectadas = await prisma.lead.aggregate({
       where: {
-        fechaPagoReserva: {
+        fechaCheckin: {
           gte: startOfMonth,
           lte: endOfMonth,
         },
@@ -334,7 +334,7 @@ export async function GET(request: NextRequest) {
       },
     })
 
-    const topBrokers = topBrokersData
+    const brokersWithSalesData = topBrokersData
       .map((broker) => ({
         id: broker.id,
         name: broker.nombre,
@@ -343,6 +343,10 @@ export async function GET(request: NextRequest) {
         leadsCount: broker.leads.length,
       }))
       .filter((broker) => broker.leadsCount > 0)
+
+    const brokersWithSalesCount = brokersWithSalesData.length
+
+    const topBrokers = brokersWithSalesData
       .sort((a, b) => {
         // Ordenar primero por número de reservas (descendente)
         if (b.leadsCount !== a.leadsCount) {
@@ -554,12 +558,12 @@ export async function GET(request: NextRequest) {
     // Calculate change percentages (comparing to previous month)
     const unitsSoldLastMonth = await prisma.lead.count({
       where: {
-        createdAt: {
+        fechaCheckin: {
           gte: startOfPreviousMonth,
           lte: endOfPreviousMonth,
         },
         estado: {
-          in: ['APROBADO', 'RESERVA_PAGADA'],
+          notIn: ['RECHAZADO', 'CANCELADO'],
         },
       },
     })
@@ -567,7 +571,7 @@ export async function GET(request: NextRequest) {
     // Get projected commissions last month for comparison
     const comisionesProyectadasLastMonth = await prisma.lead.aggregate({
       where: {
-        fechaPagoReserva: {
+        fechaCheckin: {
           gte: startOfPreviousMonth,
           lte: endOfPreviousMonth,
         },
@@ -634,15 +638,19 @@ export async function GET(request: NextRequest) {
       })
     }
 
-    // Get units sold by building
+    // Get units rented by building (only delivered with checkin date)
     const unitsSoldByBuilding = await prisma.edificio.findMany({
       select: {
         id: true,
         nombre: true,
         leads: {
           where: {
-            estado: {
-              in: ['RESERVA_PAGADA', 'APROBADO'],
+          estado: {
+            notIn: ['RECHAZADO', 'CANCELADO'],
+          },
+            fechaCheckin: {
+             gte: startOfMonth,
+             lte: endOfMonth,
             },
           },
           select: {
@@ -795,6 +803,7 @@ export async function GET(request: NextRequest) {
       stats: {
         totalProjects,
         activeBrokers,
+        brokersWithSalesCount,
         unitsSoldThisMonth,
         unitsChange: Math.round(unitsChange * 10) / 10,
         comisionesProyectadas: comisionesProyectadas._sum.comision || 0,

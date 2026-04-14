@@ -26,24 +26,9 @@ import {
 import { toast } from 'sonner'
 import { Users, Eye, Search, Mail, Phone, MapPin, Calendar, MessageCircle, Edit2, Save, X } from 'lucide-react'
 
-interface Cliente {
-  id: string
-  nombre: string
-  rut: string
-  email?: string
-  telefono?: string
-  direccion?: string
-  fechaNacimiento?: string
-  hasActiveLead?: boolean
-  activeLead?: {
-    id: string
-    createdAt: string
-    estado: string
-    edificio: string
-  } | null
-  createdAt: string
-  updatedAt: string
-}
+import type { ClienteWithDates, ClienteWithActiveLead } from '@/types'
+
+type Cliente = ClienteWithDates & ClienteWithActiveLead
 
 export default function LeadsPage() {
   const router = useRouter()

@@ -14,6 +14,7 @@ interface DashboardData {
     comisionesProyectadasChange: number
     comisionesConfirmadas: number
     comisionesConfirmadasChange: number
+    brokersWithSalesCount: number
   }
   recentActivities: Array<{
     type: string
@@ -110,6 +111,19 @@ export default function AdminDashboard() {
   const [lastUpdate, setLastUpdate] = useState<Date>(new Date())
   const [mes, setMes] = useState<string>((now.getMonth() + 1).toString())
   const [anio, setAnio] = useState<string>(now.getFullYear().toString())
+  const [hiddenMonths, setHiddenMonths] = useState<Set<string>>(new Set())
+
+  const toggleMonth = (month: string) => {
+    setHiddenMonths(prev => {
+      const next = new Set(prev)
+      if (next.has(month)) {
+        next.delete(month)
+      } else {
+        next.add(month)
+      }
+      return next
+    })
+  }
 
   // Generate array of years (last 6 years)
   const currentYear = now.getFullYear()
@@ -162,7 +176,7 @@ export default function AdminDashboard() {
         {
           title: "Total Proyectos",
           value: dashboardData.stats.totalProjects.toString(),
-          change: `${dashboardData.activeProjects.length} activos`,
+          change: '',
           icon: Building2,
           color: "text-primary",
           bgColor: "bg-primary/10",
@@ -171,7 +185,7 @@ export default function AdminDashboard() {
         {
           title: "Brokers Activos",
           value: dashboardData.stats.activeBrokers.toString(),
-          change: `${dashboardData.topBrokers.length} con ventas`,
+          change: `${dashboardData.stats.brokersWithSalesCount} con ventas`,
           icon: Users,
           color: "text-secondary",
           bgColor: "bg-secondary/10",
@@ -408,12 +422,11 @@ export default function AdminDashboard() {
                     </div>
                     <div className="min-w-0 flex-1">
                       <p className="font-semibold text-sm text-card-foreground truncate">{broker.name}</p>
-                      <p className="text-xs text-muted-foreground">{broker.leadsCount} reservas</p>
                     </div>
                   </div>
                   <div className="text-right ml-2">
-                    <p className="font-bold text-sm text-success whitespace-nowrap">{formatCurrency(broker.totalCommission)}</p>
-                    <p className="text-xs text-muted-foreground">comisión</p>
+                    <p className="font-bold text-sm text-success whitespace-nowrap">{broker.leadsCount}</p>
+                    <p className="text-xs text-muted-foreground">Reservas</p>
                   </div>
                 </div>
               ))
@@ -813,8 +826,8 @@ export default function AdminDashboard() {
             <p className="text-sm text-muted-foreground">Total de Arriendos aprobadas</p>
           </div>
           {dashboardData && dashboardData.unitsSoldByBuilding.length > 0 ? (
-            <div className="space-y-4">
-              {dashboardData.unitsSoldByBuilding.slice(0, 5).map((data, index) => {
+            <div className="space-y-4 max-h-80 overflow-y-auto pr-2">
+              {dashboardData.unitsSoldByBuilding.map((data, index) => {
                 const maxCount = Math.max(...dashboardData.unitsSoldByBuilding.map(d => d.soldUnits))
                 const percentage = maxCount > 0 ? (data.soldUnits / maxCount) * 100 : 0
                 return (
@@ -848,114 +861,6 @@ export default function AdminDashboard() {
         </div>
       </div>
 
-      {/* Fourth Row: Active Projects - Full width card */}
-      <div className="mb-8">
-        {/* Active Projects - Stacked Bar Chart */}
-        <div className="bg-card border border-border rounded-xl p-6 shadow-sm hover:shadow-md transition-shadow duration-300">
-          <div className="mb-6">
-            <h3 className="text-xl font-bold text-card-foreground mb-2">Proyectos Activos</h3>
-            <p className="text-sm text-muted-foreground">Distribución de unidades</p>
-          </div>
-
-          {/* Legend */}
-          {dashboardData && dashboardData.activeProjects.length > 0 && (
-            <div className="flex items-center justify-center space-x-6 mb-6 pb-4 border-b border-border">
-              <div className="flex items-center space-x-2">
-                <div className="w-4 h-4 rounded bg-green-500"></div>
-                <span className="text-xs font-medium text-muted-foreground">Disponibles</span>
-              </div>
-              <div className="flex items-center space-x-2">
-                <div className="w-4 h-4 rounded bg-orange-500"></div>
-                <span className="text-xs font-medium text-muted-foreground">Arrendadas</span>
-              </div>
-            </div>
-          )}
-
-          <div className="space-y-6">
-            {dashboardData && dashboardData.activeProjects.length > 0 ? (
-              <>
-                {dashboardData.activeProjects.map((project) => {
-                  const total = project.totalUnits + project.soldUnitsManual
-                  const availablePercentage = total > 0 ? (project.availableUnits / total) * 100 : 0
-                  const soldPercentage = total > 0 ? (project.soldUnits / total) * 100 : 0
-
-                  return (
-                    <div key={project.id} className="space-y-2">
-                      <div className="flex items-center justify-between">
-                        <div className="min-w-[200px]">
-                          <p className="font-semibold text-sm text-card-foreground">{project.name}</p>
-                          <p className="text-xs text-muted-foreground">{project.company}</p>
-                        </div>
-                        <span className="text-sm font-bold text-card-foreground ml-4">{total}</span>
-                      </div>
-
-                      {/* Stacked Bar */}
-                      <div className="relative">
-                        <div className="flex h-10 rounded-lg overflow-hidden bg-muted/30">
-                          {/* Available units segment */}
-                          {project.availableUnits > 0 && (
-                            <div
-                              className="bg-green-500 flex items-center justify-center text-white text-sm font-semibold transition-all duration-500 hover:bg-green-600"
-                              style={{ width: `${availablePercentage}%` }}
-                              title={`${project.availableUnits} disponibles`}
-                            >
-                              {project.availableUnits > 0 && availablePercentage > 10 && (
-                                <span>{project.availableUnits}</span>
-                              )}
-                            </div>
-                          )}
-
-                          {/* Sold units segment */}
-                          {project.soldUnits > 0 && (
-                            <div
-                              className="bg-orange-500 flex items-center justify-center text-white text-sm font-semibold transition-all duration-500 hover:bg-orange-600"
-                              style={{ width: `${soldPercentage}%` }}
-                              title={`${project.soldUnits} vendidas (${project.soldUnitsFromCatalog} catálogo + ${project.soldUnitsManual} manuales)`}
-                            >
-                              {project.soldUnits > 0 && soldPercentage > 10 && (
-                                <span>{project.soldUnits}</span>
-                              )}
-                            </div>
-                          )}
-                        </div>
-
-                        {/* Values below bar for better visibility if space is tight */}
-                        {(availablePercentage < 10 || soldPercentage < 10) && (
-                          <div className="flex justify-between mt-1 text-xs text-muted-foreground">
-                            {project.availableUnits > 0 && availablePercentage < 10 && (
-                              <span>{project.availableUnits} disp.</span>
-                            )}
-                            {project.soldUnits > 0 && soldPercentage < 10 && (
-                              <span>{project.soldUnits} vend.</span>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  )
-                })}
-
-                {/* Total Summary */}
-                <div className="pt-4 mt-4 border-t border-border">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-bold text-card-foreground">Total General</span>
-                    <span className="text-lg font-bold text-primary">
-                      {dashboardData.activeProjects.reduce((sum, p) => sum + p.totalUnits + p.soldUnitsManual, 0)} unidades
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between mt-2 text-xs text-muted-foreground">
-                    <span>{dashboardData.activeProjects.reduce((sum, p) => sum + p.availableUnits, 0)} disponibles</span>
-                    <span>{dashboardData.activeProjects.reduce((sum, p) => sum + p.soldUnits, 0)} vendidas</span>
-                  </div>
-                </div>
-              </>
-            ) : (
-              <p className="text-center text-muted-foreground py-8">No hay proyectos activos</p>
-            )}
-          </div>
-        </div>
-      </div>
-
       {/* Fifth Row: Broker Monthly Reservations Chart - Full width large card */}
       {dashboardData && dashboardData.brokerMonthlyReservations && dashboardData.brokerMonthlyReservations.length > 0 && (
         <div>
@@ -975,17 +880,37 @@ export default function AdminDashboard() {
                   '#f97316', // orange-500
                   '#06b6d4', // cyan-500
                 ]
-                return months.map((month, index) => (
-                  <div key={index} className="flex items-center space-x-2">
-                    <div
-                      className="w-4 h-4 rounded"
-                      style={{ backgroundColor: monthColors[index % monthColors.length] }}
-                    />
-                    <span className="text-sm font-medium text-card-foreground capitalize">
-                      {month}
-                    </span>
-                  </div>
-                ))
+                return months.map((month, index) => {
+                  const isHidden = hiddenMonths.has(month)
+                  return (
+                    <button
+                      key={index}
+                      type="button"
+                      onClick={() => toggleMonth(month)}
+                      className={`flex items-center space-x-2 px-2 py-1 rounded transition-opacity duration-200 hover:bg-muted cursor-pointer ${
+                        isHidden ? 'opacity-40' : 'opacity-100'
+                      }`}
+                      aria-pressed={!isHidden}
+                      title={isHidden ? `Mostrar ${month}` : `Ocultar ${month}`}
+                    >
+                      <div
+                        className={`w-4 h-4 rounded border-2 flex items-center justify-center ${
+                          isHidden ? 'border-muted-foreground' : 'border-transparent'
+                        }`}
+                        style={{ backgroundColor: isHidden ? 'transparent' : monthColors[index % monthColors.length] }}
+                      >
+                        {!isHidden && (
+                          <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                          </svg>
+                        )}
+                      </div>
+                      <span className={`text-sm font-medium capitalize ${isHidden ? 'text-muted-foreground line-through' : 'text-card-foreground'}`}>
+                        {month}
+                      </span>
+                    </button>
+                  )
+                })
               })()}
             </div>
 
@@ -1000,16 +925,16 @@ export default function AdminDashboard() {
                   '#06b6d4', // cyan-500
                 ]
 
-                // Sort brokers by total reservations (descending)
+                // Sort brokers by total reservations (descending), only counting visible months
                 const sortedBrokers = [...dashboardData.brokerMonthlyReservations].sort((a, b) => {
-                  const totalA = a.monthlyData.reduce((sum, month) => sum + month.count, 0)
-                  const totalB = b.monthlyData.reduce((sum, month) => sum + month.count, 0)
+                  const totalA = a.monthlyData.reduce((sum, month) => hiddenMonths.has(month.month) ? sum : sum + month.count, 0)
+                  const totalB = b.monthlyData.reduce((sum, month) => hiddenMonths.has(month.month) ? sum : sum + month.count, 0)
                   return totalB - totalA
                 })
 
-                // Calculate max total value per broker for scaling
+                // Calculate max total value per broker for scaling (visible months only)
                 const brokerTotals = sortedBrokers.map(broker => {
-                  return broker.monthlyData.reduce((sum, month) => sum + month.count, 0)
+                  return broker.monthlyData.reduce((sum, month) => hiddenMonths.has(month.month) ? sum : sum + month.count, 0)
                 })
                 const maxTotal = Math.max(...brokerTotals, 1)
 
@@ -1023,13 +948,14 @@ export default function AdminDashboard() {
                     style={{ minWidth }}
                   >
                     {sortedBrokers.map((broker) => {
-                      const brokerTotal = broker.monthlyData.reduce((sum, month) => sum + month.count, 0)
+                      const brokerTotal = broker.monthlyData.reduce((sum, month) => hiddenMonths.has(month.month) ? sum : sum + month.count, 0)
 
                       return (
                         <div key={broker.brokerId} className="flex flex-col items-center h-full min-w-[100px]">
                           {/* Stacked bar container */}
                           <div className="flex-1 flex flex-col-reverse justify-start w-full max-w-[80px] relative group">
                             {broker.monthlyData.map((monthData, monthIndex) => {
+                              if (hiddenMonths.has(monthData.month)) return null
                               const count = monthData.count
                               if (count === 0) return null
 

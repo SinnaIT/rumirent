@@ -10,19 +10,6 @@ export async function GET(
     const { id, tipoId } = await params
     console.log('🔍 GET /api/admin/edificios/' + id + '/tipos-unidad/' + tipoId)
 
-    // En desarrollo, omitir verificación de autenticación por ahora
-    if (process.env.NODE_ENV === 'development') {
-      console.log('🛠️ Modo desarrollo - omitiendo autenticación')
-    } else {
-      const authResult = await verifyAuth(request)
-      if (!authResult.success || authResult.user?.role !== 'ADMIN') {
-        return NextResponse.json(
-          { error: 'No autorizado' },
-          { status: 401 }
-        )
-      }
-    }
-
     const tipoUnidad = await prisma.tipoUnidadEdificio.findFirst({
       where: {
         id: tipoId,
@@ -74,20 +61,6 @@ export async function PUT(
   try {
     const { id, tipoId } = await params
     console.log('🔄 PUT /api/admin/edificios/' + id + '/tipos-unidad/' + tipoId)
-
-    // En desarrollo, omitir verificación de autenticación por ahora
-    if (process.env.NODE_ENV === 'development') {
-      console.log('🛠️ Modo desarrollo - omitiendo autenticación')
-    } else {
-      const authResult = await verifyAuth(request)
-      if (!authResult.success || authResult.user?.role !== 'ADMIN') {
-        return NextResponse.json(
-          { error: 'No autorizado' },
-          { status: 401 }
-        )
-      }
-    }
-
     const body = await request.json()
     const { nombre, codigo, comisionId, activo } = body
 
@@ -204,20 +177,6 @@ export async function DELETE(
   try {
     const { id, tipoId } = await params
     console.log('🗑️ DELETE /api/admin/edificios/' + id + '/tipos-unidad/' + tipoId)
-
-    // En desarrollo, omitir verificación de autenticación por ahora
-    if (process.env.NODE_ENV === 'development') {
-      console.log('🛠️ Modo desarrollo - omitiendo autenticación')
-    } else {
-      const authResult = await verifyAuth(request)
-      if (!authResult.success || authResult.user?.role !== 'ADMIN') {
-        return NextResponse.json(
-          { error: 'No autorizado' },
-          { status: 401 }
-        )
-      }
-    }
-
     // Verificar que el tipo de unidad existe y pertenece al edificio
     const tipoUnidad = await prisma.tipoUnidadEdificio.findFirst({
       where: {

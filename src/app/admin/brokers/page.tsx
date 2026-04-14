@@ -37,44 +37,14 @@ import {
   ArrowUpCircle
 } from 'lucide-react'
 import { toast } from 'sonner'
-
-interface TaxType {
-  id: string
-  name: string
-  nature: 'ADDITIVE' | 'DEDUCTIVE'
-  active: boolean
-}
-
-interface Broker {
-  id: string
-  email: string
-  nombre: string
-  rut: string
-  telefono: string | null
-  birthDate?: string | null
-  activo: boolean
-  ventasRealizadas: number
-  comisionesTotales: number
-  createdAt: string
-  taxTypeId?: string | null
-  taxType?: TaxType | null
-}
-
-interface BrokerFormData {
-  email: string
-  nombre: string
-  rut: string
-  telefono: string
-  birthDate: string
-  password: string
-  confirmPassword: string
-  taxTypeId: string
-}
+import type { TaxType, Broker } from '@/types'
+import { BrokerFormData } from './interfaces'
 
 export default function BrokersPage() {
   const [brokers, setBrokers] = useState<Broker[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
+  const [statusFilter, setStatusFilter] = useState<'todos' | 'activos' | 'inactivos'>('activos')
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
   const [editingBroker, setEditingBroker] = useState<Broker | null>(null)
@@ -87,7 +57,8 @@ export default function BrokersPage() {
     birthDate: '',
     password: '',
     confirmPassword: '',
-    taxTypeId: ''
+    taxTypeId: '',
+    role: 'BROKER'
   })
 
   // Cargar brokers
@@ -177,6 +148,7 @@ export default function BrokersPage() {
         birthDate?: string
         password?: string
         taxTypeId?: string | null
+        role?: string
       } = {
         email: formData.email,
         nombre: formData.nombre,
@@ -184,6 +156,7 @@ export default function BrokersPage() {
         telefono: formData.telefono || undefined,
         birthDate: formData.birthDate || undefined,
         taxTypeId: formData.taxTypeId || null,
+        role: formData.role,
       }
 
       if (formData.password && formData.password === formData.confirmPassword) {
@@ -241,7 +214,8 @@ export default function BrokersPage() {
       birthDate: '',
       password: '',
       confirmPassword: '',
-      taxTypeId: ''
+      taxTypeId: '',
+      role: 'BROKER'
     })
   }
 
@@ -255,17 +229,28 @@ export default function BrokersPage() {
       birthDate: broker.birthDate ? new Date(broker.birthDate).toISOString().split('T')[0] : '',
       password: '',
       confirmPassword: '',
-      taxTypeId: broker.taxTypeId || ''
+      taxTypeId: broker.taxTypeId || '',
+      role: 'BROKER'
     })
     setIsEditModalOpen(true)
   }
 
-  // Filtrar brokers
-  const filteredBrokers = brokers.filter(broker =>
-    broker.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    broker.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    broker.rut.toLowerCase().includes(searchTerm.toLowerCase())
-  )
+  // Filtrar y ordenar brokers
+  const filteredBrokers = brokers
+    .filter(broker => {
+      const matchesSearch =
+        broker.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        broker.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        broker.rut.toLowerCase().includes(searchTerm.toLowerCase())
+
+      const matchesStatus =
+        statusFilter === 'todos' ||
+        (statusFilter === 'activos' && broker.activo) ||
+        (statusFilter === 'inactivos' && !broker.activo)
+
+      return matchesSearch && matchesStatus
+    })
+    .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es', { sensitivity: 'base' }))
 
   // Estadísticas
   const stats = {
@@ -329,15 +314,33 @@ export default function BrokersPage() {
         </Card>
       </div>
 
-      {/* Search */}
-      <div className="relative max-w-md">
-        <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-        <Input
-          placeholder="Buscar brokers..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="pl-10"
-        />
+      {/* Search & Filter */}
+      <div className="flex flex-col sm:flex-row gap-3">
+        <div className="relative flex-1 max-w-md">
+          <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Buscar brokers..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-10"
+          />
+        </div>
+        <div className="space-y-1">
+          <Label className="text-xs text-muted-foreground">Estado</Label>
+          <Select
+            value={statusFilter}
+            onValueChange={(v) => setStatusFilter(v as 'todos' | 'activos' | 'inactivos')}
+          >
+            <SelectTrigger className="w-full sm:w-[180px]">
+              <SelectValue placeholder="Filtrar por estado" />
+            </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="todos">Todos</SelectItem>
+            <SelectItem value="activos">Activos</SelectItem>
+            <SelectItem value="inactivos">Inactivos</SelectItem>
+          </SelectContent>
+        </Select>
+        </div>
       </div>
 
       {/* Table */}
@@ -600,6 +603,24 @@ export default function BrokersPage() {
                 required
               />
               <p className="text-xs text-muted-foreground">Como administrador, puedes cambiar el email del broker</p>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-role">Rol</Label>
+              <Select
+                value={formData.role}
+                onValueChange={(v) => setFormData(prev => ({ ...prev, role: v as 'BROKER' | 'TEAM_LEADER' }))}
+              >
+                <SelectTrigger id="edit-role">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="BROKER">Broker</SelectItem>
+                  <SelectItem value="TEAM_LEADER">Líder de Equipo</SelectItem>
+                </SelectContent>
+              </Select>
+              {formData.role !== 'BROKER' && (
+                <p className="text-xs text-amber-600">Al cambiar el rol, este usuario dejará de aparecer en la lista de brokers</p>
+              )}
             </div>
             <div className="space-y-2">
               <Label htmlFor="edit-telefono">Teléfono</Label>

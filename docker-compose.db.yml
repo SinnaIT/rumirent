@@ -1,7 +1,3 @@
-# Docker Compose solo para base de datos
-# Útil cuando quieres desarrollar localmente pero usar DB en Docker
-version: '3.8'
-
 services:
   # Solo PostgreSQL
   db:

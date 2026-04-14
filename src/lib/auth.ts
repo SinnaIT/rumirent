@@ -10,7 +10,7 @@ const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '7d'
 export interface JWTPayload {
   userId: string
   email: string
-  role: 'ADMIN' | 'BROKER'
+  role: 'ADMIN' | 'BROKER' | 'TEAM_LEADER'
 }
 
 export async function hashPassword(password: string): Promise<string> {
@@ -128,7 +128,7 @@ export interface AuthResult {
   user?: {
     id: string
     email: string
-    role: 'ADMIN' | 'BROKER'
+    role: 'ADMIN' | 'BROKER' | 'TEAM_LEADER'
   }
   error?: string
 }
@@ -176,7 +176,7 @@ export async function verifyAuth(request: Request): Promise<AuthResult> {
 export type AuthUser = {
   id: string
   email: string
-  role: 'ADMIN' | 'BROKER'
+  role: 'ADMIN' | 'BROKER' | 'TEAM_LEADER'
 }
 
 export type AuthError = NextResponse<{ error: string }>
@@ -233,10 +233,44 @@ export async function requireBroker(request: Request): Promise<AuthUser | AuthEr
 }
 
 /**
+ * Requires TEAM_LEADER role. Returns user or error response.
+ * Usage: const tl = await requireTeamLeader(request); if (tl instanceof NextResponse) return tl;
+ */
+export async function requireTeamLeader(request: Request): Promise<AuthUser | AuthError> {
+  const authResult = await verifyAuth(request)
+
+  if (!authResult.success || authResult.user?.role !== 'TEAM_LEADER') {
+    return NextResponse.json(
+      { error: 'No autorizado' },
+      { status: 401 }
+    )
+  }
+
+  return authResult.user
+}
+
+/**
+ * Requires BROKER or TEAM_LEADER role. Returns user or error response.
+ * Used for broker API routes that team leaders can also access for their personal management.
+ */
+export async function requireBrokerOrTeamLeader(request: Request): Promise<AuthUser | AuthError> {
+  const authResult = await verifyAuth(request)
+
+  if (!authResult.success || !authResult.user || !['BROKER', 'TEAM_LEADER'].includes(authResult.user.role)) {
+    return NextResponse.json(
+      { error: 'No autorizado' },
+      { status: 401 }
+    )
+  }
+
+  return authResult.user
+}
+
+/**
  * Requires specific role. Returns user or error response.
  * Usage: const user = await requireRole(request, 'ADMIN'); if (user instanceof NextResponse) return user;
  */
-export async function requireRole(request: Request, role: 'ADMIN' | 'BROKER'): Promise<AuthUser | AuthError> {
+export async function requireRole(request: Request, role: 'ADMIN' | 'BROKER' | 'TEAM_LEADER'): Promise<AuthUser | AuthError> {
   const authResult = await verifyAuth(request)
 
   if (!authResult.success || authResult.user?.role !== role) {
@@ -323,6 +357,34 @@ export function withBroker<T = NextRouteContext>(
 }
 
 /**
+ * Wraps a route handler to require TEAM_LEADER role.
+ * The authenticated team leader user is automatically passed as the third parameter.
+ */
+export function withTeamLeader<T = NextRouteContext>(
+  handler: RouteHandler<T>
+): (request: Request, context: T) => Promise<NextResponse> {
+  return async (request: Request, context: T) => {
+    const authorized = await requireTeamLeader(request)
+    if (authorized instanceof NextResponse) return authorized
+    return handler(request, context, authorized)
+  }
+}
+
+/**
+ * Wraps a route handler to require BROKER or TEAM_LEADER role.
+ * Used for broker API routes that team leaders can also access for personal management.
+ */
+export function withBrokerOrTeamLeader<T = NextRouteContext>(
+  handler: RouteHandler<T>
+): (request: Request, context: T) => Promise<NextResponse> {
+  return async (request: Request, context: T) => {
+    const authorized = await requireBrokerOrTeamLeader(request)
+    if (authorized instanceof NextResponse) return authorized
+    return handler(request, context, authorized)
+  }
+}
+
+/**
  * Wraps a route handler to require a specific role.
  * The authenticated user is automatically passed as the third parameter.
  *
@@ -332,7 +394,7 @@ export function withBroker<T = NextRouteContext>(
  * })
  */
 export function withRole<T = NextRouteContext>(
-  role: 'ADMIN' | 'BROKER',
+  role: 'ADMIN' | 'BROKER' | 'TEAM_LEADER',
   handler: RouteHandler<T>
 ): (request: Request, context: T) => Promise<NextResponse> {
   return async (request: Request, context: T) => {

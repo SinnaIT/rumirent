@@ -9,20 +9,6 @@ export async function GET(
   try {
     const { id } = await params
     console.log('🔍 GET /api/admin/empresas/' + id)
-
-    // En desarrollo, omitir verificación de autenticación por ahora
-    if (process.env.NODE_ENV === 'development') {
-      console.log('🛠️ Modo desarrollo - omitiendo autenticación')
-    } else {
-      const authResult = await verifyAuth(request)
-      if (!authResult.success || authResult.user?.role !== 'ADMIN') {
-        return NextResponse.json(
-          { error: 'No autorizado' },
-          { status: 401 }
-        )
-      }
-    }
-
     const empresa = await prisma.empresa.findUnique({
       where: { id },
       include: {
@@ -89,20 +75,6 @@ export async function PUT(
   try {
     const { id } = await params
     console.log('🔄 PUT /api/admin/empresas/' + id)
-
-    // En desarrollo, omitir verificación de autenticación por ahora
-    if (process.env.NODE_ENV === 'development') {
-      console.log('🛠️ Modo desarrollo - omitiendo autenticación')
-    } else {
-      const authResult = await verifyAuth(request)
-      if (!authResult.success || authResult.user?.role !== 'ADMIN') {
-        return NextResponse.json(
-          { error: 'No autorizado' },
-          { status: 401 }
-        )
-      }
-    }
-
     const body = await request.json()
     const {
       nombre,
@@ -237,20 +209,6 @@ export async function DELETE(
   try {
     const { id } = await params
     console.log('🗑️ DELETE /api/admin/empresas/' + id)
-
-    // En desarrollo, omitir verificación de autenticación por ahora
-    if (process.env.NODE_ENV === 'development') {
-      console.log('🛠️ Modo desarrollo - omitiendo autenticación')
-    } else {
-      const authResult = await verifyAuth(request)
-      if (!authResult.success || authResult.user?.role !== 'ADMIN') {
-        return NextResponse.json(
-          { error: 'No autorizado' },
-          { status: 401 }
-        )
-      }
-    }
-
     // Verificar que la empresa existe y obtener información sobre edificios
     const empresa = await prisma.empresa.findUnique({
       where: { id },

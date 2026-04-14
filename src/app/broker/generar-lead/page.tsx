@@ -27,20 +27,9 @@ import {
   X
 } from 'lucide-react'
 
-interface Comision {
-  id: string
-  nombre: string
-  codigo: string
-  porcentaje: number
-  activa: boolean
-}
+import type { Comision, TipoUnidadWithComision, BrokerRef, ClienteWithActiveLead, CommissionRule, CommissionInfo, MultiCommissionResponse } from '@/types'
 
-interface TipoUnidad {
-  id: string
-  nombre: string
-  codigo: string
-  comision: Comision | null
-}
+type TipoUnidad = TipoUnidadWithComision
 
 interface Unidad {
   id: string
@@ -62,50 +51,10 @@ interface Proyecto {
   unidades: Unidad[]
 }
 
-interface Cliente {
-  id: string
-  nombre: string
-  rut: string
-  email?: string
-  telefono?: string
+type Cliente = ClienteWithActiveLead & {
   isOwnClient?: boolean
   isHandledByAnotherBroker?: boolean
-  hasActiveLead?: boolean
-  activeLead?: {
-    id: string
-    createdAt: string
-    estado: string
-    edificio: string
-  } | null
-  broker?: {
-    id: string
-    nombre: string
-    email: string
-  }
-}
-
-interface CommissionRule {
-  id: string
-  porcentaje: number
-  cantidadMinima: number
-  cantidadMaxima: number | null
-}
-
-interface CommissionInfo {
-  comisionId: string
-  comisionNombre: string
-  comisionCodigo: string
-  porcentajeBase: number
-  totalLeads: number
-  currentRule: CommissionRule | null
-  nextRule: CommissionRule | null
-  untilNextLevel: number | null
-}
-
-interface MultiCommissionResponse {
-  success: boolean
-  date: string
-  commissionData: Record<string, CommissionInfo>
+  broker?: BrokerRef
 }
 
 const ESTADOS_CONTRATO = [

@@ -7,7 +7,7 @@ interface User {
   id: string
   email: string
   nombre: string
-  role: 'ADMIN' | 'BROKER'
+  role: 'ADMIN' | 'BROKER' | 'TEAM_LEADER'
 }
 
 export function useAuth() {

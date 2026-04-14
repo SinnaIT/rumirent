@@ -32,65 +32,18 @@ import {
   MessageCircle
 } from 'lucide-react'
 
-interface Comision {
-  id: string
-  nombre: string
-  codigo: string
-  porcentaje: number
-  activa: boolean
-}
+import type { Comision, ClienteWithActiveLead, EdificioRef, ReglaComision, ComisionBase, EstadoLead } from '@/types'
 
 interface Unidad {
   id: string
   numero: string
   descripcion?: string
   metros2?: number
-  edificio: {
-    id: string
-    nombre: string
-    direccion: string
-  }
-  tipoUnidad: {
-    id: string
-    nombre: string
-    codigo: string
-    comision: Comision
-  }
+  edificio: EdificioRef & { direccion: string }
+  tipoUnidad: { id: string; nombre: string; codigo: string; comision: Comision }
 }
 
-interface Cliente {
-  id: string
-  nombre: string
-  rut: string
-  email?: string
-  telefono?: string
-  hasActiveLead?: boolean
-  activeLead?: {
-    id: string
-    createdAt: string
-    estado: string
-    edificio: string
-  } | null
-}
-
-interface ReglaComision {
-  id: string
-  cantidadMinima: number
-  cantidadMaxima: number | null
-  porcentaje: number
-  comision: {
-    id: string
-    nombre: string
-    codigo: string
-  }
-}
-
-interface ComisionBase {
-  id: string
-  nombre: string
-  codigo: string
-  porcentaje: number
-}
+type Cliente = ClienteWithActiveLead
 
 interface Lead {
   id: string
@@ -98,18 +51,14 @@ interface Lead {
   totalLead: number
   montoUf: number
   comision: number
-  estado: 'INGRESADO' | 'EN_EVALUACION' | 'OBSERVADO' | 'APROBADO' | 'RESERVA_PAGADA' | 'CONTRATO_FIRMADO' | 'CONTRATO_PAGADO' | 'DEPARTAMENTO_ENTREGADO' | 'RECHAZADO' | 'ENTREGADO' // Include ENTREGADO for backward compatibility
+  estado: EstadoLead
   fechaPagoReserva?: string
   fechaPagoLead?: string
   fechaCheckin?: string
   observaciones?: string
   cliente: Cliente | null
   unidad: Unidad | null
-  edificio: {
-    id: string
-    nombre: string
-    direccion: string
-  } | null
+  edificio: EdificioRef | null
   reglaComision?: ReglaComision
   comisionBase?: ComisionBase
   createdAt: string
@@ -144,7 +93,8 @@ const ESTADOS_CONTRATO = [
   { value: 'CONTRATO_PAGADO', label: 'Contrato Pagado', color: 'bg-purple-100 text-purple-800 border-purple-200', icon: CheckCircle },
   { value: 'DEPARTAMENTO_ENTREGADO', label: 'Departamento Entregado', color: 'bg-emerald-100 text-emerald-800 border-emerald-200', icon: CheckCircle },
   { value: 'ENTREGADO', label: 'Entregado (Legacy)', color: 'bg-emerald-100 text-emerald-800 border-emerald-200', icon: CheckCircle }, // Backward compatibility
-  { value: 'RECHAZADO', label: 'Rechazado', color: 'bg-red-100 text-red-800 border-red-200', icon: XCircle }
+  { value: 'RECHAZADO', label: 'Rechazado', color: 'bg-red-100 text-red-800 border-red-200', icon: XCircle },
+  { value: 'DESISTIDO', label: 'Desistido', color: 'bg-amber-100 text-amber-800 border-amber-200', icon: XCircle }
 ]
 
 export default function BrokerVentasPage() {

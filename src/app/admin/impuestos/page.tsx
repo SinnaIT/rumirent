@@ -14,11 +14,9 @@ import { Switch } from '@/components/ui/switch'
 import { toast } from 'sonner'
 import { Receipt, Plus, Edit, Trash2, ArrowUpCircle, ArrowDownCircle, Calendar, Percent } from 'lucide-react'
 
-interface TaxType {
-  id: string
-  name: string
-  nature: 'ADDITIVE' | 'DEDUCTIVE'
-  active: boolean
+import type { TaxType as TaxTypeBase } from '@/types'
+
+type TaxType = TaxTypeBase & {
   createdAt: string
   updatedAt: string
   taxRates: TaxRate[]

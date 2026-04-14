@@ -1,13 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { verifyAuth } from '@/lib/auth'
+import { requireBrokerOrTeamLeader } from '@/lib/auth'
 import { prisma } from '@/lib/db'
 
 export async function GET(request: NextRequest) {
   try {
-    const authResult = await verifyAuth(request)
-    if (!authResult.success || authResult.user?.role !== 'BROKER') {
-      return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
-    }
+    const user = await requireBrokerOrTeamLeader(request)
+    if (user instanceof NextResponse) return user
 
     const { searchParams } = new URL(request.url)
     const startDate = searchParams.get('startDate')
@@ -26,7 +24,7 @@ export async function GET(request: NextRequest) {
 
     // Fetch broker with ALL active tax rates (no take:1 — needed for per-month lookup)
     const broker = await prisma.user.findUnique({
-      where: { id: authResult.user.id },
+      where: { id: user.id },
       select: {
         commissionTaxTypeId: true,
         commissionTaxType: {
@@ -67,7 +65,7 @@ export async function GET(request: NextRequest) {
     // Traemos leads que tengan fechaPagoReserva O fechaCheckin en el período
     const leads = await prisma.lead.findMany({
       where: {
-        brokerId: authResult.user.id,
+        brokerId: user.id,
         OR: [
           {
             fechaPagoReserva: {

@@ -80,9 +80,23 @@ export async function middleware(request: NextRequest) {
         return NextResponse.redirect(new URL('/login', request.url))
       }
 
-      // Broker routes (pages and APIs)
-      if ((pathname.startsWith('/broker') || pathname.startsWith('/api/broker')) && payload.role !== 'BROKER') {
+      // Broker routes (pages and APIs) — también accesibles por TEAM_LEADER
+      // para su workspace personal ("Mi Gestión").
+      if (
+        (pathname.startsWith('/broker') || pathname.startsWith('/api/broker')) &&
+        payload.role !== 'BROKER' &&
+        payload.role !== 'TEAM_LEADER'
+      ) {
         console.log(`[MIDDLEWARE] Usuario ${payload.role} intenta acceder a broker: ${pathname}`)
+        if (pathname.startsWith('/api')) {
+          return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
+        }
+        return NextResponse.redirect(new URL('/login', request.url))
+      }
+
+      // Team Leader routes (pages and APIs)
+      if ((pathname.startsWith('/team-leader') || pathname.startsWith('/api/team-leader')) && payload.role !== 'TEAM_LEADER') {
+        console.log(`[MIDDLEWARE] Usuario ${payload.role} intenta acceder a team-leader: ${pathname}`)
         if (pathname.startsWith('/api')) {
           return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
         }
@@ -91,14 +105,14 @@ export async function middleware(request: NextRequest) {
 
       // Redirect root path to appropriate dashboard
       if (pathname === '/') {
-        const dashboardUrl = payload.role === 'ADMIN' ? '/admin' : '/broker'
+        const dashboardUrl = payload.role === 'ADMIN' ? '/admin' : payload.role === 'TEAM_LEADER' ? '/team-leader' : '/broker'
         console.log(`[MIDDLEWARE] Redirigiendo desde root a dashboard: ${dashboardUrl}`)
         return NextResponse.redirect(new URL(dashboardUrl, request.url))
       }
 
       // If authenticated user tries to access login page specifically, redirect to their dashboard
       if (pathname === '/login') {
-        const dashboardUrl = payload.role === 'ADMIN' ? '/admin' : '/broker'
+        const dashboardUrl = payload.role === 'ADMIN' ? '/admin' : payload.role === 'TEAM_LEADER' ? '/team-leader' : '/broker'
         console.log(`[MIDDLEWARE] Usuario autenticado en login, redirigiendo a: ${dashboardUrl}`)
         return NextResponse.redirect(new URL(dashboardUrl, request.url))
       }

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { verifyAuth } from '@/lib/auth'
+import { syncUnidadEstadoForLead } from '@/lib/lead-unit-sync'
 
 export async function GET(
   request: NextRequest,
@@ -9,20 +10,6 @@ export async function GET(
   try {
     const { id } = await params
     console.log('🔍 GET /api/admin/leads/' + id)
-
-    // En desarrollo, omitir verificación de autenticación por ahora
-    if (process.env.NODE_ENV === 'development') {
-      console.log('🛠️ Modo desarrollo - omitiendo autenticación')
-    } else {
-      const authResult = await verifyAuth(request)
-      if (!authResult.success || authResult.user?.role !== 'ADMIN') {
-        return NextResponse.json(
-          { error: 'No autorizado' },
-          { status: 401 }
-        )
-      }
-    }
-
     const lead = await prisma.lead.findUnique({
       where: { id },
       include: {
@@ -219,20 +206,6 @@ export async function PUT(
   try {
     const { id } = await params
     console.log('🔄 PUT /api/admin/leads/' + id)
-
-    // En desarrollo, omitir verificación de autenticación por ahora
-    if (process.env.NODE_ENV === 'development') {
-      console.log('🛠️ Modo desarrollo - omitiendo autenticación')
-    } else {
-      const authResult = await verifyAuth(request)
-      if (!authResult.success || authResult.user?.role !== 'ADMIN') {
-        return NextResponse.json(
-          { error: 'No autorizado' },
-          { status: 401 }
-        )
-      }
-    }
-
     const body = await request.json()
     const {
       codigoUnidad,
@@ -357,6 +330,7 @@ export async function PUT(
     }
 
     // Actualizar lead
+    const resolvedUnidadId = unidadId === 'none' ? null : (unidadId || null)
     const updatedLead = await prisma.lead.update({
       where: { id },
       data: {
@@ -375,7 +349,7 @@ export async function PUT(
         clienteId,
         edificioId,
         tipoUnidadEdificioId: tipoUnidadEdificioId === 'none' ? null : tipoUnidadEdificioId,
-        unidadId: unidadId === 'none' ? null : unidadId,
+        unidadId: resolvedUnidadId,
         reglaComisionId: calculatedReglaComisionId,
         comisionId: calculatedComisionId
       },
@@ -458,6 +432,14 @@ export async function PUT(
           }
         }
       }
+    })
+
+    // Sincronizar el estado de la unidad con el estado del lead.
+    // Si la unidad asociada al lead cambió, libera la anterior (si no estaba vendida).
+    await syncUnidadEstadoForLead(prisma, {
+      newUnidadId: updatedLead.unidadId,
+      previousUnidadId: existingLead.unidadId,
+      leadEstado: updatedLead.estado
     })
 
     console.log('✅ Lead actualizado exitosamente')
@@ -545,6 +527,20 @@ export async function DELETE(
     await prisma.lead.delete({
       where: { id }
     })
+
+    // Liberar la unidad asociada (si no estaba vendida)
+    if (existingLead.unidadId) {
+      const unidad = await prisma.unidad.findUnique({
+        where: { id: existingLead.unidadId },
+        select: { estado: true }
+      })
+      if (unidad && unidad.estado !== 'VENDIDA') {
+        await prisma.unidad.update({
+          where: { id: existingLead.unidadId },
+          data: { estado: 'DISPONIBLE' }
+        })
+      }
+    }
 
     console.log('✅ Lead eliminado exitosamente')
 

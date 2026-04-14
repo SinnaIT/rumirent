@@ -27,41 +27,21 @@ import {
 } from 'lucide-react'
 import { ImportClientesDialog } from '@/components/admin/ImportClientesDialog'
 
-interface Broker {
-  id: string
-  nombre: string
-  email: string
-  rut: string
-}
+import type { BrokerBasic, ClienteWithBroker } from '@/types'
 
-interface Cliente {
-  id: string
-  nombre: string
-  rut: string
-  email?: string
-  telefono?: string
-  direccion?: string
-  fechaNacimiento?: string
-  broker: Broker | null
-  totalLeads: number
-  createdAt: string
-  updatedAt: string
-}
-
-interface Broker {
-  id: string
-  nombre: string
-  email: string
-  rut: string
-}
+type Broker = BrokerBasic
+type Cliente = ClienteWithBroker & { totalLeads: number }
 
 export default function ClientesPage() {
+  const now = new Date()
   const [clientes, setClientes] = useState<Cliente[]>([])
   const [filteredClientes, setFilteredClientes] = useState<Cliente[]>([])
   const [brokers, setBrokers] = useState<Broker[]>([])
   const [loading, setLoading] = useState(true)
   const [searchField, setSearchField] = useState('nombre')
   const [searchTerm, setSearchTerm] = useState('')
+  const [filterYear, setFilterYear] = useState<string>(String(now.getFullYear()))
+  const [filterMonth, setFilterMonth] = useState<string>(String(now.getMonth() + 1))
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [editingCliente, setEditingCliente] = useState<Cliente | null>(null)
@@ -84,33 +64,45 @@ export default function ClientesPage() {
   }, [])
 
   useEffect(() => {
-    // Filtrar clientes basado en el campo y término de búsqueda
-    if (!searchTerm.trim()) {
-      setFilteredClientes(clientes)
-      return
+    let result = [...clientes]
+
+    // Filtrar por año y mes de creación
+    if (filterYear !== 'all') {
+      result = result.filter(cliente => {
+        const date = new Date(cliente.createdAt)
+        const matchYear = date.getFullYear() === Number(filterYear)
+        if (filterMonth === 'all') return matchYear
+        return matchYear && (date.getMonth() + 1) === Number(filterMonth)
+      })
     }
 
-    const filtered = clientes.filter(cliente => {
+    // Filtrar por término de búsqueda
+    if (searchTerm.trim()) {
       const term = searchTerm.toLowerCase()
+      result = result.filter(cliente => {
+        switch (searchField) {
+          case 'nombre':
+            return cliente.nombre.toLowerCase().includes(term)
+          case 'rut':
+            return cliente.rut.toLowerCase().includes(term)
+          case 'email':
+            return cliente.email?.toLowerCase().includes(term) || false
+          case 'telefono':
+            return cliente.telefono?.toLowerCase().includes(term) || false
+          case 'broker':
+            return cliente.broker?.nombre.toLowerCase().includes(term) ||
+                   cliente.broker?.rut.toLowerCase().includes(term) || false
+          default:
+            return cliente.nombre.toLowerCase().includes(term)
+        }
+      })
+    }
 
-      switch (searchField) {
-        case 'nombre':
-          return cliente.nombre.toLowerCase().includes(term)
-        case 'rut':
-          return cliente.rut.toLowerCase().includes(term)
-        case 'email':
-          return cliente.email?.toLowerCase().includes(term) || false
-        case 'telefono':
-          return cliente.telefono?.toLowerCase().includes(term) || false
-        case 'broker':
-          return cliente.broker?.nombre.toLowerCase().includes(term) ||
-                 cliente.broker?.rut.toLowerCase().includes(term) || false
-        default:
-          return cliente.nombre.toLowerCase().includes(term)
-      }
-    })
-    setFilteredClientes(filtered)
-  }, [clientes, searchTerm, searchField])
+    // Ordenar alfabéticamente por nombre
+    result.sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'))
+
+    setFilteredClientes(result)
+  }, [clientes, searchTerm, searchField, filterYear, filterMonth])
 
   const fetchClientes = async () => {
     try {
@@ -423,7 +415,7 @@ export default function ClientesPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">Total Leads</p>
-                  <p className="text-2xl font-bold">{clientes.length}</p>
+                  <p className="text-2xl font-bold">{filteredClientes.length}</p>
                 </div>
                 <UserCheck className="h-8 w-8 text-muted-foreground" />
               </div>
@@ -434,9 +426,9 @@ export default function ClientesPage() {
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-muted-foreground">Con Leads</p>
+                  <p className="text-sm font-medium text-muted-foreground">Con Prospectos</p>
                   <p className="text-2xl font-bold">
-                    {clientes.filter(c => c.totalLeads > 0).length}
+                    {filteredClientes.filter(c => c.totalLeads > 0).length}
                   </p>
                 </div>
                 <FileText className="h-8 w-8 text-green-600" />
@@ -450,7 +442,7 @@ export default function ClientesPage() {
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">Con Email</p>
                   <p className="text-2xl font-bold">
-                    {clientes.filter(c => c.email).length}
+                    {filteredClientes.filter(c => c.email).length}
                   </p>
                 </div>
                 <Mail className="h-8 w-8 text-blue-600" />
@@ -464,7 +456,7 @@ export default function ClientesPage() {
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">Con Teléfono</p>
                   <p className="text-2xl font-bold">
-                    {clientes.filter(c => c.telefono).length}
+                    {filteredClientes.filter(c => c.telefono).length}
                   </p>
                 </div>
                 <Phone className="h-8 w-8 text-purple-600" />
@@ -474,11 +466,46 @@ export default function ClientesPage() {
         </div>
       )}
 
-      {/* Search */}
+      {/* Filters */}
       <Card>
         <CardContent className="p-6">
           <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
-            <div className="md:col-span-4">
+            <div className="md:col-span-2">
+              <Label htmlFor="filterYear" className="mb-2 block text-sm font-medium">
+                Año
+              </Label>
+              <Select value={filterYear} onValueChange={(v) => { setFilterYear(v); if (v === 'all') setFilterMonth('all') }}>
+                <SelectTrigger id="filterYear">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos</SelectItem>
+                  {Array.from({ length: 5 }, (_, i) => now.getFullYear() - i).map(y => (
+                    <SelectItem key={y} value={String(y)}>{y}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="md:col-span-2">
+              <Label htmlFor="filterMonth" className="mb-2 block text-sm font-medium">
+                Mes
+              </Label>
+              <Select value={filterMonth} onValueChange={setFilterMonth} disabled={filterYear === 'all'}>
+                <SelectTrigger id="filterMonth">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos</SelectItem>
+                  {[
+                    'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+                    'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
+                  ].map((name, i) => (
+                    <SelectItem key={i + 1} value={String(i + 1)}>{name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="md:col-span-3">
               <Label htmlFor="searchField" className="mb-2 block text-sm font-medium">
                 Buscar por
               </Label>
@@ -495,7 +522,7 @@ export default function ClientesPage() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="md:col-span-8">
+            <div className="md:col-span-5">
               <Label htmlFor="searchTerm" className="mb-2 block text-sm font-medium">
                 Término de búsqueda
               </Label>

@@ -14,64 +14,18 @@ import { toast } from 'sonner'
 import { Calculator, Save, RefreshCw, Plus, Edit, Settings, Clock, Calendar, Trash2, CheckCircle, PlayCircle, BarChart3 } from 'lucide-react'
 
 // Interfaces
-interface Comision {
-  id: string
-  nombre: string
-  codigo: string
-  porcentaje: number
-  activa: boolean
-  createdAt: string
-  updatedAt: string
-}
+import type { Comision, EdificioRef, TipoUnidadRef, ReglaComision } from '@/types'
 
-interface Edificio {
-  id: string
-  nombre: string
-}
-
-
-interface TipoUnidad {
-  id: string
-  nombre: string
-  codigo: string
-  edificioId: string
-}
+type Edificio = EdificioRef
+type TipoUnidad = TipoUnidadRef & { edificioId: string }
 
 interface CambioProgramado {
   id: string
   fechaCambio: string
-  comision: {
-    id: string
-    nombre: string
-    codigo: string
-    porcentaje: number
-    activa: boolean
-  }
-  edificio: {
-    id: string
-    nombre: string
-  }
-  tipoUnidad?: {
-    id: string
-    nombre: string
-    codigo: string
-  }
+  comision: Comision
+  edificio: EdificioRef
+  tipoUnidad?: TipoUnidadRef
   ejecutado: boolean
-  createdAt: string
-  updatedAt: string
-}
-
-interface ReglaComision {
-  id: string
-  cantidadMinima: number
-  cantidadMaxima: number | null
-  porcentaje: number
-  comisionId: string
-  comision: {
-    id: string
-    nombre: string
-    codigo: string
-  }
   createdAt: string
   updatedAt: string
 }

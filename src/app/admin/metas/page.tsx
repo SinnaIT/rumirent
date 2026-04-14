@@ -22,12 +22,9 @@ import { Label } from '@/components/ui/label'
 import { Plus, Pencil, Trash2, Calendar, DollarSign } from 'lucide-react'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 
-interface Broker {
-  id: string
-  nombre: string
-  email: string
-  rut: string
-}
+import type { BrokerBasic } from '@/types'
+
+type Broker = BrokerBasic
 
 interface Meta {
   id: string

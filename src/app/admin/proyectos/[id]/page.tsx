@@ -199,9 +199,11 @@ export default function ProyectoDetailPage() {
     descripcion: ''
   })
 
-  // Form state for editing commission
+  // Form state for editing commission and nomenclature
   const [comisionFormData, setComisionFormData] = useState({
-    comisionId: 'none'
+    comisionId: 'none',
+    nombre: '',
+    codigo: ''
   })
 
 
@@ -830,13 +832,20 @@ export default function ProyectoDetailPage() {
   const handleOpenEditComisionDialog = (tipoUnidad: TipoUnidadDetail) => {
     setEditingComisionTipo(tipoUnidad)
     setComisionFormData({
-      comisionId: tipoUnidad.comisionId || 'none'
+      comisionId: tipoUnidad.comisionId || 'none',
+      nombre: tipoUnidad.nombre,
+      codigo: tipoUnidad.codigo
     })
     setIsEditComisionDialogOpen(true)
   }
 
   const handleSubmitComision = async () => {
     if (!editingComisionTipo) return
+
+    if (!comisionFormData.nombre.trim() || !comisionFormData.codigo.trim()) {
+      toast.error('Nombre y código son requeridos')
+      return
+    }
 
     try {
       setSaving(true)
@@ -846,8 +855,8 @@ export default function ProyectoDetailPage() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          nombre: editingComisionTipo.nombre,
-          codigo: editingComisionTipo.codigo,
+          nombre: comisionFormData.nombre.trim(),
+          codigo: comisionFormData.codigo.trim(),
           comisionId: comisionFormData.comisionId === 'none' ? null : comisionFormData.comisionId
         })
       })
@@ -855,12 +864,12 @@ export default function ProyectoDetailPage() {
       const data = await response.json()
 
       if (data.success) {
-        toast.success('Comisión actualizada exitosamente')
+        toast.success('Tipo de unidad actualizado exitosamente')
         setIsEditComisionDialogOpen(false)
         setEditingComisionTipo(null)
         fetchTiposUnidadDetalle()
       } else {
-        toast.error(data.error || 'Error al actualizar comisión')
+        toast.error(data.error || 'Error al actualizar tipo de unidad')
       }
     } catch (error) {
       console.error('Error:', error)
@@ -1208,7 +1217,7 @@ export default function ProyectoDetailPage() {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
         <Card>
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
@@ -1237,10 +1246,22 @@ export default function ProyectoDetailPage() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-muted-foreground">Unidades Vendidas</p>
+                <p className="text-sm font-medium text-muted-foreground">Unidades Arrendadas</p>
                 <p className="text-2xl font-bold">{edificio.unidadesVendidas}</p>
               </div>
               <Home className="h-8 w-8 text-green-600" />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Reservadas</p>
+                <p className="text-2xl font-bold text-yellow-600">{edificio.unidadesReservadas}</p>
+              </div>
+              <Home className="h-8 w-8 text-yellow-600" />
             </div>
           </CardContent>
         </Card>
@@ -2281,20 +2302,40 @@ export default function ProyectoDetailPage() {
 
           {/* Dialog: Edit Commission */}
           <Dialog open={isEditComisionDialogOpen} onOpenChange={setIsEditComisionDialogOpen}>
-            <DialogContent className="sm:max-w-[400px]">
+            <DialogContent className="sm:max-w-[450px]">
               <DialogHeader>
-                <DialogTitle>Editar Comisión</DialogTitle>
+                <DialogTitle>Editar Tipo de Unidad</DialogTitle>
                 <DialogDescription>
-                  Asigna una comisión específica para el tipo "{editingComisionTipo?.nombre}"
+                  Actualiza la nomenclatura y comisión del tipo de unidad
                 </DialogDescription>
               </DialogHeader>
 
               <div className="grid gap-4 py-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="grid gap-2">
+                    <Label htmlFor="edit-tipo-nombre">Nombre</Label>
+                    <Input
+                      id="edit-tipo-nombre"
+                      value={comisionFormData.nombre}
+                      onChange={(e) => setComisionFormData(prev => ({ ...prev, nombre: e.target.value }))}
+                      placeholder="Ej: Departamento 1D1B"
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="edit-tipo-codigo">Código</Label>
+                    <Input
+                      id="edit-tipo-codigo"
+                      value={comisionFormData.codigo}
+                      onChange={(e) => setComisionFormData(prev => ({ ...prev, codigo: e.target.value }))}
+                      placeholder="Ej: 1D1B"
+                    />
+                  </div>
+                </div>
                 <div className="grid gap-2">
                   <Label htmlFor="comision-select">Comisión</Label>
                   <Select
                     value={comisionFormData.comisionId}
-                    onValueChange={(value: string) => setComisionFormData({ comisionId: value })}
+                    onValueChange={(value: string) => setComisionFormData(prev => ({ ...prev, comisionId: value }))}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Sin comisión asignada" />

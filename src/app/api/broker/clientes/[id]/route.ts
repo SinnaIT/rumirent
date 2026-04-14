@@ -1,24 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
-import { verifyAuth } from '@/lib/auth'
+import { requireBrokerOrTeamLeader } from '@/lib/auth'
 
 export async function GET(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
-    const authResult = await verifyAuth(request)
-    if (!authResult.success || authResult.user?.role !== 'BROKER') {
-      return NextResponse.json(
-        { error: 'No autorizado' },
-        { status: 401 }
-      )
-    }
+    const user = await requireBrokerOrTeamLeader(request)
+    if (user instanceof NextResponse) return user
 
     const cliente = await prisma.cliente.findUnique({
       where: {
         id: params.id,
-        brokerId: authResult.user.id // Solo puede ver sus propios clientes
+        brokerId: user.id // Solo puede ver sus propios clientes
       },
       include: {
         leads: {
@@ -88,19 +83,14 @@ export async function PUT(
   { params }: { params: { id: string } }
 ) {
   try {
-    const authResult = await verifyAuth(request)
-    if (!authResult.success || authResult.user?.role !== 'BROKER') {
-      return NextResponse.json(
-        { error: 'No autorizado' },
-        { status: 401 }
-      )
-    }
+    const user = await requireBrokerOrTeamLeader(request)
+    if (user instanceof NextResponse) return user
 
     // Verificar que el cliente pertenece al broker
     const existingCliente = await prisma.cliente.findUnique({
       where: {
         id: params.id,
-        brokerId: authResult.user.id
+        brokerId: user.id
       }
     })
 

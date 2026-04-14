@@ -1,0 +1,444 @@
+'use client'
+
+import { useState, useEffect } from 'react'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
+import { CalendarDays, TrendingUp, DollarSign, FileText, User } from 'lucide-react'
+
+import type { ComisionMensual, ResumenAnual } from '@/types'
+
+export default function TeamReportesPage() {
+  const [selectedMonth, setSelectedMonth] = useState<string>(new Date().getMonth().toString())
+  const [selectedYear, setSelectedYear] = useState<string>(new Date().getFullYear().toString())
+  const [filterBrokerId, setFilterBrokerId] = useState<string>('all')
+  const [comisionesMensuales, setComisionesMensuales] = useState<ComisionMensual[]>([])
+  const [resumenAnual, setResumenAnual] = useState<ResumenAnual[]>([])
+  const [brokers, setBrokers] = useState<{ id: string; nombre: string }[]>([])
+  const [loading, setLoading] = useState(false)
+
+  const meses = [
+    { value: '0', label: 'Enero' },
+    { value: '1', label: 'Febrero' },
+    { value: '2', label: 'Marzo' },
+    { value: '3', label: 'Abril' },
+    { value: '4', label: 'Mayo' },
+    { value: '5', label: 'Junio' },
+    { value: '6', label: 'Julio' },
+    { value: '7', label: 'Agosto' },
+    { value: '8', label: 'Septiembre' },
+    { value: '9', label: 'Octubre' },
+    { value: '10', label: 'Noviembre' },
+    { value: '11', label: 'Diciembre' },
+  ]
+
+  const años = Array.from({ length: 5 }, (_, i) => {
+    const year = new Date().getFullYear() - i
+    return { value: year.toString(), label: year.toString() }
+  })
+
+  useEffect(() => {
+    fetchBrokers()
+  }, [])
+
+  useEffect(() => {
+    fetchComisionesMensuales()
+  }, [selectedMonth, selectedYear, filterBrokerId])
+
+  useEffect(() => {
+    fetchResumenAnual()
+  }, [selectedYear, filterBrokerId])
+
+  const fetchBrokers = async () => {
+    try {
+      const response = await fetch('/api/team-leader/brokers')
+      if (response.ok) {
+        const data = await response.json()
+        setBrokers((data.brokers || []).map((b: { id: string; nombre: string }) => ({
+          id: b.id,
+          nombre: b.nombre,
+        })))
+      }
+    } catch {
+      console.error('Error fetching brokers')
+    }
+  }
+
+  const fetchComisionesMensuales = async () => {
+    setLoading(true)
+    try {
+      const params = new URLSearchParams({
+        mes: selectedMonth,
+        year: selectedYear,
+      })
+      if (filterBrokerId && filterBrokerId !== 'all') {
+        params.set('brokerId', filterBrokerId)
+      }
+      const response = await fetch(`/api/team-leader/reportes/comisiones-mensuales?${params}`)
+      if (response.ok) {
+        const data = await response.json()
+        setComisionesMensuales(data.leads || [])
+      }
+    } catch {
+      console.error('Error fetching comisiones mensuales')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const fetchResumenAnual = async () => {
+    setLoading(true)
+    try {
+      const params = new URLSearchParams({ year: selectedYear })
+      if (filterBrokerId && filterBrokerId !== 'all') {
+        params.set('brokerId', filterBrokerId)
+      }
+      const response = await fetch(`/api/team-leader/reportes/resumen-anual?${params}`)
+      if (response.ok) {
+        const data = await response.json()
+        setResumenAnual(data.resumen || [])
+      }
+    } catch {
+      console.error('Error fetching resumen anual')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const formatCurrency = (amount: number) =>
+    new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP' }).format(amount)
+
+  const getEstadoBadgeColor = (estado: string) => {
+    const styles: Record<string, string> = {
+      ENTREGADO: 'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-400',
+      RESERVA_PAGADA: 'bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-400',
+      APROBADO: 'bg-purple-100 text-purple-800 dark:bg-purple-900/40 dark:text-purple-400',
+      RECHAZADO: 'bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-400',
+    }
+    return styles[estado] || 'bg-gray-100 text-gray-800'
+  }
+
+  const totalComisionesAño = resumenAnual.reduce((sum, mes) => sum + mes.totalComisiones, 0)
+  const totalVentasAño = resumenAnual.reduce((sum, mes) => sum + mes.cantidadVentas, 0)
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-col space-y-2">
+        <h1 className="text-3xl font-bold tracking-tight">Reportes del Equipo</h1>
+        <p className="text-muted-foreground">
+          Comisiones y rendimiento de los brokers de tu equipo
+        </p>
+      </div>
+
+      {/* Broker Filter - shared across tabs */}
+      <Card>
+        <CardContent className="pt-6">
+          <div className="flex items-center gap-4">
+            <User className="h-5 w-5 text-muted-foreground" />
+            <div className="flex-1 max-w-xs">
+              <Select value={filterBrokerId} onValueChange={setFilterBrokerId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Filtrar por broker" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos los brokers</SelectItem>
+                  {brokers.map(b => (
+                    <SelectItem key={b.id} value={b.id}>{b.nombre}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Tabs defaultValue="mensual" className="space-y-6">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="mensual">Detalle Mensual</TabsTrigger>
+          <TabsTrigger value="anual">Resumen Anual</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="mensual" className="space-y-6">
+          {/* Monthly Filters */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center space-x-2">
+                <CalendarDays className="h-5 w-5" />
+                <span>Filtros</span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex flex-col sm:flex-row gap-4">
+                <div className="flex-1">
+                  <label className="text-sm font-medium mb-2 block">Mes</label>
+                  <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Seleccionar mes" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {meses.map((mes) => (
+                        <SelectItem key={mes.value} value={mes.value}>{mes.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex-1">
+                  <label className="text-sm font-medium mb-2 block">Año</label>
+                  <Select value={selectedYear} onValueChange={setSelectedYear}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Seleccionar año" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {años.map((año) => (
+                        <SelectItem key={año.value} value={año.value}>{año.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Monthly Summary Cards */}
+          <div className="grid gap-4 md:grid-cols-4">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Comisiones Proyectadas</CardTitle>
+                <TrendingUp className="h-4 w-4 text-blue-500" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+                  {formatCurrency(comisionesMensuales.reduce((sum, c) => sum + c.comisionProyectada, 0))}
+                </div>
+                <p className="text-xs text-muted-foreground">Basadas en reservas pagadas</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Comisiones Confirmadas</CardTitle>
+                <DollarSign className="h-4 w-4 text-green-500" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-green-600 dark:text-green-400">
+                  {formatCurrency(comisionesMensuales.reduce((sum, c) => sum + c.comisionConfirmada, 0))}
+                </div>
+                <p className="text-xs text-muted-foreground">Departamentos entregados</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Reservas</CardTitle>
+                <FileText className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">
+                  {comisionesMensuales.filter(c => c.reservaEnPeriodo).length}
+                </div>
+                <p className="text-xs text-muted-foreground">En el período</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Check-ins</CardTitle>
+                <FileText className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">
+                  {comisionesMensuales.filter(c => c.checkinEnPeriodo).length}
+                </div>
+                <p className="text-xs text-muted-foreground">En el período</p>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Monthly Detail Table */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Detalle de Comisiones</CardTitle>
+              <p className="text-sm text-muted-foreground mt-2">
+                <span className="inline-block w-3 h-3 bg-blue-100 dark:bg-blue-900/40 border border-blue-300 dark:border-blue-600 rounded mr-1"></span>
+                Reserva en período
+                <span className="inline-block w-3 h-3 bg-green-100 dark:bg-green-900/40 border border-green-300 dark:border-green-600 rounded ml-4 mr-1"></span>
+                Check-in en período
+              </p>
+            </CardHeader>
+            <CardContent>
+              {loading ? (
+                <div className="flex items-center justify-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                </div>
+              ) : comisionesMensuales.length > 0 ? (
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Broker</TableHead>
+                        <TableHead>Cliente</TableHead>
+                        <TableHead>Edificio</TableHead>
+                        <TableHead>Unidad</TableHead>
+                        <TableHead>Total Lead</TableHead>
+                        <TableHead>Comisión %</TableHead>
+                        <TableHead>Comisión</TableHead>
+                        <TableHead>Fecha Reserva</TableHead>
+                        <TableHead>Fecha Check-in</TableHead>
+                        <TableHead>Estado</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {comisionesMensuales.map((comision) => (
+                        <TableRow key={comision.id}>
+                          <TableCell>
+                            <Badge variant="outline">{comision.brokerNombre}</Badge>
+                          </TableCell>
+                          <TableCell className="font-medium">{comision.clienteNombre}</TableCell>
+                          <TableCell>{comision.edificioNombre}</TableCell>
+                          <TableCell>{comision.unidadCodigo}</TableCell>
+                          <TableCell>{formatCurrency(comision.totalLead)}</TableCell>
+                          <TableCell>{comision.porcentajeComision}%</TableCell>
+                          <TableCell className="font-semibold">{formatCurrency(comision.comision)}</TableCell>
+                          <TableCell className={comision.reservaEnPeriodo ? 'bg-blue-50 dark:bg-blue-900/20 font-medium' : ''}>
+                            {comision.fechaPagoReserva
+                              ? new Date(comision.fechaPagoReserva).toLocaleDateString('es-CL')
+                              : '-'}
+                          </TableCell>
+                          <TableCell className={comision.checkinEnPeriodo ? 'bg-green-50 dark:bg-green-900/20 font-medium' : ''}>
+                            {comision.fechaCheckin
+                              ? new Date(comision.fechaCheckin).toLocaleDateString('es-CL')
+                              : '-'}
+                          </TableCell>
+                          <TableCell>
+                            <Badge className={getEstadoBadgeColor(comision.estadoLead)}>
+                              {comision.estadoLead.replace('_', ' ')}
+                            </Badge>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              ) : (
+                <div className="text-center py-8 text-muted-foreground">
+                  No hay comisiones registradas para este período
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="anual" className="space-y-6">
+          {/* Annual Year Filter */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center space-x-2">
+                <CalendarDays className="h-5 w-5" />
+                <span>Año</span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="w-full sm:w-48">
+                <Select value={selectedYear} onValueChange={setSelectedYear}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Seleccionar año" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {años.map((año) => (
+                      <SelectItem key={año.value} value={año.value}>{año.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Annual Summary Cards */}
+          <div className="grid gap-4 md:grid-cols-3">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Total Anual</CardTitle>
+                <DollarSign className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{formatCurrency(totalComisionesAño)}</div>
+                <p className="text-xs text-muted-foreground">Año {selectedYear}</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Total Reservas</CardTitle>
+                <TrendingUp className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{totalVentasAño}</div>
+                <p className="text-xs text-muted-foreground">Leads en {selectedYear}</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Promedio Mensual</CardTitle>
+                <FileText className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{formatCurrency(totalComisionesAño / 12)}</div>
+                <p className="text-xs text-muted-foreground">Por mes</p>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Annual Table */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Resumen por Mes</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {loading ? (
+                <div className="flex items-center justify-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                </div>
+              ) : resumenAnual.length > 0 ? (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Mes</TableHead>
+                      <TableHead>Cantidad Reservas</TableHead>
+                      <TableHead>Total Comisiones</TableHead>
+                      <TableHead>Promedio por Venta</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {resumenAnual.map((mes) => (
+                      <TableRow key={mes.mes}>
+                        <TableCell className="font-medium">{mes.mes}</TableCell>
+                        <TableCell>{mes.cantidadVentas}</TableCell>
+                        <TableCell className="font-semibold">{formatCurrency(mes.totalComisiones)}</TableCell>
+                        <TableCell>{formatCurrency(mes.promedioComision)}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              ) : (
+                <div className="text-center py-8 text-muted-foreground">
+                  No hay datos disponibles para este año
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
+    </div>
+  )
+}

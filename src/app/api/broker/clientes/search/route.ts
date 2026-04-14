@@ -1,17 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
-import { verifyAuth } from '@/lib/auth'
+import { requireBrokerOrTeamLeader } from '@/lib/auth'
 
 export async function GET(request: NextRequest) {
   try {
-    // Verificar autenticación y rol de broker
-    const authResult = await verifyAuth(request)
-    if (!authResult.success || authResult.user?.role !== 'BROKER') {
-      return NextResponse.json(
-        { error: 'No autorizado' },
-        { status: 401 }
-      )
-    }
+    const user = await requireBrokerOrTeamLeader(request)
+    if (user instanceof NextResponse) return user
 
     const { searchParams } = new URL(request.url)
     const rut = searchParams.get('rut')
@@ -41,7 +35,7 @@ export async function GET(request: NextRequest) {
 
     if (cliente) {
       // Verificar si el cliente pertenece al broker actual
-      const isOwnClient = cliente.brokerId === authResult.user.id
+      const isOwnClient = cliente.brokerId === user.id
 
       return NextResponse.json({
         success: true,

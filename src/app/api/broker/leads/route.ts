@@ -1,19 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
-import { getAuthenticatedUser } from '@/lib/auth'
+import { requireBrokerOrTeamLeader } from '@/lib/auth'
 import { commissionRulesCache, formatYearMonth } from '@/lib/cache/commission-rules-cache'
 
 // El middleware ya validó que el usuario es BROKER
 export async function POST(request: NextRequest) {
   try {
-    // Obtener el usuario autenticado (el middleware ya validó que es BROKER)
-    const user = await getAuthenticatedUser()
-    if (!user) {
-      return NextResponse.json(
-        { error: 'No autorizado' },
-        { status: 401 }
-      )
-    }
+    const user = await requireBrokerOrTeamLeader(request)
+    if (user instanceof NextResponse) return user
 
     const body = await request.json()
     const {
@@ -181,7 +175,7 @@ export async function POST(request: NextRequest) {
           fechaPagoLead: fechaPagoLead ? new Date(fechaPagoLead) : null,
           fechaCheckin: fechaCheckin ? new Date(fechaCheckin) : null,
           observaciones: observaciones || undefined,
-          brokerId: user.userId,
+          brokerId: user.id,
           clienteId,
           unidadId: finalUnidadId || null,
           edificioId,
@@ -255,8 +249,8 @@ export async function POST(request: NextRequest) {
     // Invalidate commission rules cache for this broker and month
     if (resultado.fechaPagoReserva) {
       const yearMonth = formatYearMonth(new Date(resultado.fechaPagoReserva))
-      commissionRulesCache.invalidateBrokerMonth(user.userId, yearMonth)
-      console.log(`[LeadCreation] Cache invalidated for broker ${user.userId}, month ${yearMonth}`)
+      commissionRulesCache.invalidateBrokerMonth(user.id, yearMonth)
+      console.log(`[LeadCreation] Cache invalidated for broker ${user.id}, month ${yearMonth}`)
     }
 
     return NextResponse.json({

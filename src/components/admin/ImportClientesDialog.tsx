@@ -161,10 +161,10 @@ export function ImportClientesDialog({ onImportComplete }: ImportClientesDialogP
 
   const downloadTemplate = () => {
     // Crear un CSV de ejemplo
-    const csvContent = `nombre,rut,telefono,correo,direccion,fecha de nacimiento,brokerAsignado
-Juan Pérez,12.345.678-9,+56 9 1234 5678,juan@example.com,Calle Principal 123,1990-01-15,carlos.rodriguez@email.com
-María González,98.765.432-1,+56 9 8765 4321,maria@example.com,Avenida Central 456,1985-05-20,
-Pedro Silva,11.222.333-4,+56 9 2233 4455,pedro@example.com,Pasaje Las Flores 789,1992-08-10,maria.gonzalez@email.com`
+    const csvContent = `nombre,telefono,correo,rut,direccion,fecha de nacimiento,brokerAsignado
+Juan Pérez,+56 9 1234 5678,juan@example.com,12.345.678-9,Calle Principal 123,1990-01-15,carlos.rodriguez@email.com
+María González,+56 9 8765 4321,maria@example.com,98.765.432-1,Avenida Central 456,1985-05-20,
+Pedro Silva,+56 9 2233 4455,pedro@example.com,,Pasaje Las Flores 789,1992-08-10,maria.gonzalez@email.com`
 
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
     const link = document.createElement('a')
@@ -188,7 +188,7 @@ Pedro Silva,11.222.333-4,+56 9 2233 4455,pedro@example.com,Pasaje Las Flores 789
           Importar Clientes
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[600px]">
+      <DialogContent className="sm:max-w-[600px] max-h-[85vh] flex flex-col">
         <DialogHeader>
           <DialogTitle className="flex items-center">
             <FileSpreadsheet className="w-5 h-5 mr-2" />
@@ -199,7 +199,7 @@ Pedro Silva,11.222.333-4,+56 9 2233 4455,pedro@example.com,Pasaje Las Flores 789
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4 py-4">
+        <div className="space-y-4 py-4 overflow-y-auto flex-1">
           {/* Información sobre el formato */}
           <Alert>
             <AlertCircle className="h-4 w-4" />
@@ -208,9 +208,9 @@ Pedro Silva,11.222.333-4,+56 9 2233 4455,pedro@example.com,Pasaje Las Flores 789
               <p>El archivo debe contener las siguientes columnas:</p>
               <ul className="list-disc list-inside ml-2 space-y-1">
                 <li><strong>nombre</strong> (requerido)</li>
-                <li><strong>rut</strong> (requerido, único)</li>
-                <li><strong>telefono</strong> (opcional)</li>
-                <li><strong>correo</strong> (opcional)</li>
+                <li><strong>telefono</strong> (requerido, único)</li>
+                <li><strong>correo</strong> (requerido)</li>
+                <li><strong>rut</strong> (opcional)</li>
                 <li><strong>direccion</strong> (opcional)</li>
                 <li><strong>fecha de nacimiento</strong> (opcional, formato: YYYY-MM-DD)</li>
                 <li><strong>brokerAsignado</strong> (opcional, RUT, email o nombre del broker - deje vacío si no tiene broker asignado)</li>

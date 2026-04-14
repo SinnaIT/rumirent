@@ -59,7 +59,13 @@
       "Bash(npx shadcn@latest add:*)",
       "Bash(chmod:*)",
       "Bash(dir:*)",
-      "Bash(ls:*)"
+      "Bash(ls:*)",
+      "Bash(head -80 /d/development/sinntait/rumirent/rumirent-app/src/app/api/broker/leads/[id]/route.ts)",
+      "Bash(wc -l /d/development/sinntait/rumirent/rumirent-app/src/app/api/**/*.ts)",
+      "Bash(grep -c \"team-leader/mi-gestion\" src/app/team-leader/mi-gestion/leads/[id]/page.tsx)",
+      "Bash(grep -c \"team-leader/mi-gestion\" src/app/team-leader/mi-gestion/proyectos/[id]/page.tsx)",
+      "Bash(__NEW_LINE_8c75f9b1fdcba347__ echo:*)",
+      "Bash(grep -v \"^$\")"
     ],
     "deny": [],
     "ask": []

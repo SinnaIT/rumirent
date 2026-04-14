@@ -6,25 +6,6 @@ export async function GET(request: NextRequest) {
   try {
     console.log('🔍 Iniciando GET /api/admin/edificios')
 
-    // En desarrollo, omitir verificación de autenticación por ahora
-    if (process.env.NODE_ENV === 'development') {
-      console.log('🛠️ Modo desarrollo - omitiendo autenticación')
-    } else {
-      // Verificar autenticación y rol de administrador
-      const authResult = await verifyAuth(request)
-      console.log('🔐 Resultado de autenticación:', authResult)
-
-      if (!authResult.success || authResult.user?.role !== 'ADMIN') {
-        console.log('❌ No autorizado')
-        return NextResponse.json(
-          { error: 'No autorizado' },
-          { status: 401 }
-        )
-      }
-    }
-
-    console.log('✅ Usuario autorizado, consultando edificios...')
-
     // Get filter parameters from query params
     const { searchParams } = new URL(request.url)
     const empresaId = searchParams.get('empresaId')
@@ -96,6 +77,11 @@ export async function GET(request: NextRequest) {
         unidades: {
           select: {
             estado: true,
+            leads: {
+              select: {
+                estado: true
+              }
+            },
             tipoUnidadEdificio: {
               select: {
                 nombre: true,
@@ -132,9 +118,14 @@ export async function GET(request: NextRequest) {
 
     // Formatear datos con estadísticas calculadas
     const edificiosFormatted = edificios.map(edificio => {
-      const unidadesDisponibles = edificio.unidades.filter(u => u.estado === 'DISPONIBLE').length
-      const unidadesVendidas = edificio.unidades.filter(u => u.estado === 'VENDIDA').length
-      const unidadesReservadas = edificio.unidades.filter(u => u.estado === 'RESERVADA').length
+      const ESTADOS_ARRENDADA = ['DEPARTAMENTO_ENTREGADO']
+      const unidadesVendidas = edificio.unidades.filter(u =>
+       (u.leads && ESTADOS_ARRENDADA.includes(u.leads.estado))
+      ).length
+      const unidadesReservadas = edificio.unidades.filter(u =>
+        u.estado === 'RESERVADA'
+      ).length
+      const unidadesDisponibles = edificio.unidades.length - unidadesReservadas
 
       // Agrupar unidades por tipo
       const tiposUnidad = edificio.unidades.reduce((acc: Record<string, number>, unidad) => {
@@ -186,20 +177,6 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    // En desarrollo, omitir verificación de autenticación por ahora
-    if (process.env.NODE_ENV === 'development') {
-      console.log('🛠️ Modo desarrollo - omitiendo autenticación para POST')
-    } else {
-      // Verificar autenticación y rol de administrador
-      const authResult = await verifyAuth(request)
-      if (!authResult.success || authResult.user?.role !== 'ADMIN') {
-        return NextResponse.json(
-          { error: 'No autorizado' },
-          { status: 401 }
-        )
-      }
-    }
-
     const body = await request.json()
     const {
       nombre,

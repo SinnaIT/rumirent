@@ -9,55 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { CalendarDays, TrendingUp, DollarSign, FileText, ChevronDown, ChevronUp } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 
-interface ComisionMensual {
-  id: string
-  leadId: string
-  clienteNombre: string
-  edificioNombre: string
-  unidadCodigo: string
-  totalLead: number
-  comision: number
-  comisionProyectada: number
-  comisionConfirmada: number
-  montoComision?: number // Para compatibilidad con código anterior
-  porcentajeComision: number
-  fechaPagoReserva: string | null
-  fechaCheckin: string | null
-  reservaEnPeriodo: boolean
-  checkinEnPeriodo: boolean
-  fechaLead?: string // Para compatibilidad con código anterior
-  estadoLead: string
-}
-
-interface ResumenAnual {
-  mes: string
-  totalComisiones: number
-  cantidadVentas: number
-  promedioComision: number
-}
-
-interface CashFlowDay {
-  fecha: string
-  totalComisiones: number
-  cantidadLeads: number
-  leads: Array<{
-    id: string
-    clienteNombre: string
-    edificioNombre: string
-    unidadCodigo: string
-    montoComision: number
-    estado: string
-  }>
-}
-
-interface CashFlowResponse {
-  data: CashFlowDay[]
-  summary: {
-    totalComisiones: number
-    totalLeads: number
-    promedioComision: number
-  }
-}
+import type { ComisionMensual, ResumenAnual, CashFlowResponse } from '@/types'
 
 export default function ReportesPage() {
   const [selectedMonth, setSelectedMonth] = useState<string>(new Date().getMonth().toString())

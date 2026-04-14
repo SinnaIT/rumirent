@@ -17,23 +17,6 @@ export async function POST(request: NextRequest) {
   try {
     console.log('🔍 Iniciando POST /api/admin/clientes/import')
 
-    // En desarrollo, omitir verificación de autenticación por ahora
-    if (process.env.NODE_ENV === 'development') {
-      console.log('🛠️ Modo desarrollo - omitiendo autenticación')
-    } else {
-      // Verificar autenticación y rol de administrador
-      const authResult = await verifyAuth(request)
-      console.log('🔐 Resultado de autenticación:', authResult)
-
-      if (!authResult.success || authResult.user?.role !== 'ADMIN') {
-        console.log('❌ No autorizado')
-        return NextResponse.json(
-          { error: 'No autorizado' },
-          { status: 401 }
-        )
-      }
-    }
-
     // Obtener el archivo del FormData
     const formData = await request.formData()
     const file = formData.get('file') as File
@@ -91,13 +74,13 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Validar columnas requeridas (case insensitive) - solo nombre y rut son obligatorios
-    const requiredColumns = ['nombre', 'rut']
+    // Validar columnas requeridas (case insensitive) - nombre, telefono y correo son obligatorios
+    const requiredColumns = ['nombre', 'telefono', 'correo']
     const firstRow = data[0]
     const columnNames = Object.keys(firstRow).map(k => k.toLowerCase())
 
     const missingColumns = requiredColumns.filter(col =>
-      !columnNames.some(cn => cn.includes(col))
+      !columnNames.some(cn => cn.includes(col) || (col === 'correo' && (cn.includes('email') || cn.includes('mail'))) || (col === 'telefono' && cn.includes('teléfono')))
     )
 
     if (missingColumns.length > 0) {
@@ -169,12 +152,12 @@ export async function POST(request: NextRequest) {
           'broker'
         ])
 
-        // Validar campos requeridos - solo nombre y rut son obligatorios
-        if (!nombre || !rut) {
+        // Validar campos requeridos - nombre, telefono y correo son obligatorios
+        if (!nombre || !telefono || !email) {
           results.errors.push({
             row: rowNumber,
-            error: 'Faltan campos requeridos: nombre y/o rut',
-            data: { nombre, rut }
+            error: 'Faltan campos requeridos: nombre, telefono y/o correo',
+            data: { nombre, telefono, correo: email }
           })
           continue
         }
@@ -219,19 +202,19 @@ export async function POST(request: NextRequest) {
           }
         }
 
-        // Upsert: crear o actualizar
+        // Upsert: crear o actualizar por telefono (campo único)
         const clienteData = {
           nombre,
-          rut,
+          rut: rut || null,
           email: email || null,
-          telefono: telefono || null,
+          telefono,
           direccion: direccion || null,
           fechaNacimiento,
           brokerId
         }
 
         const cliente = await prisma.cliente.upsert({
-          where: { rut },
+          where: { telefono },
           create: clienteData,
           update: clienteData,
           include: {

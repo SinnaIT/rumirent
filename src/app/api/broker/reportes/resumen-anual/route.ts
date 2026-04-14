@@ -1,13 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { verifyAuth } from '@/lib/auth'
+import { requireBrokerOrTeamLeader } from '@/lib/auth'
 import { prisma } from '@/lib/db'
 
 export async function GET(request: NextRequest) {
   try {
-    const authResult = await verifyAuth(request)
-    if (!authResult.success || authResult.user?.role !== 'BROKER') {
-      return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
-    }
+    const user = await requireBrokerOrTeamLeader(request)
+    if (user instanceof NextResponse) return user
 
     const { searchParams } = new URL(request.url)
     const year = searchParams.get('year')
@@ -25,7 +23,7 @@ export async function GET(request: NextRequest) {
     // Buscar todos los leads del broker en el año (excluyendo rechazados)
     const leads = await prisma.lead.findMany({
       where: {
-        brokerId: authResult.user.id,
+        brokerId: user.id,
         createdAt: {
           gte: fechaInicio,
           lte: fechaFin,
