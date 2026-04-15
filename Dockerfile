@@ -47,8 +47,9 @@ RUN mkdir -p ./public/uploads/edificios && chown -R nextjs:nodejs ./public/uploa
 # Copy Prisma schema and migrations (complete folder from builder)
 COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
 
-# Copiar todo node_modules de deps (incluye Prisma generado)
-COPY --from=deps /app/node_modules ./node_modules
+# Copiar solo los binarios de Prisma necesarios en runtime
+COPY --from=deps /app/node_modules/.prisma ./node_modules/.prisma
+COPY --from=deps /app/node_modules/@prisma ./node_modules/@prisma
 
 RUN mkdir .next && chown nextjs:nodejs .next
 
@@ -56,7 +57,6 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
 COPY --from=builder --chown=nextjs:nodejs /app/package.json ./package.json
-COPY --from=builder --chown=nextjs:nodejs /app/src ./src
 
 USER nextjs
 

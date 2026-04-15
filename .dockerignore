@@ -46,3 +46,11 @@ coverage
 
 # Misc
 README*.md
+
+# Directorios no necesarios en la imagen
+backup/
+agent_documentation/
+design/
+proyect_documentations/
+scripts/
+tests/
