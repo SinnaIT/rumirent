@@ -45,6 +45,7 @@ const menuItems = [
   { icon: Calculator, label: 'Comisiones', href: '/admin/comisiones' },
   { icon: Target, label: 'Metas Mensuales', href: '/admin/metas' },
   { icon: FileCheck, label: 'Conciliación', href: '/admin/conciliacion' },
+  { icon: DollarSign, label: 'Anticipos', href: '/admin/anticipos' },
   { icon: Receipt, label: 'Impuestos', href: '/admin/impuestos' },
   {
     icon: BarChart3,

@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { verifyAuth } from "@/lib/auth";
+import { PrismaAnticipoRepository } from "@/core/infrastructure/adapters/PrismaAnticipoRepository";
+import { GetAnticiposByPeriodUseCase } from "@/core/application/use-cases/anticipo";
+import { AnticipoStatus } from "@/core/domain/enums";
 
 const MESES_NOMBRES = [
   "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
@@ -81,6 +84,11 @@ export async function GET(request: NextRequest) {
       },
     });
 
+    // Fetch applied anticipos for this period
+    const anticiPoRepo = new PrismaAnticipoRepository(prisma);
+    const anticiPoUseCase = new GetAnticiposByPeriodUseCase(anticiPoRepo);
+    const anticiPoMap = await anticiPoUseCase.execute(mes, anio, AnticipoStatus.APLICADO);
+
     // Group leads by broker and calculate metrics
     const brokerMap = new Map<string, {
       brokerId: string;
@@ -121,7 +129,7 @@ export async function GET(request: NextRequest) {
           reservas: 0,
           checkin: 0,
           montoBruto: 0,
-          anticipos: 0,
+          anticipos: anticiPoMap.get(brokerId) ?? 0,
           despAnticipo: 0,
           liquido: 0,
           leads: [],
@@ -156,6 +164,11 @@ export async function GET(request: NextRequest) {
 
       // Sum liquido (comision)
       brokerData.liquido += lead.comision;
+    });
+
+    // Calculate despAnticipo for each broker after all leads are processed
+    brokerMap.forEach((brokerData) => {
+      brokerData.despAnticipo = brokerData.liquido - brokerData.anticipos;
     });
 
     // Convert map to array and sort by broker name

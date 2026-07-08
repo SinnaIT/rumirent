@@ -28,6 +28,7 @@ model User {
   clientes           Cliente[]     @relation("ClienteBroker")
   leads              Lead[]
   metasMensuales     MetaMensual[]
+  anticipos          Anticipo[]
   commissionTaxType  TaxType?      @relation(fields: [commissionTaxTypeId], references: [id])
   teamLeader         User?         @relation("TeamHierarchy", fields: [teamLeaderId], references: [id])
   teamBrokers        User[]        @relation("TeamHierarchy")
@@ -335,6 +336,30 @@ enum EstadoLead {
 enum TaxNature {
   ADDITIVE
   DEDUCTIVE
+}
+
+enum AnticipoStatus {
+  PENDIENTE
+  APLICADO
+  ANULADO
+}
+
+model Anticipo {
+  id              String         @id @default(cuid())
+  brokerId        String
+  monto           Float
+  fecha           DateTime
+  descripcion     String?
+  mes             Int
+  anio            Int
+  status          AnticipoStatus @default(PENDIENTE)
+  paymentMethod   String?
+  referenceNumber String?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  broker          User           @relation(fields: [brokerId], references: [id], onDelete: Cascade)
+
+  @@map("anticipos")
 }
 
 model TaxType {

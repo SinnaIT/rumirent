@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { verifyAuth } from '@/lib/auth'
 import { prisma } from '@/lib/db'
+import { PrismaAnticipoRepository } from '@/core/infrastructure/adapters/PrismaAnticipoRepository'
+import { GetAnticiposByPeriodUseCase } from '@/core/application/use-cases/anticipo'
+import { AnticipoStatus } from '@/core/domain/enums'
 
 const MESES_NOMBRES = [
   'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
@@ -183,6 +186,11 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    // Fetch applied anticipos for this period and build a broker->total map
+    const anticiPoRepo = new PrismaAnticipoRepository(prisma)
+    const anticiPoUseCase = new GetAnticiposByPeriodUseCase(anticiPoRepo)
+    const anticiPoMap = await anticiPoUseCase.execute(mesNum, anioNum, AnticipoStatus.APLICADO)
+
     // Group by broker and calculate summaries
     const brokerMap = new Map<string, {
       brokerId: string
@@ -234,7 +242,7 @@ export async function GET(request: NextRequest) {
           leadsPendientes: 0,
           leadsValidos: 0,
           checkin: 0,
-          anticipos: 0,
+          anticipos: anticiPoMap.get(brokerId) ?? 0,
           despAnticipo: 0,
           taxInfo,
           taxAmount: 0,
@@ -380,8 +388,8 @@ export async function GET(request: NextRequest) {
       leadsPendientes: leadsValidos.filter(l => !l.conciliado).length,
       leadsValidos: leadsValidos.length,
       checkin: leads.filter(l => l.fechaCheckin).length,
-      anticipos: 0,
-      despAnticipo: leadsValidos.reduce((sum, lead) => sum + lead.comision, 0),
+      anticipos: Array.from(anticiPoMap.values()).reduce((sum, v) => sum + v, 0),
+      despAnticipo: leadsValidos.reduce((sum, lead) => sum + lead.comision, 0) - Array.from(anticiPoMap.values()).reduce((sum, v) => sum + v, 0),
       totalTaxAmount,
       totalLiquidAmount,
     }

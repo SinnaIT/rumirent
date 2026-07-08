@@ -5,7 +5,8 @@
       "Bash(grep -r Role /d/development/sinntait/rumirent/rumirent-app/src --include=*.ts --include=*.tsx)",
       "Bash(grep -r \"interface.*User\\\\|type.*User\" /d/development/sinntait/rumirent/rumirent-app/src --include=*.ts --include=*.tsx)",
       "Bash(grep -r \"team\\\\|group\\\\|equipo\" /d/development/sinntait/rumirent/rumirent-app/src --include=*.tsx --include=*.ts -l)",
-      "Bash(head -80 /d/development/sinntait/rumirent/rumirent-app/src/app/api/broker/clientes/[id]/route.ts)"
+      "Bash(head -80 /d/development/sinntait/rumirent/rumirent-app/src/app/api/broker/clientes/[id]/route.ts)",
+      "Bash(wc -l d:/development/sinntait/rumirent/rumirent-app/src/app/admin/leads/page.tsx d:/development/sinntait/rumirent/rumirent-app/src/app/admin/proyectos/[id]/page.tsx d:/development/sinntait/rumirent/rumirent-app/src/app/broker/generar-lead/page.tsx)"
     ]
   }
 }
