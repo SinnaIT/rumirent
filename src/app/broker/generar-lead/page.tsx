@@ -1323,7 +1323,7 @@ export default function GenerarLeadPage() {
                 Fechas del Lead
               </CardTitle>
               <CardDescription>
-                Fechas importantes del proceso de venta (opcionales)
+                Fechas importantes del proceso de venta
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { requireBrokerOrTeamLeader } from '@/lib/auth'
 import { syncUnidadEstadoForLead } from '@/lib/lead-unit-sync'
+import { resolveCommissionSource, calculateCommissionAmount } from '@/lib/commissions'
 
 export async function PUT(
   request: NextRequest,
@@ -107,59 +108,16 @@ export async function PUT(
       const leadWithRelations = await prisma.lead.findUnique({
         where: { id },
         include: {
-          unidad: {
-            include: {
-              tipoUnidadEdificio: {
-                include: {
-                  comision: true
-                }
-              }
-            }
-          },
-          edificio: {
-            include: {
-              comision: true
-            }
-          },
-          tipoUnidadEdificio: {
-            include: {
-              comision: true
-            }
-          }
-        }
+          unidad: { include: { tipoUnidadEdificio: { include: { comision: true } } } },
+          edificio: { include: { comision: true } },
+          tipoUnidadEdificio: { include: { comision: true } },
+        },
       })
 
       if (leadWithRelations) {
-        let comisionPorcentaje = 0
-        let selectedComisionId = null
-
-        // Priority 1: TipoUnidadEdificio commission (direct from lead)
-        if (leadWithRelations.tipoUnidadEdificio?.comision) {
-          comisionPorcentaje = leadWithRelations.tipoUnidadEdificio.comision.porcentaje
-          selectedComisionId = leadWithRelations.tipoUnidadEdificio.comision.id
-        }
-        // Priority 2: Unidad's TipoUnidadEdificio commission
-        else if (leadWithRelations.unidad?.tipoUnidadEdificio?.comision) {
-          comisionPorcentaje = leadWithRelations.unidad.tipoUnidadEdificio.comision.porcentaje
-          selectedComisionId = leadWithRelations.unidad.tipoUnidadEdificio.comision.id
-        }
-        // Priority 3: Edificio commission
-        else if (leadWithRelations.edificio?.comision) {
-          comisionPorcentaje = leadWithRelations.edificio.comision.porcentaje
-          selectedComisionId = leadWithRelations.edificio.comision.id
-        }
-
-        // Calculate and add to update data
-        const calculatedComision = leadWithRelations.totalLead * comisionPorcentaje
-        datosActualizacion.comision = calculatedComision
-        datosActualizacion.comisionId = selectedComisionId
-
-        console.log('💰 Comisión calculada automáticamente (broker):', {
-          totalLead: leadWithRelations.totalLead,
-          porcentaje: comisionPorcentaje,
-          comision: calculatedComision,
-          comisionId: selectedComisionId
-        })
+        const resolution = resolveCommissionSource(leadWithRelations)
+        datosActualizacion.comision = calculateCommissionAmount(leadWithRelations.totalLead, resolution.porcentaje)
+        datosActualizacion.comisionId = resolution.comisionId
       }
     }
 

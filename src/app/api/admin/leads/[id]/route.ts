@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { verifyAuth } from '@/lib/auth'
 import { syncUnidadEstadoForLead } from '@/lib/lead-unit-sync'
+import { resolveCommissionSource, calculateCommissionAmount } from '@/lib/commissions'
 
 export async function GET(
   request: NextRequest,
@@ -9,7 +10,6 @@ export async function GET(
 ) {
   try {
     const { id } = await params
-    console.log('🔍 GET /api/admin/leads/' + id)
     const lead = await prisma.lead.findUnique({
       where: { id },
       include: {
@@ -127,76 +127,15 @@ export async function GET(
   }
 }
 
-// Helper function to calculate commission based on lead data
-async function calculateLeadCommission(
-  leadId: string,
-  totalLeadAmount: number,
-  tipoUnidadEdificioId: string | null,
-  unidadId: string | null,
-  edificioId: string | null
-): Promise<{ comision: number; comisionId: string | null }> {
-  const leadWithRelations = await prisma.lead.findUnique({
+async function fetchLeadWithCommissionRelations(leadId: string) {
+  return prisma.lead.findUnique({
     where: { id: leadId },
     include: {
-      unidad: {
-        include: {
-          tipoUnidadEdificio: {
-            include: {
-              comision: true
-            }
-          }
-        }
-      },
-      edificio: {
-        include: {
-          comision: true
-        }
-      },
-      tipoUnidadEdificio: {
-        include: {
-          comision: true
-        }
-      }
-    }
+      unidad: { include: { tipoUnidadEdificio: { include: { comision: true } } } },
+      edificio: { include: { comision: true } },
+      tipoUnidadEdificio: { include: { comision: true } },
+    },
   })
-
-  let comisionPorcentaje = 0
-  let selectedComisionId = null
-
-  if (leadWithRelations) {
-    // Priority 1: TipoUnidadEdificio commission (direct from lead)
-    if (leadWithRelations.tipoUnidadEdificio?.comision) {
-      comisionPorcentaje = leadWithRelations.tipoUnidadEdificio.comision.porcentaje
-      selectedComisionId = leadWithRelations.tipoUnidadEdificio.comision.id
-    }
-    // Priority 2: Unidad's TipoUnidadEdificio commission
-    else if (leadWithRelations.unidad?.tipoUnidadEdificio?.comision) {
-      comisionPorcentaje = leadWithRelations.unidad.tipoUnidadEdificio.comision.porcentaje
-      selectedComisionId = leadWithRelations.unidad.tipoUnidadEdificio.comision.id
-    }
-    // Priority 3: Edificio commission
-    else if (leadWithRelations.edificio?.comision) {
-      comisionPorcentaje = leadWithRelations.edificio.comision.porcentaje
-      selectedComisionId = leadWithRelations.edificio.comision.id
-    }
-  }
-
-  const calculatedComision = totalLeadAmount * comisionPorcentaje
-
-  console.log('💰 Comisión calculada:', {
-    totalLead: totalLeadAmount,
-    porcentaje: comisionPorcentaje,
-    comision: calculatedComision,
-    comisionId: selectedComisionId,
-    source: leadWithRelations?.tipoUnidadEdificio?.comision ? 'TipoUnidadEdificio' :
-            leadWithRelations?.unidad?.tipoUnidadEdificio?.comision ? 'Unidad->TipoUnidadEdificio' :
-            leadWithRelations?.edificio?.comision ? 'Edificio' : 'None'
-  })
-
-  return {
-    comision: calculatedComision,
-    comisionId: selectedComisionId
-  }
 }
 
 export async function PUT(
@@ -205,7 +144,6 @@ export async function PUT(
 ) {
   try {
     const { id } = await params
-    console.log('🔄 PUT /api/admin/leads/' + id)
     const body = await request.json()
     const {
       codigoUnidad,
@@ -228,8 +166,6 @@ export async function PUT(
       tipoUnidadEdificioId,
       unidadId
     } = body
-
-    console.log('📝 Datos a actualizar:', body)
 
     // Validaciones básicas
     if (!totalLead || !montoUf || !brokerId || !clienteId) {
@@ -303,8 +239,6 @@ export async function PUT(
 
     // Only auto-recalculate if commission-affecting fields changed AND commission was not manually set
     if (commissionAffectingFieldsChanged && !manualComision) {
-      console.log('🔄 Campos que afectan la comisión han cambiado, actualizando lead temporalmente...')
-
       await prisma.lead.update({
         where: { id },
         data: {
@@ -314,19 +248,13 @@ export async function PUT(
         }
       })
 
-      console.log('♻️ Recalculando comisión automáticamente...')
-      const calculationResult = await calculateLeadCommission(
-        id,
-        totalLeadAmount,
-        tipoUnidadEdificioId === 'none' ? null : (tipoUnidadEdificioId || existingLead.tipoUnidadEdificioId),
-        unidadId === 'none' ? null : (unidadId || existingLead.unidadId),
-        edificioId || existingLead.edificioId
-      )
-
-      calculatedComision = calculationResult.comision
-      calculatedComisionId = calculationResult.comisionId
+      const leadWithRelations = await fetchLeadWithCommissionRelations(id)
+      if (leadWithRelations) {
+        const resolution = resolveCommissionSource(leadWithRelations)
+        calculatedComision = calculateCommissionAmount(totalLeadAmount, resolution.porcentaje)
+        calculatedComisionId = resolution.comisionId
+      }
     } else if (manualComision) {
-      console.log('✏️ Comisión establecida manualmente por el administrador, omitiendo recálculo automático')
     }
 
     // Actualizar lead
@@ -441,8 +369,6 @@ export async function PUT(
       previousUnidadId: existingLead.unidadId,
       leadEstado: updatedLead.estado
     })
-
-    console.log('✅ Lead actualizado exitosamente')
 
     const leadFormatted = {
       id: updatedLead.id,

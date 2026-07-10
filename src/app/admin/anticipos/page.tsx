@@ -459,7 +459,7 @@ export default function AnticiposPage() {
                   value={formData.monto}
                   onChange={(e) => setFormData({ ...formData, monto: e.target.value })}
                   min="1"
-                  step="1000"
+                  step="1"
                   required
                 />
               </div>

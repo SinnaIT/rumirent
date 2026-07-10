@@ -1,11 +1,12 @@
 import { prisma } from '@/lib/db'
+import { recalculateCommissionsForPeriod } from '@/lib/commissions'
 
 /**
  * Ejecuta los cambios de comisión programados que han llegado a su fecha
  * Actualiza las comisiones de edificios o tipos de unidad según corresponda
  */
 export async function executeScheduledCommissionChanges() {
-  console.log('📅 Starting execution of scheduled commission changes...')
+  console.info('[execute-commission-changes] Starting...')
 
   try {
     const now = new Date()
@@ -35,7 +36,7 @@ export async function executeScheduledCommissionChanges() {
       }
     })
 
-    console.log(`📊 Found ${cambiosPendientes.length} pending commission changes to execute`)
+    console.info(`[execute-commission-changes] Found ${cambiosPendientes.length} pending changes`)
 
     let executedCount = 0
     let errorCount = 0
@@ -85,16 +86,14 @@ export async function executeScheduledCommissionChanges() {
       }
     }
 
-    console.log(`✅ Scheduled commission changes execution completed:`)
-    console.log(`   - Total changes processed: ${cambiosPendientes.length}`)
-    console.log(`   - Executed: ${executedCount}`)
-    console.log(`   - Errors: ${errorCount}`)
+    console.info(`[execute-commission-changes] Done — processed: ${cambiosPendientes.length} | executed: ${executedCount} | errors: ${errorCount}`)
 
-    // Si se ejecutaron cambios, recalcular comisiones de leads afectados
+    // Recalculate commissions for current month after applying scheduled changes
     if (executedCount > 0) {
-      console.log(`🔄 Triggering commission recalculation for affected leads...`)
-      // Nota: Esto se ejecutará en el siguiente ciclo del cron job de recálculo
-      // o podríamos llamar a recalculateCommissions() aquí directamente
+      const now = new Date()
+      const startDate = new Date(now.getFullYear(), now.getMonth(), 1)
+      const endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59)
+      await recalculateCommissionsForPeriod(startDate, endDate)
     }
 
     return {

@@ -370,6 +370,11 @@ export async function GET(request: NextRequest) {
       (a, b) => b.totalComision - a.totalComision
     )
 
+    // Subtract anticipos from each broker's liquidAmount
+    brokersData.forEach(b => {
+      b.liquidAmount = b.liquidAmount - b.anticipos
+    })
+
     // Calculate grand totals
     const leadsValidos = leads.filter(l => l.estado === 'DEPARTAMENTO_ENTREGADO' && l.fechaCheckin !== null)
 
