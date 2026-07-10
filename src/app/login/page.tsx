@@ -237,9 +237,10 @@ export default function LoginPage() {
       />
 
       {/* Footer */}
-      <div className="absolute bottom-4 left-4 text-white/70 text-xs sm:text-sm flex items-center space-x-1">
+      <div className="absolute bottom-4 left-4 text-white/70 text-xs sm:text-sm flex items-center space-x-2">
         <span className="hidden sm:inline">© 2025 RumiRent. Todos los derechos reservados.</span>
         <span className="sm:hidden">© 2025 RumiRent</span>
+        <span className="opacity-60">v0.1.0</span>
       </div>
 
       {/* Help Button */}

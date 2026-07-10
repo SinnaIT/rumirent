@@ -187,6 +187,7 @@ export function WorkspaceLayout({ children, allowedRoles }: WorkspaceLayoutProps
                 <span className="text-xs text-muted-foreground"><span>{getRoleLabel(role)}</span></span>
               </div>
             </div>
+            <p className="text-xs text-muted-foreground/50 text-center">v0.1.0</p>
           </div>
         </div>
       </aside>
